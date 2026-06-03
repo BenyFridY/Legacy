@@ -1,0 +1,47 @@
+# --- Material confidencial do case (este repositório é PÚBLICO) ---
+# O enunciado do case é material interno da Legacy Capital — não versionar.
+*.pdf
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Segredos / configuração local ---
+.env
+.env.*
+!.env.example
+secrets.*
+*.key
+
+# --- Dados (a base é AUTO-ALIMENTADA pela ingestão; não versionar) ---
+data/
+*.duckdb
+*.duckdb.wal
+*.sqlite
+*.sqlite3
+*.parquet
+*.faiss
+*.index
+.cache/
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+
+# --- IDE / SO ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,9 @@
+# Normaliza quebras de linha para LF no repositório (evita ruído de diff entre SOs)
+* text=auto eol=lf
+
+# Binários
+*.pdf binary
+*.png binary
+*.jpg binary
+*.parquet binary
+*.duckdb binary
