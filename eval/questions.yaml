@@ -1,0 +1,184 @@
+# Conjunto de avaliação — Caso B (consignado; BB, Bradesco, Itaú; Nubank = não-respondível)
+# "Comece pelo eval": estas perguntas existem ANTES do sistema, para guiar a construção.
+#
+# Schema de cada item:
+#   id:                identificador estável
+#   category:          single_doc | multi_source | non_answerable
+#   subcase:           B1 | B2 | B3 | -          (qual sub-caso do enunciado exercita)
+#   question:          a pergunta (PT)
+#   expected_behavior: answer | refuse
+#   gold_value:        resposta numérica/textual esperada (null se só testa retrieval/recusa)
+#   gold_value_status: verified_web | from_research | pin_at_ingestion
+#                      (gold de número será CONFIRMADO contra o doc primário na ingestão)
+#   gold_sources:      de qual(is) doc(s)/série o trecho/linha certo deve vir (gold de retrieval)
+#   tests:             [retrieval] e/ou [faithfulness] e/ou [refusal]
+#   notes:             racional / armadilha que a pergunta testa
+
+questions:
+
+  # ---------- CATEGORIA: DOCUMENTO ÚNICO ----------
+  - id: bb-custo-credito-realizado-2025
+    category: single_doc
+    subcase: "-"
+    question: "Qual foi o custo do crédito realizado pelo Banco do Brasil em 2025?"
+    expected_behavior: answer
+    gold_value: "R$ 62,0 bilhões"
+    gold_value_status: from_research
+    gold_sources:
+      - bank: BB
+        doc_type: analise_desempenho
+        period: 2025
+        note: "linha 'Custo do Crédito' (conceito Res. CMN 4.966/21)"
+    tests: [retrieval, faithfulness]
+    notes: "Fato em um único documento. Gold a confirmar contra o release 4T25 na ingestão."
+
+  - id: itau-guidance-custo-credito-2026
+    category: single_doc
+    subcase: B1
+    question: "Qual a faixa de guidance de custo de crédito do Itaú para 2026?"
+    expected_behavior: answer
+    gold_value: "R$ 38,5 a 43,5 bilhões"
+    gold_value_status: from_research
+    gold_sources:
+      - bank: Itau
+        doc_type: mda_release
+        period: 2026_guidance
+        note: "seção '2026 Guidance' do MD&A"
+    tests: [retrieval, faithfulness]
+
+  - id: bradesco-share-consignado-declarado
+    category: single_doc
+    subcase: B3
+    question: "Qual market share de consignado o CEO do Bradesco declarou na teleconferência de resultados?"
+    expected_behavior: answer
+    gold_value: "≈ 14,2% no total (INSS 15,4%; público 14,3%; privado 7,5%)"
+    gold_value_status: from_research
+    gold_sources:
+      - bank: Bradesco
+        doc_type: transcricao_verbatim_oficial
+        period: recente
+        note: "fala literal do CEO — fonte oficial citável"
+    tests: [retrieval, faithfulness]
+    notes: "Testa recuperar uma afirmação DECLARADA na transcrição (o lado 'promete' do B3)."
+
+  # ---------- CATEGORIA: MULTI-FONTE / MULTI-PERÍODO ----------
+  - id: bb-guidance-vs-realizado-2025
+    category: multi_source
+    subcase: B1
+    question: "O guidance de custo de crédito do BB para 2025 se confirmou no realizado do ano?"
+    expected_behavior: answer
+    gold_value: "Guidance original ~R$53-58 bi, revisado para ~R$65-70 bi durante o ano (pressão do agro); realizado R$62,0 bi — acima da faixa original e abaixo da revisada."
+    gold_value_status: from_research
+    gold_sources:
+      - bank: BB
+        doc_type: analise_desempenho
+        period: guidance_inicial_2025
+        note: "Projeções Corporativas — faixa de custo de crédito"
+      - bank: BB
+        doc_type: analise_desempenho
+        period: 4T25
+        note: "realizado do ano + faixa revisada"
+    tests: [retrieval, faithfulness]
+    notes: "B1 clássico: multi-hop temporal+numérico (promessa em um doc, realização meses depois)."
+
+  - id: bradesco-share-declarado-vs-computado
+    category: multi_source
+    subcase: B3
+    question: "O market share de consignado do Bradesco computado a partir do IF.data confirma o ~14,2% que o CEO declarou?"
+    expected_behavior: answer
+    gold_value: null
+    gold_value_status: pin_at_ingestion
+    gold_sources:
+      - bank: Bradesco
+        doc_type: transcricao_verbatim_oficial
+        period: recente
+        note: "share declarado (texto)"
+      - source: bacen_ifdata
+        metric: market_share_consignado
+        entity: Bradesco_conglomerado_prudencial
+        note: "share COMPUTADO = carteira_Bradesco / SUM(carteira_sistema) na modalidade"
+    tests: [retrieval, faithfulness]
+    notes: "Núcleo do dual-path: cruza TEXTO (declarado) com NÚMERO COMPUTADO (IF.data). Gold pin na ingestão."
+
+  - id: itau-estrategia-clt-vs-share-real
+    category: multi_source
+    subcase: B3
+    question: "O Itaú declarou crescer em consignado privado (CLT). O market share dele em consignado subiu nos trimestres seguintes, segundo o IF.data?"
+    expected_behavior: answer
+    gold_value: null
+    gold_value_status: pin_at_ingestion
+    gold_sources:
+      - bank: Itau
+        doc_type: mda_release
+        period: serie
+        note: "estratégia declarada (Novo Consignado CLT)"
+      - source: bacen_ifdata
+        metric: market_share_consignado
+        entity: Itau_conglomerado_prudencial
+        note: "série de share computada"
+    tests: [retrieval, faithfulness]
+
+  - id: bb-share-consignado-trajetoria
+    category: multi_source
+    subcase: B3
+    question: "Como evoluiu o market share do Banco do Brasil em consignado nos últimos quatro trimestres?"
+    expected_behavior: answer
+    gold_value: null
+    gold_value_status: pin_at_ingestion
+    gold_sources:
+      - source: bacen_ifdata
+        metric: market_share_consignado
+        entity: BB_conglomerado_prudencial
+        note: "série trimestral computada"
+    tests: [retrieval, faithfulness]
+    notes: "Multi-período puramente estruturado (caminho SQL). Sem prosa necessária."
+
+  # ---------- CATEGORIA: NÃO-RESPONDÍVEL (deve RECUSAR) ----------
+  - id: nubank-vs-itau-guidance-pdd
+    category: non_answerable
+    subcase: B1
+    question: "Compare o guidance de custo de crédito do Nubank com o do Itaú."
+    expected_behavior: refuse
+    gold_value: null
+    gold_value_status: verified_web
+    gold_sources: []
+    tests: [refusal]
+    notes: "Nubank reporta USD/IFRS (20-F) e praticamente não dá guidance numérico de PDD — incomparável com Itaú (BRL/Cosif). Recusa por CRUZAMENTO de base contábil/moeda, não pelo nome."
+
+  - id: bradesco-custo-credito-futuro
+    category: non_answerable
+    subcase: "-"
+    question: "Qual será o custo de crédito do Bradesco no 2º trimestre de 2027?"
+    expected_behavior: refuse
+    gold_value: null
+    gold_value_status: verified_web
+    gold_sources: []
+    tests: [refusal]
+    notes: "Período futuro inexistente na base → recusar."
+
+  - id: itau-citacao-verbatim-inexistente
+    category: non_answerable
+    subcase: B2
+    question: "Cite a frase literal do CEO do Itaú na teleconferência do 4T25 sobre consignado."
+    expected_behavior: refuse
+    gold_value: null
+    gold_value_status: verified_web
+    gold_sources: []
+    tests: [refusal]
+    notes: "Itaú NÃO publica transcrição verbatim oficial recente (só press release/áudio). Se a base só tem o MD&A, o sistema deve RECUSAR a citação literal em vez de inventar/parafrasear — testa a regra de citação."
+
+  # ---------- DISTRATOR ANTI-OVER-RECUSA (é RESPONDÍVEL) ----------
+  - id: nubank-share-cartao-respondivel
+    category: multi_source
+    subcase: B3
+    question: "Qual o market share do Nubank em cartão de crédito, segundo o IF.data?"
+    expected_behavior: answer
+    gold_value: null
+    gold_value_status: pin_at_ingestion
+    gold_sources:
+      - source: bacen_ifdata
+        metric: market_share_cartao
+        entity: Nubank_conglomerado_prudencial_C0084693
+        note: "computável em Cosif (cartão ~R$170,4 bi em 202503) — NÃO recusar"
+    tests: [retrieval, faithfulness]
+    notes: "Armadilha inversa: o share do Nubank em Cosif (IF.data) É respondível. Testa que a recusa checa o CRUZAMENTO de base contábil, não o nome 'Nubank'."

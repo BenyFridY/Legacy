@@ -42,7 +42,16 @@ Fundação **genérica** de retrieval para pesquisa de equities: uma base **liga
 
 ## Como rodar
 
-> *Em construção.* Stack: **Python 3.13**. Instruções de setup (`.env`, dependências, comando do eval) serão adicionadas conforme o código nasce.
+Stack 100% open/free — ver [ADR-0003](docs/decisions/0003-stack-open-free.md). Python ≥ 3.11.
+
+```bash
+python -m venv .venv && .venv\Scripts\activate   # Windows
+pip install -r requirements.txt
+copy .env.example .env                            # ajuste se for usar um provider de LLM
+python -m pytest -q                               # testes das métricas do eval
+```
+
+O **conjunto de avaliação** vive em [`eval/questions.yaml`](eval/questions.yaml) (11 perguntas, 3 categorias). As **métricas** (hit@k, precision@k, recall@k, MRR, taxa de recusa correta) estão em `legacy_rag/eval/metrics.py`. O runner ponta-a-ponta e a ingestão entram nos próximos commits.
 
 ## De onde vêm os dados / como a base é alimentada
 

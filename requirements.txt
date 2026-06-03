@@ -1,0 +1,19 @@
+# Stack 100% open/free — ver docs/decisions/0003-stack-open-free.md
+
+# --- Núcleo de retrieval (open/local) ---
+duckdb>=1.1            # store único: estruturado (séries Bacen) + vetorial (VSS) + FTS
+FlagEmbedding>=1.3     # BGE-M3 (embeddings multilíngues) + bge-reranker-v2-m3
+rank-bm25>=0.2.2       # BM25 lexical (fallback ao FTS do DuckDB)
+
+# --- Ingestão ---
+requests>=2.32         # APIs (Bacen Olinda, SEC EDGAR) + download de PDFs do CDN mziq
+pypdf>=5.0             # extração de texto de PDF (releases com camada de texto)
+pdfplumber>=0.11       # extração de tabelas / fallback
+
+# --- Eval & infraestrutura ---
+pyyaml>=6.0            # conjunto de perguntas do eval (eval/questions.yaml)
+pytest>=8.0            # testes
+
+# --- Geração: LLM atrás de interface trocável (ver ADR-0003). Opcionais: ---
+# google-generativeai  # Gemini free-tier
+# groq                 # Groq free-tier (Llama 3.3 70B)

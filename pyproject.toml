@@ -1,0 +1,9 @@
+[project]
+name = "legacy-rag"
+version = "0.1.0"
+description = "Sistema de retrieval dual-path para research de equities (case Legacy Capital)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
