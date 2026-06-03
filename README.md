@@ -30,11 +30,12 @@ Fundação **genérica** de retrieval para pesquisa de equities: uma base **liga
 |---|---|---|
 | ✅ | Decisão de arquitetura documentada (ADR-0001) | feito |
 | ✅ | Base de evidências verificada (fact-check) | feito |
-| ⬜ | **Eval harness** (~10 perguntas; 3 categorias: doc-único / multi-fonte / não-respondível) | a fazer — *começar por aqui* |
-| ⬜ | Camada de ingestão (conectores reproduzíveis: SEC/EDGAR, CVM, RI, Bacen) | a fazer |
-| ⬜ | Indexação dual (texto híbrido + store estruturado) | a fazer |
+| ✅ | Fio condutor escolhido: **Caso B · consignado · Bradesco+BB+Itaú** (ADR-0002) | feito |
+| ⬜ | **Eval harness** (~10 perguntas; 3 categorias: doc-único / multi-fonte / não-respondível) | a fazer — *próximo* |
+| ⬜ | Camada de ingestão (Bacen Olinda IF.data + releases via CDN mziq) | a fazer |
+| ⬜ | Indexação dual (texto híbrido + store estruturado DuckDB) | a fazer |
 | ⬜ | Retrieval + roteador + geração com citação/recusa | a fazer |
-| ⬜ | Resolução de **um** case (recomendado: **B — bancos brasileiros**) | a fazer |
+| ⬜ | Resolução do Caso B (B1 guidance-vs-realizado + B3 share computado) | a fazer |
 | ⬜ | README final + apresentação | a fazer |
 
 ---
@@ -45,9 +46,10 @@ Fundação **genérica** de retrieval para pesquisa de equities: uma base **liga
 
 ## De onde vêm os dados / como a base é alimentada
 
-> *Em construção.* Fontes-alvo (todas públicas e acessíveis programaticamente):
-> - **Texto:** SEC/EDGAR (filings/transcrições US), CVM + sites de RI (bancos BR), notícias.
-> - **Estruturado:** Banco Central — **IF.data** (trimestral) e **SCR.data** (mensal) via API Olinda/SGS; ANP. *(Acesso à API do Bacen já validado — ver ADR-0001.)*
+> Fontes do Caso B (consignado), todas públicas e acessíveis programaticamente — ver [ADR-0002](docs/decisions/0002-fio-condutor-caso-b-consignado.md):
+> - **Estruturado:** Banco Central — **IF.data** (trimestral, API Olinda OData) e **SCR.data** (mensal, CSV) → carteira por instituição/modalidade; market share = `carteira_banco / carteira_sistema` *computado*. *(API Olinda já validada ao vivo.)*
+> - **Texto:** releases / "Análise do Desempenho" e transcrições de **BB, Bradesco e Itaú** — baixados como bytes crus do **CDN mziq** (não pelas páginas de RI, que dão 403) e extraídos com `pdftotext`/`pypdf`.
+> - **Não-respondível:** Nubank (USD/IFRS via Form 20-F) — incomparável com os peers BRL/Cosif.
 
 ## Decisões de chunking
 

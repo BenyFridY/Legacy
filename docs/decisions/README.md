@@ -7,5 +7,6 @@ Cada ADR captura: o **contexto** (por que a decisão apareceu), a **decisão**, 
 | # | Decisão | Status |
 |---|---|---|
 | [0001](0001-arquitetura-dual-path.md) | Arquitetura: sistema dual-path roteado (não RAG ingênuo) | ✅ Aceita |
+| [0002](0002-fio-condutor-caso-b-consignado.md) | Fio condutor: Caso B (consignado; Bradesco+BB+Itaú; Nubank não-respondível) | ✅ Aceita |
 
 > Convenção de status: `Proposta` → `Aceita` → (`Substituída por NNNN` / `Revogada`).
