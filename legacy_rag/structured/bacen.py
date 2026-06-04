@@ -32,23 +32,35 @@ def _get_json(url: str) -> dict:
         return json.load(resp)
 
 
-def carteira_por_modalidade(ano_mes: int, grupo: str = GRUPO_CONSIGNADO) -> dict[str, float]:
-    """Saldo da carteira PF de uma modalidade, por instituição, num período (AAAAMM).
+def carteira_pf_modalidades(ano_mes: int) -> list[dict]:
+    """TODAS as modalidades de crédito PF (coluna 'Total'), por instituição, num período (AAAAMM).
 
-    Retorna {cod_inst: saldo} usando a coluna 'Total' do grupo (modalidade). Usa o nível
-    conglomerado financeiro (Tipo 2), onde o Bacen abre a carteira por modalidade.
+    Retorna [{cod_inst, ano_mes, modalidade, saldo}]. "Ingestão larga" (ADR-0004): traz todas as
+    modalidades (consignado, cartão, habitação, veículos, ...); o filtro por consignado é feito
+    depois, no cálculo. Usa o nível conglomerado financeiro (Tipo 2), onde o Bacen abre por modalidade.
     """
     url = (f"{OLINDA_IFDATA_BASE}/IfDataValores"
            "(AnoMes=@AnoMes,TipoInstituicao=@TipoInstituicao,Relatorio=@Relatorio)"
            f"?@AnoMes={ano_mes}&@TipoInstituicao={TIPO_PF_MODALIDADE}"
            f"&@Relatorio='{RELATORIO_PF_MODALIDADE}'&$top=100000&$format=json")
-    saldos: dict[str, float] = {}
+    out: list[dict] = []
     for row in _get_json(url).get("value", []):
-        if (row.get("Grupo") == grupo
+        if (row.get("Grupo")
                 and row.get("NomeColuna") == COLUNA_TOTAL
                 and row.get("Saldo") is not None):
-            saldos[row["CodInst"]] = float(row["Saldo"])
-    return saldos
+            out.append({
+                "cod_inst": row["CodInst"],
+                "ano_mes": int(row["AnoMes"]),
+                "modalidade": row["Grupo"],
+                "saldo": float(row["Saldo"]),
+            })
+    return out
+
+
+def carteira_por_modalidade(ano_mes: int, grupo: str = GRUPO_CONSIGNADO) -> dict[str, float]:
+    """Saldo {cod_inst: saldo} de UMA modalidade num período (filtra carteira_pf_modalidades)."""
+    return {r["cod_inst"]: r["saldo"]
+            for r in carteira_pf_modalidades(ano_mes) if r["modalidade"] == grupo}
 
 
 def cadastro_instituicoes(ano_mes: int) -> dict[str, str]:
