@@ -12,6 +12,7 @@ Estrutura descoberta explorando a API ao vivo:
 from __future__ import annotations
 
 import json
+import urllib.error
 import urllib.request
 
 from legacy_rag.config import OLINDA_IFDATA_BASE
@@ -50,7 +51,23 @@ def carteira_por_modalidade(ano_mes: int, grupo: str = GRUPO_CONSIGNADO) -> dict
     return saldos
 
 
-# TODO (próximo passo): mapear cod_inst -> nome da instituição para nomear os bancos.
-# A entidade IfDataCadastro existe no service document, mas a assinatura testada (AnoMes,
-# AnoMes+TipoInstituicao, _IfDataCadastro flat) retornou 400/500 — resolver via $metadata.
-# Por ora o market share opera por CodInst (o cálculo independe do nome).
+def cadastro_instituicoes(ano_mes: int) -> dict[str, str]:
+    """Mapa {cod_inst: nome da instituição} no período. Assinatura confirmada via $metadata:
+    IfDataCadastro(AnoMes: Edm.Int32). Os campos incluem NomeInstituicao, CnpjInstituicaoLider
+    e CodConglomeradoPrudencial.
+
+    NOTA (verificado em 2026-06-04): este endpoint está retornando HTTP 500 no servidor do
+    Bacen — testado com alias e inline, JSON e XML, e múltiplos períodos, sempre 500, enquanto
+    IfDataValores e ListaDeRelatorio respondem normalmente. É uma falha upstream. A implementação
+    está correta e volta a funcionar quando o endpoint for restabelecido; até lá, degrada para {}
+    (o market share opera por CodInst, que não depende do nome).
+    """
+    url = (f"{OLINDA_IFDATA_BASE}/IfDataCadastro(AnoMes=@AnoMes)"
+           f"?@AnoMes={ano_mes}&$format=json")
+    try:
+        linhas = _get_json(url).get("value", [])
+    except urllib.error.URLError as e:
+        code = getattr(e, "code", "?")
+        print(f"[bacen] IfDataCadastro indisponível (HTTP {code}); seguindo por CodInst.")
+        return {}
+    return {row["CodInst"]: (row.get("NomeInstituicao") or "").strip() for row in linhas}
