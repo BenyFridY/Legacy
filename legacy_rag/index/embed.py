@@ -45,7 +45,9 @@ class BGEM3Encoder:
 
     def _carregar(self):
         if self._modelo is None:
-            from FlagEmbedding import BGEM3FlagModel  # import preguiçoso (puxa torch)
+            from legacy_rag.torch_env import permitir_omp_duplicado
+            permitir_omp_duplicado()                     # antes de torch (conflito OpenMP/conda)
+            from FlagEmbedding import BGEM3FlagModel      # import preguiçoso (puxa torch)
 
             self._modelo = BGEM3FlagModel(self._modelo_nome, use_fp16=self._use_fp16)
         return self._modelo
