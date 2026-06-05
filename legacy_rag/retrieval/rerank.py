@@ -7,9 +7,16 @@ então só roda nos poucos candidatos do topo (top_k) — não no corpus inteiro
 
 Como o embedding, o modelo é pesado (precisa de torch) e fica atrás de uma INTERFACE
 trocável (Reranker), com import preguiçoso — o pipeline é testável com um reranker falso.
+
+Implementação via sentence-transformers `CrossEncoder` (e NÃO o FlagReranker do FlagEmbedding):
+o FlagReranker 1.4.0 chama `tokenizer.prepare_for_model`, removido no transformers 5.x, e quebra
+neste ambiente. O CrossEncoder roda o MESMO modelo (bge-reranker-v2-m3) e é mantido p/ transformers
+5.x. `predict` devolve o logit de relevância; aplicamos sigmoid -> nota 0–1 (mesma semântica do
+antigo normalize=True), que é o que o gate de evidência espera.
 """
 from __future__ import annotations
 
+import math
 from typing import Protocol, Sequence
 
 from legacy_rag.config import RERANK_MODEL
@@ -23,28 +30,30 @@ class Reranker(Protocol):
 
 
 class BGEReranker:
-    """Reranker de produção: BAAI/bge-reranker-v2-m3 (cross-encoder). Carrega torch/FlagEmbedding
-    preguiçosamente; normalize=True devolve nota 0–1 (sigmoid)."""
+    """Reranker de produção: BAAI/bge-reranker-v2-m3 (cross-encoder) via sentence-transformers.
+
+    Carrega torch preguiçosamente. `pontuar` devolve nota 0–1 (sigmoid do logit de relevância).
+    """
 
     def __init__(self, modelo: str = RERANK_MODEL, use_fp16: bool = False):
         self._nome = modelo
-        self._fp16 = use_fp16
+        self._fp16 = use_fp16          # só relevante em GPU; em CPU é ignorado
         self._modelo = None
 
     def _carregar(self):
         if self._modelo is None:
             from legacy_rag.torch_env import preparar_torch
-            preparar_torch()                        # KMP + torch-antes-de-numpy (conflito conda)
-            from FlagEmbedding import FlagReranker   # import preguiçoso (puxa torch)
+            preparar_torch()                            # KMP + torch-antes-de-numpy (conflito conda)
+            from sentence_transformers import CrossEncoder  # import preguiçoso (puxa torch)
 
-            self._modelo = FlagReranker(self._nome, use_fp16=self._fp16)
+            self._modelo = CrossEncoder(self._nome)
         return self._modelo
 
     def pontuar(self, query: str, textos: Sequence[str]) -> list[float]:
         if not textos:
             return []
-        notas = self._carregar().compute_score([[query, t] for t in textos], normalize=True)
-        return [float(s) for s in (notas if isinstance(notas, list) else [notas])]
+        logits = self._carregar().predict([[query, t] for t in textos])
+        return [1.0 / (1.0 + math.exp(-float(s))) for s in logits]   # sigmoid -> 0–1
 
 
 def rerankar(query: str, resultados: list[Resultado], reranker: Reranker,
