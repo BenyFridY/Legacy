@@ -29,3 +29,26 @@ NON_ANSWERABLE_BANK = {"nome": "Nu Holdings (Nubank)", "motivo": "USD/IFRS via F
 
 # Modalidade de crédito no foco do case.
 MODALIDADE_FOCO = "consignado"
+
+# --- Conhecimento que o ROTEADOR precisa sobre cada entidade (ADR-0005) ---
+# base_contabil: "cosif" (Bacen/BRL, comparável entre si) | "ifrs" (USD/20-F, incomparável p/ guidance/PDD)
+# tem_verbatim:  existe transcrição VERBATIM oficial citável na base? (só Bradesco no núcleo)
+# aliases:       formas como a entidade aparece nas perguntas (tudo minúsculo, sem depender de acento)
+# Inclui Nubank e Santander porque o estruturado os INGERE (ADR-0004) — o roteador não recusa pelo nome:
+# share em Cosif (IF.data) é respondível para todos; só o CRUZAMENTO de base contábil recusa.
+ENTIDADES = {
+    "BB":        {"nome": "Banco do Brasil",       "base_contabil": "cosif", "tem_verbatim": False,
+                  "aliases": ["banco do brasil", "bb", "bbas3"]},
+    "Bradesco":  {"nome": "Bradesco",              "base_contabil": "cosif", "tem_verbatim": True,
+                  "aliases": ["bradesco", "bbdc4"]},
+    "Itau":      {"nome": "Itaú Unibanco",         "base_contabil": "cosif", "tem_verbatim": False,
+                  "aliases": ["itau", "itaú", "itub4", "unibanco"]},
+    "Nubank":    {"nome": "Nu Holdings (Nubank)",  "base_contabil": "ifrs",  "tem_verbatim": False,
+                  "aliases": ["nubank", "nu holdings", "nu pagamentos", "roxinho"]},
+    "Santander": {"nome": "Santander Brasil",      "base_contabil": "cosif", "tem_verbatim": False,
+                  "aliases": ["santander"]},
+}
+
+# Cobertura temporal da base (ADR-0004): realizado até 4T25; guidance publicado vai até 2026.
+# Pergunta sobre ANO > este valor é período futuro/inexistente -> recusa (regra R1 do roteador).
+ANO_COBERTURA_MAX = 2026
