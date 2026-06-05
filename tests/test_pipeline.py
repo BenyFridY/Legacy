@@ -80,7 +80,8 @@ def deps():
 
     return Dependencias(
         con=con, encoder=enc, reranker=FakeReranker(), llm=FakeLLM(),
-        mapa_prudencial={"BB": "PRUD_BB", "Bradesco": "PRUD_BRAD"}, limiar=0.3,
+        mapa_prudencial={"BB": "PRUD_BB", "Bradesco": "PRUD_BRAD"},
+        modalidade="consignado", limiar=0.3,   # auto-consistente: casa com as linhas inseridas acima
     )
 
 

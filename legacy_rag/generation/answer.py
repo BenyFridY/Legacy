@@ -67,4 +67,6 @@ def responder_de_contexto(pergunta: str, resultados: list[Resultado], llm: LLMCl
                         motivo="O LLM não encontrou a resposta no contexto fornecido.")
 
     # Citação ESTRUTURAL: as fontes vêm dos trechos que embasaram a resposta, por código.
-    return Resposta(texto=saida, citacoes=[r.citacao for r in resultados], recusou=False)
+    # dict.fromkeys -> dedup preservando a ordem (vários chunks da MESMA página viram 1 fonte).
+    citacoes = list(dict.fromkeys(r.citacao for r in resultados))
+    return Resposta(texto=saida, citacoes=citacoes, recusou=False)

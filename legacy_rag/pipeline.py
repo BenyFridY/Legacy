@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from legacy_rag.config import ENTIDADES, LIMIAR_EVIDENCIA_PADRAO, MODALIDADE_FOCO
+from legacy_rag.config import ENTIDADES, LIMIAR_EVIDENCIA_PADRAO, MODALIDADE_FOCO, ROTULOS_MODALIDADE
 from legacy_rag.generation.answer import (
     INSTRUCAO,
     SENTINELA_NAO_ENCONTRADO,
@@ -88,15 +88,21 @@ def _caminho_texto(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
 # Caminho dos NÚMEROS (computada): market share em SQL, determinístico e auditável.
 # --------------------------------------------------------------------------
 
+def _rotulo(modalidade: str) -> str:
+    """Apelido legível da modalidade p/ exibição (o nome técnico do Bacen vira 'consignado')."""
+    return ROTULOS_MODALIDADE.get(modalidade, modalidade)
+
+
 def _citacao_ifdata(modalidade: str) -> str:
-    return f"Bacen IF.data, modalidade={modalidade}, market share = carteira / Σ sistema (calc. em SQL)"
+    return (f"Bacen IF.data, modalidade={_rotulo(modalidade)} ({modalidade}), "
+            f"market share = carteira / Σ sistema (calc. em SQL)")
 
 
 def _formatar_serie(banco: str, modalidade: str, serie: list[tuple[int, float]]) -> str:
     pontos = ", ".join(f"{am // 100}-{am % 100:02d}: {sh * 100:.1f}%" for am, sh in serie)
     ini, fim = serie[0][1] * 100, serie[-1][1] * 100
     tend = "estável" if abs(fim - ini) < 0.1 else ("alta" if fim > ini else "queda")
-    return (f"Market share de {banco} em {modalidade}: {pontos}. "
+    return (f"Market share de {banco} em {_rotulo(modalidade)}: {pontos}. "
             f"Variação no período: {ini:.1f}% -> {fim:.1f}% ({tend}).")
 
 

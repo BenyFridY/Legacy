@@ -28,7 +28,10 @@ BANKS = {
 NON_ANSWERABLE_BANK = {"nome": "Nu Holdings (Nubank)", "motivo": "USD/IFRS via Form 20-F — base contábil/moeda incomparável"}
 
 # Modalidade de crédito no foco do case.
-MODALIDADE_FOCO = "consignado"
+# A STRING é a que o Bacen usa e que fica gravada em carteira_pf.modalidade -> é a CHAVE DE
+# CONSULTA (tem que casar com o DB). "consignado" é só o apelido de EXIBIÇÃO (ROTULOS_MODALIDADE).
+MODALIDADE_FOCO = "Empréstimo com Consignação em Folha"
+ROTULOS_MODALIDADE = {MODALIDADE_FOCO: "consignado"}   # nome técnico do Bacen -> apelido legível
 
 # --- Conhecimento que o ROTEADOR precisa sobre cada entidade (ADR-0005) ---
 # base_contabil: "cosif" (Bacen/BRL, comparável entre si) | "ifrs" (USD/20-F, incomparável p/ guidance/PDD)
