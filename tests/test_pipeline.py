@@ -69,10 +69,18 @@ def deps():
         ("C9999999", 202412, "consignado", 608.0),  # resto -> total 1000
     ]
     con.executemany("INSERT INTO carteira_pf VALUES (?, ?, ?, ?)", linhas)
+    # cadastro: cada CNPJ -> conglomerado prudencial (aqui 1 CNPJ por banco, mas a via é a mesma).
+    cad = [
+        ("C0000001", 202403, "Banco do Brasil", "PRUD_BB"), ("C0000002", 202403, "Bradesco", "PRUD_BRAD"),
+        ("C9999999", 202403, "Outro", "PRUD_OUTRO"),
+        ("C0000001", 202412, "Banco do Brasil", "PRUD_BB"), ("C0000002", 202412, "Bradesco", "PRUD_BRAD"),
+        ("C9999999", 202412, "Outro", "PRUD_OUTRO"),
+    ]
+    con.executemany("INSERT INTO cadastro VALUES (?, ?, ?, ?)", cad)
 
     return Dependencias(
         con=con, encoder=enc, reranker=FakeReranker(), llm=FakeLLM(),
-        mapa_cod_inst={"BB": "C0000001", "Bradesco": "C0000002"}, limiar=0.3,
+        mapa_prudencial={"BB": "PRUD_BB", "Bradesco": "PRUD_BRAD"}, limiar=0.3,
     )
 
 
@@ -103,10 +111,10 @@ def test_computada_responde_serie_citada(deps):
     assert "IF.data" in r.citacoes[0]
 
 
-def test_computada_sem_cod_inst_recusa_honesta(deps):
-    deps.mapa_cod_inst = {}            # simula o cadastro Bacen indisponível (HTTP 500)
+def test_computada_sem_conglomerado_recusa_honesta(deps):
+    deps.mapa_prudencial = {}          # banco sem conglomerado mapeado -> recusa, não inventa
     r = responder("Como evoluiu o market share do Banco do Brasil em consignado?", deps)
-    assert r.recusou and "cod_inst" in r.motivo
+    assert r.recusou and "conglomerado" in r.motivo
 
 
 def test_multi_fonte_cruza_declarado_e_computado(deps):

@@ -36,17 +36,20 @@ MODALIDADE_FOCO = "consignado"
 # aliases:       formas como a entidade aparece nas perguntas (tudo minúsculo, sem depender de acento)
 # Inclui Nubank e Santander porque o estruturado os INGERE (ADR-0004) — o roteador não recusa pelo nome:
 # share em Cosif (IF.data) é respondível para todos; só o CRUZAMENTO de base contábil recusa.
+# cod_prudencial = código do Conglomerado Prudencial no IF.data (agrega os vários CNPJs do banco).
+# Verificado ao vivo contra o IfDataCadastro (AnoMes=202412); usado p/ market share por banco.
+# Nubank em consignado não é foco (núcleo é Cosif/consignado); cod_prudencial fica None até precisar.
 ENTIDADES = {
     "BB":        {"nome": "Banco do Brasil",       "base_contabil": "cosif", "tem_verbatim": False,
-                  "aliases": ["banco do brasil", "bb", "bbas3"]},
+                  "cod_prudencial": "C0080329", "aliases": ["banco do brasil", "bb", "bbas3"]},
     "Bradesco":  {"nome": "Bradesco",              "base_contabil": "cosif", "tem_verbatim": True,
-                  "aliases": ["bradesco", "bbdc4"]},
+                  "cod_prudencial": "C0080075", "aliases": ["bradesco", "bbdc4"]},
     "Itau":      {"nome": "Itaú Unibanco",         "base_contabil": "cosif", "tem_verbatim": False,
-                  "aliases": ["itau", "itaú", "itub4", "unibanco"]},
-    "Nubank":    {"nome": "Nu Holdings (Nubank)",  "base_contabil": "ifrs",  "tem_verbatim": False,
-                  "aliases": ["nubank", "nu holdings", "nu pagamentos", "roxinho"]},
+                  "cod_prudencial": "C0080099", "aliases": ["itau", "itaú", "itub4", "unibanco"]},
     "Santander": {"nome": "Santander Brasil",      "base_contabil": "cosif", "tem_verbatim": False,
-                  "aliases": ["santander"]},
+                  "cod_prudencial": "C0080185", "aliases": ["santander"]},
+    "Nubank":    {"nome": "Nu Holdings (Nubank)",  "base_contabil": "ifrs",  "tem_verbatim": False,
+                  "cod_prudencial": None,       "aliases": ["nubank", "nu holdings", "nu pagamentos", "roxinho"]},
 }
 
 # Cobertura temporal da base (ADR-0004): realizado até 4T25; guidance publicado vai até 2026.

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from legacy_rag.config import LIMIAR_EVIDENCIA_PADRAO, MODALIDADE_FOCO
+from legacy_rag.config import ENTIDADES, LIMIAR_EVIDENCIA_PADRAO, MODALIDADE_FOCO
 from legacy_rag.generation.answer import (
     INSTRUCAO,
     SENTINELA_NAO_ENCONTRADO,
@@ -29,17 +29,22 @@ from legacy_rag.generation.gate import gate_evidencia
 from legacy_rag.retrieval.hibrido import buscar_hibrido
 from legacy_rag.retrieval.rerank import rerankar
 from legacy_rag.router.router import Rota, rotear
-from legacy_rag.structured.store import market_share_serie
+from legacy_rag.structured.store import market_share_conglomerado_serie
+
+
+def _mapa_prudencial_padrao() -> dict[str, str]:
+    """banco -> código do conglomerado prudencial, a partir do config (núcleo verificado)."""
+    return {b: info["cod_prudencial"] for b, info in ENTIDADES.items() if info.get("cod_prudencial")}
 
 
 @dataclass
 class Dependencias:
     """As peças concretas que o orquestrador usa. Entram de fora -> testável com fakes."""
-    con: object                                   # conexão DuckDB (chunks + carteira_pf)
+    con: object                                   # conexão DuckDB (chunks + carteira_pf + cadastro)
     encoder: object = None                        # Encoder (embeda a pergunta)
     reranker: object = None                       # Reranker (afina o top-k)
     llm: object = None                            # LLMClient (redige)
-    mapa_cod_inst: dict[str, str] = field(default_factory=dict)  # banco -> cod_inst (Bacen)
+    mapa_prudencial: dict[str, str] = field(default_factory=_mapa_prudencial_padrao)  # banco -> conglomerado
     modalidade: str = MODALIDADE_FOCO
     limiar: float = LIMIAR_EVIDENCIA_PADRAO
     k: int = 5
@@ -96,14 +101,17 @@ def _formatar_serie(banco: str, modalidade: str, serie: list[tuple[int, float]])
 
 
 def _computar_serie(rota: Rota, deps: Dependencias):
-    """Devolve (banco, série) ou None se não dá para computar (sem banco único / sem cod_inst / sem dado)."""
+    """Devolve (banco, série) ou None se não dá p/ computar (sem banco único / sem conglomerado / sem dado).
+
+    Usa o share por CONGLOMERADO prudencial (soma os CNPJs do banco) — o share "por banco" correto.
+    """
     if len(rota.bancos) != 1:
         return None
     banco = rota.bancos[0]
-    cod = deps.mapa_cod_inst.get(banco)
-    if not cod:
+    prud = deps.mapa_prudencial.get(banco)
+    if not prud:
         return None
-    serie = market_share_serie(deps.con, cod, deps.modalidade)
+    serie = market_share_conglomerado_serie(deps.con, prud, deps.modalidade)
     return (banco, serie) if serie else None
 
 
@@ -111,7 +119,7 @@ def _caminho_computado(rota: Rota, deps: Dependencias) -> Resposta:
     computado = _computar_serie(rota, deps)
     if computado is None:
         return Resposta(texto="Não disponível na base.", recusou=True,
-                        motivo="market share não computável (banco único? cod_inst mapeado? série na base?).")
+                        motivo="market share não computável (banco único? conglomerado mapeado? série na base?).")
     banco, serie = computado
     return Resposta(texto=_formatar_serie(banco, deps.modalidade, serie),
                     citacoes=[_citacao_ifdata(deps.modalidade)])

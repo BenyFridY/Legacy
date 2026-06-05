@@ -63,23 +63,29 @@ def carteira_por_modalidade(ano_mes: int, grupo: str = GRUPO_CONSIGNADO) -> dict
             for r in carteira_pf_modalidades(ano_mes) if r["modalidade"] == grupo}
 
 
-def cadastro_instituicoes(ano_mes: int) -> dict[str, str]:
-    """Mapa {cod_inst: nome da instituição} no período. Assinatura confirmada via $metadata:
-    IfDataCadastro(AnoMes: Edm.Int32). Os campos incluem NomeInstituicao, CnpjInstituicaoLider
-    e CodConglomeradoPrudencial.
+def cadastro_conglomerado(ano_mes: int) -> dict[str, dict]:
+    """Mapa {cod_inst: {'nome', 'prudencial'}} no período, do IfDataCadastro.
 
-    NOTA (verificado em 2026-06-04): este endpoint está retornando HTTP 500 no servidor do
-    Bacen — testado com alias e inline, JSON e XML, e múltiplos períodos, sempre 500, enquanto
-    IfDataValores e ListaDeRelatorio respondem normalmente. É uma falha upstream. A implementação
-    está correta e volta a funcionar quando o endpoint for restabelecido; até lá, degrada para {}
-    (o market share opera por CodInst, que não depende do nome).
+    DESCOBERTA (2026-06-05): o endpoint voltou (HTTP 200) e — crucial — traz linhas com CodInst
+    NUMÉRICO (= raiz de CNPJ, ex. '60746948' = Banco Bradesco S.A.), os MESMOS códigos da carteira
+    (TipoInstituicao=2). Validado: 785/785 instituições da carteira casam aqui por CodInst. Cada
+    linha dá NomeInstituicao + CodConglomeradoPrudencial, o que permite SOMAR o consignado por
+    CONGLOMERADO (um banco grande = vários CNPJs) e nomear — ver store.market_share_conglomerado_serie.
+
+    `prudencial` cai no próprio CodInst quando vazio (instituição independente). Degrada para {}
+    se o endpoint voltar a falhar (o cálculo por CodInst cru ainda funciona, só sem agregação/nome).
     """
-    url = (f"{OLINDA_IFDATA_BASE}/IfDataCadastro(AnoMes=@AnoMes)"
-           f"?@AnoMes={ano_mes}&$format=json")
+    url = f"{OLINDA_IFDATA_BASE}/IfDataCadastro(AnoMes=@AnoMes)?@AnoMes={ano_mes}&$format=json"
     try:
         linhas = _get_json(url).get("value", [])
     except urllib.error.URLError as e:
-        code = getattr(e, "code", "?")
-        print(f"[bacen] IfDataCadastro indisponível (HTTP {code}); seguindo por CodInst.")
+        print(f"[bacen] IfDataCadastro indisponível (HTTP {getattr(e, 'code', '?')}); sem nomes/agregação.")
         return {}
-    return {row["CodInst"]: (row.get("NomeInstituicao") or "").strip() for row in linhas}
+    return {row["CodInst"]: {"nome": (row.get("NomeInstituicao") or "").strip(),
+                             "prudencial": row.get("CodConglomeradoPrudencial") or row["CodInst"]}
+            for row in linhas}
+
+
+def cadastro_instituicoes(ano_mes: int) -> dict[str, str]:
+    """Mapa simples {cod_inst: nome} (atalho sobre cadastro_conglomerado)."""
+    return {cod: info["nome"] for cod, info in cadastro_conglomerado(ano_mes).items()}
