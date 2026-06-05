@@ -52,3 +52,8 @@ ENTIDADES = {
 # Cobertura temporal da base (ADR-0004): realizado até 4T25; guidance publicado vai até 2026.
 # Pergunta sobre ANO > este valor é período futuro/inexistente -> recusa (regra R1 do roteador).
 ANO_COBERTURA_MAX = 2026
+
+# Limiar do GATE DE EVIDÊNCIA (Estágio 2): nota do reranker (0–1, normalizada) abaixo disto ->
+# recusa "não disponível na base". PLACEHOLDER a calibrar contra um mini-gold (varrer o "joelho"
+# da curva over-recusa x alucinação); ver ADR-0005. Não é um valor sagrado — é um ponto de partida.
+LIMIAR_EVIDENCIA_PADRAO = 0.30
