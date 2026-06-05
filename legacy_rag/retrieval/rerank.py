@@ -33,8 +33,8 @@ class BGEReranker:
 
     def _carregar(self):
         if self._modelo is None:
-            from legacy_rag.torch_env import permitir_omp_duplicado
-            permitir_omp_duplicado()                # antes de torch (conflito OpenMP/conda)
+            from legacy_rag.torch_env import preparar_torch
+            preparar_torch()                        # KMP + torch-antes-de-numpy (conflito conda)
             from FlagEmbedding import FlagReranker   # import preguiçoso (puxa torch)
 
             self._modelo = FlagReranker(self._nome, use_fp16=self._fp16)

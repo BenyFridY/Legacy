@@ -1,19 +1,26 @@
-"""Workaround do conflito de OpenMP em ambiente conda — chamar ANTES de importar torch.
+"""Preparação do torch no ambiente (conda + Windows) — chamar ANTES de numpy e dos modelos.
 
-O problema (diagnosticado no ambiente): o torch traz a sua libomp.dll e o numpy/MKL do conda
-traz a libiomp5md.dll. As duas são runtimes de OpenMP; carregar as duas no mesmo processo faz
-o torch abortar com "OMP: Error #15". A flag KMP_DUPLICATE_LIB_OK=TRUE permite seguir.
+Dois problemas DIAGNOSTICADOS neste ambiente (miniconda, py3.13), ambos com a mesma raiz (o
+runtime OpenMP do conda/MKL conflita com o do torch):
 
-É seguro para o NOSSO uso? Sim: o aviso do OMP é sobre paralelismo/threading, não sobre a
-matemática. Verificamos empiricamente (matmul e softmax batem com o resultado conhecido). Para
-inferência de embeddings/rerank isto é o workaround padrão e amplamente usado. A alternativa
-"limpa" (um único runtime OpenMP no ambiente) é invasiva e fora de escopo do case.
+  1) "OMP: Error #15" — duas libs OpenMP (libomp do torch vs libiomp5md do MKL) inicializadas.
+     Corrige com KMP_DUPLICATE_LIB_OK=TRUE.
+  2) "OSError [WinError 127] ... shm.dll" — se o numpy (que puxa o MKL do conda) é importado
+     ANTES do torch, o torch não acha um procedimento nas DLLs e falha. Verificado empiricamente:
+     torch-antes-de-numpy funciona; numpy-antes-de-torch quebra. Corrige importando torch PRIMEIRO.
 
-Por que `setdefault`: respeita uma escolha do usuário se ele já tiver setado a variável.
+`preparar_torch()` resolve os dois: seta a flag e força o import do torch antes do numpy. É
+seguro p/ a matemática (matmul/softmax conferem com resultado conhecido). Idempotente.
+
+IMPORTANTE: chamar como a PRIMEIRA coisa do script/entrypoint que usa modelos reais, ANTES de
+importar numpy ou módulos do legacy_rag que puxam numpy. Os testes (com fakes) NÃO chamam isto,
+então o pacote continua importável sem torch.
 """
 import os
 
 
-def permitir_omp_duplicado() -> None:
-    """Permite os dois runtimes de OpenMP (torch + MKL) coexistirem. Chamar antes de `import torch`."""
-    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+def preparar_torch():
+    """Seta KMP_DUPLICATE_LIB_OK e importa torch ANTES do numpy. Devolve o módulo torch."""
+    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")  # problema (1): OMP duplicado
+    import torch                                            # problema (2): torch antes de numpy
+    return torch
