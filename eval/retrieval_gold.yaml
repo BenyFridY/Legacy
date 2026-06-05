@@ -1,0 +1,91 @@
+# GOLD de RETRIEVAL — sondagens ancoradas em documentos REALMENTE ingeridos.
+#
+# Diferente de eval/questions.yaml (que mede COMPORTAMENTO de sistema: responder/recusar/
+# fidelidade), este arquivo mede a QUALIDADE do RETRIEVAL de forma granular: dada a pergunta,
+# a PAGINA-resposta aparece no top-k? (hit@k / MRR — ver legacy_rag/eval/retrieval.py).
+#
+# Metodo anti-circularidade: o gold (paginas) foi curado por busca LEXICAL + leitura do doc,
+# INDEPENDENTE do embedding. O retrieval semantico e medido CONTRA esse gabarito — por isso
+# pode (e deve) tirar menos que 100%. Inclui de proposito 2 sondagens dificeis (giria,
+# parafrase) que sabemos que tropecam: um eval honesto nao faz cherry-picking.
+#
+# gold_paginas = "qualquer chunk dessas paginas conta como acerto" (a pagina e a ancora da
+# citacao; chunk_id muda se reingerir, pagina nao). Cresce conforme o corpus cresce.
+#
+# Schema:
+#   id, banco, periodo, tipo_doc, question, gold_paginas, dificuldade (facil|media|dificil), note
+
+corpus_observacao: "Hoje so o Itau 4T25 esta ingerido. Adicionar BB/Bradesco -> mais sondagens."
+
+sondagens:
+  - id: itau-consignado-saldo
+    banco: Itau
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual o saldo da carteira de credito consignado do Itau"
+    gold_paginas: [7, 21]
+    dificuldade: facil
+    note: "Termo 'consignado' presente: tabela de carteira (pag.7) e destaque (pag.21, R$75,3 bi)."
+
+  - id: itau-lucro-recorrente
+    banco: Itau
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual foi o lucro liquido recorrente do banco no trimestre"
+    gold_paginas: [7, 8]
+    dificuldade: media
+    note: "Resultado Recorrente Gerencial R$12,3 bi: linha na pag.7, narrado na pag.8 (Sumario Exec.)."
+
+  - id: itau-inadimplencia-90d
+    banco: Itau
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual o indice de inadimplencia acima de 90 dias"
+    gold_paginas: [5, 14]
+    dificuldade: facil
+    note: "Tabela de destaques (pag.5, 1,9%) e secao Qualidade do Credito / NPL 90 (pag.14)."
+
+  - id: itau-guidance-2026
+    banco: Itau
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual o guidance de custo de credito do Itau para 2026"
+    gold_paginas: [28, 29]
+    dificuldade: media
+    note: "Secao 'Guidance 2026' (pag.28-29) com as faixas projetadas."
+
+  - id: itau-basileia-capital
+    banco: Itau
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual o indice de Basileia e o capital do banco"
+    gold_paginas: [5, 23]
+    dificuldade: media
+    note: "Indice de Basileia na tabela de destaques (pag.5) e secao de Capital (pag.23)."
+
+  - id: itau-margem-clientes
+    banco: Itau
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual a margem financeira com clientes"
+    gold_paginas: [8, 12]
+    dificuldade: facil
+    note: "Narrado na pag.8 e tabela dedicada na pag.12 (Margem Financeira com Clientes)."
+
+  - id: itau-calote-giria
+    banco: Itau
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual o nivel de calote dos clientes do banco"
+    gold_paginas: [5, 14]
+    dificuldade: dificil
+    note: "GIRIA: 'calote'=inadimplencia. O denso liga; o cross-encoder formal tende a nao ligar."
+
+  - id: itau-consignado-parafrase
+    banco: Itau
+    periodo: "4T25"
+    tipo_doc: release
+    question: "emprestimo descontado direto da folha de pagamento do trabalhador"
+    gold_paginas: [7, 21]
+    dificuldade: dificil
+    note: "PARAFRASE EXTREMA de consignado, ZERO palavra em comum -> esperamos falhar (justifica hibrido)."
