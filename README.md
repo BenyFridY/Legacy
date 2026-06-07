@@ -63,15 +63,22 @@ categorias de comportamento + 1 distrator anti-over-recusa:
 | over-recusa (recusou um respondível) | **0%** |
 | alucinação (respondeu o que devia recusar) | **0** |
 
-**3) Resolução do Caso B — ponta a ponta (modelos reais, incl. Groq/Llama 3.3 70B).** As 3
+**3) Fidelidade da resposta — faithfulness (LLM-juiz, Groq temp 0).** Nas respostas geradas (texto,
+Itaú 4T25): **3/4 inteiramente sustentadas** pelo contexto citado. O caso reprovado (margem) tem uma
+cifra que o juiz **não achou no contexto** — exatamente o que a métrica existe para pegar; reportamos
+a alegação para revisão humana. Ressalvas: `n=4` e **juiz = gerador** (mesmo modelo → risco de
+auto-avaliação).
+
+**4) Resolução do Caso B — ponta a ponta (modelos reais, incl. Groq/Llama 3.3 70B).** As 3
 categorias resolvidas ao vivo: *lucro Itaú 4T25* **R$ 12,3 bi** (pág. 8); *consignado Itaú 4T25*
 **R$ 75,3 bi** (pág. 21); *market share BB consignado* **19,9% → 20,1%** (série trimestral, IF.data,
 SQL); recusas **R1** (futuro 2027) e **R2** (Nubank IFRS × Itaú Cosif). Saída completa em
 [`docs/resultados-eval.md`](docs/resultados-eval.md).
 
-> **Honestidade estatística:** `n=11` é **sanidade forte, não estatística de população**. O Estágio 1
-> mede só escopo; a **calibração do gate de evidência (Estágio 2)** e o **faithfulness por LLM-juiz**
-> ainda são trabalho aberto (ver *Fraquezas* e ADR-0005, planejado).
+> **Honestidade estatística:** os `n` são pequenos (escopo `n=11`, fidelidade `n=4`) — **sanidade
+> forte, não estatística de população**. O Estágio 1 mede só escopo; a **calibração do gate de
+> evidência (Estágio 2)**, um **juiz de fidelidade independente** (hoje juiz = gerador) e `n` maior
+> seguem como trabalho aberto (ver *Fraquezas* e ADR-0005, planejado).
 
 ---
 
@@ -222,8 +229,9 @@ Documentado com honestidade — é o que o case pede.
   métricas ainda não ingeridas (R6) caem hoje no Estágio 2. Roadmap em ADR-0005 (planejado).
 - **Dedup só por (banco, período, tipo):** falta dedup por **hash de conteúdo** para reingestão em
   escala — projetado, não construído.
-- **Faithfulness ainda não medido:** o eval cobre retrieval (hit@k/MRR) e escopo (Estágio 1); falta
-  o **LLM-juiz** medindo fidelidade da resposta ao contexto.
+- **Faithfulness medido em escala pequena:** já há LLM-juiz (3/4 no Itaú 4T25), mas `n=4`, **juiz =
+  gerador** (mesmo modelo → risco de auto-avaliação) e corpus de um doc. Próximo passo: **juiz
+  independente** + `n` maior.
 
 ---
 

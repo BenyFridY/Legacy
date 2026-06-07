@@ -101,7 +101,49 @@ trabalho de ingestão pendente.
 
 ---
 
-## 3. Resolução do Caso B — ponta a ponta (**modelos reais: BGE-M3 + reranker + Groq/Llama 3.3 70B**)
+## 3. Fidelidade da resposta — faithfulness (**LLM-juiz: Groq/Llama 3.3 70B, temperatura 0**)
+
+A terceira perna: quando o sistema **responde**, cada afirmação está **sustentada pelo contexto
+citado**? Um juiz (LLM) vê só `(pergunta, resposta, contexto)` e audita, listando o que não tem
+suporte. Roda no pipeline **real** sobre o Itaú 4T25. Comando:
+
+```
+python scripts/eval_fidelidade_real.py
+```
+
+```
+  [respondeu] itau-lucro: 'O lucro líquido recorrente do Itaú no 4T25 foi de R$ 12,3 bi'
+  [respondeu] itau-consignado: 'R$ 75,3 bi.'
+  [respondeu] itau-inadimplencia: '1,9%'
+  [respondeu] itau-margem: 'A margem financeira com clientes do Itaú cresceu 1,5% no 4T2'
+  [pulado: recusou] itau-guidance: O LLM não encontrou a resposta no contexto fornecido.
+
+================================================================
+EVAL - Fidelidade (faithfulness): a resposta e sustentada pelo contexto?
+================================================================
+casos: 4
+  id                               fiel?  alegacoes_sem_suporte
+----------------------------------------------------------------
+  itau-lucro                       ok
+  itau-consignado                  ok
+  itau-inadimplencia               ok
+  itau-margem                      X      a margem financeira com clientes subiu 8,6% no 4T25 em compa
+----------------------------------------------------------------
+  Taxa de fidelidade: 75%  (3/4)
+================================================================
+```
+
+**Leitura honesta:** 3/4 das respostas geradas são **inteiramente sustentadas** pelo contexto. O
+caso reprovado (margem) trouxe uma 2ª cifra (8,6%) que o juiz **não encontrou no contexto citado**
+— exatamente o tipo de alegação sutil que a métrica existe para pegar; por isso reportamos a
+**alegação**, não só a taxa, e ela vai para **revisão humana**. A `itau-guidance` foi corretamente
+**pulada** (o LLM não achou a resposta no contexto → recusou: defesa em profundidade). Ressalvas
+declaradas: `n=4` (corpus = só Itaú 4T25) e **juiz = gerador** (mesmo modelo Groq) → risco de viés
+de auto-avaliação; um juiz independente + `n` maior é o próximo passo (ADR-0005).
+
+---
+
+## 4. Resolução do Caso B — ponta a ponta (**modelos reais: BGE-M3 + reranker + Groq/Llama 3.3 70B**)
 
 Roda as 3 categorias do eval no orquestrador completo. Comando:
 
