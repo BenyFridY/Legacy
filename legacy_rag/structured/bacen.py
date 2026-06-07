@@ -28,7 +28,6 @@ TIPO_PF_MODALIDADE_2025 = 1       # ≥ 2025 (verificado ao vivo: 202503+ só te
 ANO_MES_NOVO_LAYOUT = 202503      # primeiro período trimestral com o novo layout
 RELATORIO_PF_MODALIDADE = 11
 COLUNA_TOTAL = "Total"
-GRUPO_CONSIGNADO = "Empréstimo com Consignação em Folha"
 PAGINA_ODATA = 100000            # tamanho de página do $top/$skip (respostas de 2025 passam disso)
 
 
@@ -91,12 +90,6 @@ def carteira_pf_modalidades(ano_mes: int) -> list[dict]:
     return list(por_chave.values())
 
 
-def carteira_por_modalidade(ano_mes: int, grupo: str = GRUPO_CONSIGNADO) -> dict[str, float]:
-    """Saldo {cod_inst: saldo} de UMA modalidade num período (filtra carteira_pf_modalidades)."""
-    return {r["cod_inst"]: r["saldo"]
-            for r in carteira_pf_modalidades(ano_mes) if r["modalidade"] == grupo}
-
-
 def cadastro_conglomerado(ano_mes: int) -> dict[str, dict]:
     """Mapa {cod_inst: {'nome', 'prudencial'}} no período, do IfDataCadastro.
 
@@ -119,8 +112,3 @@ def cadastro_conglomerado(ano_mes: int) -> dict[str, dict]:
     return {row["CodInst"]: {"nome": (row.get("NomeInstituicao") or "").strip(),
                              "prudencial": row.get("CodConglomeradoPrudencial") or row["CodInst"]}
             for row in linhas}
-
-
-def cadastro_instituicoes(ano_mes: int) -> dict[str, str]:
-    """Mapa simples {cod_inst: nome} (atalho sobre cadastro_conglomerado)."""
-    return {cod: info["nome"] for cod, info in cadastro_conglomerado(ano_mes).items()}

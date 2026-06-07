@@ -173,15 +173,17 @@ copy .env.example .env          :: opcional: LLM_PROVIDER=groq_free + GROQ_API_K
 :: no Windows, prefixe os scripts pesados com estas 3 variáveis (carrega torch sem conflito de OpenMP):
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 
-python -m pytest -q                      :: 121 testes — sem rede, sem torch, sem chave (fakes)
+python -m pytest -q                      :: 126 testes — sem rede, sem torch, sem chave (fakes)
 python -m legacy_rag.eval.runner         :: matriz de recusa-por-escopo (sem modelo)
 python scripts\ingerir_numeros.py        :: alimenta carteira_pf + cadastro (Bacen IF.data)
 python scripts\prova_retrieval_real.py   :: ingere Itaú 4T25 + busca real (baixa BGE-M3 ~ na 1ª vez)
 python scripts\eval_retrieval_real.py    :: hit@k / MRR reais
 python scripts\resolver_caso.py          :: resolve o Caso B ponta a ponta (LLM real, se .env tiver chave)
+python scripts\perguntar.py "..."        :: pergunta LIVRE: mostra a rota + resposta citada ou recusa
+python scripts\ui_demo.py                :: UI de demo local (http://localhost:8000) — extra p/ apresentação
 ```
 
-Os **121 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **126 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -202,6 +204,7 @@ legacy_rag/
   router/              roteador determinístico (escopo R1/R2/R3 + caminho)
   generation/          gate de evidência · geração com citação estrutural · LLMClient (Groq)
   pipeline.py          orquestrador: pergunta → resposta citada ou recusa explicada
+  runtime.py           fábrica única das dependências reais (modelos + DuckDB + LLM) p/ CLI e UI de demo
   eval/                métricas (hit@k, P@k, R@k, MRR, matriz de recusa) · eval de retrieval · runner de escopo
 eval/
   questions.yaml       11 perguntas (3 categorias de comportamento + 1 distrator anti-over-recusa)
@@ -211,8 +214,8 @@ docs/
   conceitos/           5 docs didáticos (RAG, embeddings, BM25/híbrida, números/SQL, arquitetura do código)
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
-scripts/               ingerir_numeros · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · eval_fidelidade_real · resolver_caso · resolver_b3
-tests/                 21 arquivos · 121 testes
+scripts/               ingerir_numeros · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
+tests/                 21 arquivos · 126 testes
 ```
 
 ---

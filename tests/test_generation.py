@@ -74,6 +74,21 @@ def test_llm_diz_nao_encontrado_vira_recusa():
     assert r.recusou and "não encontrou" in r.motivo
 
 
+def test_sem_llm_degrada_mostrando_evidencia_citada():
+    """Sem redator (llm=None) e evidência forte: NÃO quebra — devolve os trechos JÁ citados."""
+    res = [_res(1, "O lucro foi R$ 12,3 bi.", 0.9)]
+    r = responder_de_contexto("Qual o lucro?", res, None, limiar=0.3)
+    assert not r.recusou
+    assert r.citacoes == ["BB, 4T25, release, pág. 7"]   # citação estrutural mesmo sem LLM
+    assert "R$ 12,3 bi" in r.texto                        # mostra o trecho recuperado
+
+
+def test_sem_llm_evidencia_fraca_ainda_recusa():
+    """Sem redator, o gate continua valendo: evidência fraca recusa antes de mostrar nada."""
+    r = responder_de_contexto("pergunta?", [_res(1, "x", 0.05)], None, limiar=0.3)
+    assert r.recusou
+
+
 def test_prompt_tem_instrucao_contexto_e_pergunta():
     res = [_res(1, "trecho XYZ", 0.8)]
     p = montar_prompt("minha pergunta?", res)

@@ -54,19 +54,27 @@ def montar_prompt(pergunta: str, resultados: list[Resultado]) -> str:
     return f"{INSTRUCAO}\n\nCONTEXTO:\n{contexto}\n\nPERGUNTA: {pergunta}\n\nRESPOSTA:"
 
 
-def responder_de_contexto(pergunta: str, resultados: list[Resultado], llm: LLMClient,
+def responder_de_contexto(pergunta: str, resultados: list[Resultado], llm: LLMClient | None,
                           limiar: float = LIMIAR_EVIDENCIA_PADRAO) -> Resposta:
-    """Gate de evidência -> (recusa) ou (LLM redige + citação estrutural)."""
+    """Gate de evidência -> (recusa) ou (LLM redige + citação estrutural).
+
+    Sem LLM (sem chave): degrada com elegância — devolve os trechos recuperados JÁ CITADOS, em vez
+    de quebrar. Honra a promessa "sem chave o sistema ainda recupera e cita; só não redige texto livre".
+    """
     decisao = gate_evidencia(resultados, limiar)
     if not decisao.responder:
         return Resposta(texto="Não disponível na base.", recusou=True, motivo=decisao.motivo)
+
+    # Citação ESTRUTURAL: as fontes vêm dos trechos que embasaram a resposta, por código.
+    # dict.fromkeys -> dedup preservando a ordem (vários chunks da MESMA página viram 1 fonte).
+    citacoes = list(dict.fromkeys(r.citacao for r in resultados))
+
+    if llm is None:                                    # fallback determinístico: sem redator, mostra evidência
+        contexto = "\n\n".join(f"[{i}] ({r.citacao})\n{r.texto}" for i, r in enumerate(resultados, 1))
+        return Resposta(texto="Trechos recuperados (sem redator LLM ativo):\n" + contexto, citacoes=citacoes)
 
     saida = llm.completar(montar_prompt(pergunta, resultados)).strip()
     if SENTINELA_NAO_ENCONTRADO in saida.upper():
         return Resposta(texto="Não disponível na base.", recusou=True,
                         motivo="O LLM não encontrou a resposta no contexto fornecido.")
-
-    # Citação ESTRUTURAL: as fontes vêm dos trechos que embasaram a resposta, por código.
-    # dict.fromkeys -> dedup preservando a ordem (vários chunks da MESMA página viram 1 fonte).
-    citacoes = list(dict.fromkeys(r.citacao for r in resultados))
     return Resposta(texto=saida, citacoes=citacoes, recusou=False)
