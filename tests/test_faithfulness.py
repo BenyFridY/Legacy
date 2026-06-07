@@ -56,6 +56,12 @@ def test_parse_json_quebrado_e_conservador():
     assert not v.fundamentada
 
 
+def test_parse_bool_como_string_e_conservador():
+    # O LLM às vezes serializa o booleano como STRING. bool("false")==True seria um BUG (absolveria).
+    assert _parse_veredito('{"fundamentada": "false", "alegacoes_sem_suporte": ["x"]}').fundamentada is False
+    assert _parse_veredito('{"fundamentada": "true", "alegacoes_sem_suporte": []}').fundamentada is True
+
+
 # ----------------------------------------------------------------- LLMJuizFidelidade
 
 def test_llm_juiz_monta_prompt_e_parseia():

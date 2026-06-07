@@ -79,3 +79,12 @@ def test_carteira_pagina_e_deduplica(monkeypatch):
     monkeypatch.setattr(bacen, "_get_json", fake_get)
     por = {r["cod_inst"]: r["saldo"] for r in carteira_pf_modalidades(202512)}
     assert por == {"C1": 10.0, "C2": 20.0}           # paginou (achou C2) e deduplicou (C1 uma vez só)
+
+
+def test_carteira_para_se_api_ignora_skip(monkeypatch):
+    # API patológica: ignora $skip e devolve SEMPRE a mesma página cheia -> não pode girar pra sempre.
+    monkeypatch.setattr(bacen, "PAGINA_ODATA", 2)
+    linha = {"CodInst": "C1", "AnoMes": "202512", "Grupo": "consignado", "NomeColuna": "Total", "Saldo": 10.0}
+    monkeypatch.setattr(bacen, "_get_json", lambda url: {"value": [dict(linha), dict(linha)]})
+    linhas = carteira_pf_modalidades(202512)         # termina pela guarda de "nenhuma chave nova"
+    assert [r["cod_inst"] for r in linhas] == ["C1"]

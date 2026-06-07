@@ -43,7 +43,7 @@ def _get_json(url: str, tentativas: int = 3) -> dict:
     """GET + JSON com retry. As respostas de 2025 (Tipo=1) são grandes (~26MB) e a conexão às
     vezes corta no meio (IncompleteRead) -> tenta de novo com backoff antes de desistir."""
     erro: Exception | None = None
-    for i in range(tentativas):
+    for i in range(max(1, tentativas)):   # sempre ≥1 tentativa (evita 'raise None' se tentativas<=0)
         try:
             req = urllib.request.Request(url, headers=_HEADERS)
             with urllib.request.urlopen(req, timeout=120) as resp:
@@ -72,6 +72,7 @@ def carteira_pf_modalidades(ano_mes: int) -> list[dict]:
     skip = 0
     while True:
         rows = _get_json(f"{base}&$top={PAGINA_ODATA}&$skip={skip}").get("value", [])
+        antes = len(por_chave)
         for row in rows:
             if (row.get("Grupo")
                     and row.get("NomeColuna") == COLUNA_TOTAL
@@ -82,7 +83,9 @@ def carteira_pf_modalidades(ano_mes: int) -> list[dict]:
                     "modalidade": row["Grupo"],
                     "saldo": float(row["Saldo"]),
                 }
-        if len(rows) < PAGINA_ODATA:
+        # para na página incompleta OU se a página não trouxe NENHUMA chave nova (guarda contra
+        # uma API que ignore $skip e devolva sempre a mesma página cheia -> não gira pra sempre).
+        if len(rows) < PAGINA_ODATA or len(por_chave) == antes:
             break
         skip += PAGINA_ODATA
     return list(por_chave.values())
@@ -109,8 +112,9 @@ def cadastro_conglomerado(ano_mes: int) -> dict[str, dict]:
     url = f"{OLINDA_IFDATA_BASE}/IfDataCadastro(AnoMes=@AnoMes)?@AnoMes={ano_mes}&$format=json"
     try:
         linhas = _get_json(url).get("value", [])
-    except urllib.error.URLError as e:
-        print(f"[bacen] IfDataCadastro indisponível (HTTP {getattr(e, 'code', '?')}); sem nomes/agregação.")
+    except (urllib.error.URLError, http.client.IncompleteRead, ConnectionError, TimeoutError) as e:
+        # mesmos tipos que _get_json pode propagar -> degrada para {} (cálculo por CodInst cru segue)
+        print(f"[bacen] IfDataCadastro indisponível ({getattr(e, 'code', type(e).__name__)}); sem nomes/agregação.")
         return {}
     return {row["CodInst"]: {"nome": (row.get("NomeInstituicao") or "").strip(),
                              "prudencial": row.get("CodConglomeradoPrudencial") or row["CodInst"]}

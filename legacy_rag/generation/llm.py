@@ -66,7 +66,9 @@ class GroqClient:
                 time.sleep(self._espera(resp, tentativa))
                 continue
             resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+            # content pode vir null (ex.: finish_reason=content_filter) -> "" em vez de None,
+            # senão os consumidores quebram em .strip() (answer/pipeline/faithfulness).
+            return resp.json()["choices"][0]["message"].get("content") or ""
 
     @staticmethod
     def _espera(resp, tentativa: int) -> float:

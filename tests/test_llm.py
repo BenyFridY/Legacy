@@ -74,6 +74,15 @@ def test_groq_429_persistente_levanta(monkeypatch):
         cli.completar("x")
 
 
+def test_groq_content_nulo_vira_string_vazia(monkeypatch):
+    """content:null (ex.: content_filter) -> "" e não None, senão os consumidores quebram em .strip()."""
+    mod = types.ModuleType("requests")
+    mod.post = lambda url, headers=None, json=None, timeout=None: _FakeResp(
+        {"choices": [{"message": {"content": None}}]})
+    monkeypatch.setitem(sys.modules, "requests", mod)
+    assert GroqClient(api_key="gsk_x").completar("x") == ""
+
+
 def test_groq_sem_chave_falha_claro(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     cli = GroqClient(api_key=None)

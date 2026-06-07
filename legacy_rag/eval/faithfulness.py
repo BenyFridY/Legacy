@@ -73,10 +73,20 @@ def _parse_veredito(saida: str) -> Veredito:
     if not isinstance(sem_suporte, list):
         sem_suporte = [str(sem_suporte)]
     return Veredito(
-        fundamentada=bool(dados.get("fundamentada", False)),
+        fundamentada=_para_bool(dados.get("fundamentada", False)),
         alegacoes_sem_suporte=[str(x) for x in sem_suporte],
         justificativa=str(dados.get("justificativa", "")),
     )
+
+
+def _para_bool(v) -> bool:
+    """Bool robusto e CONSERVADOR: o LLM às vezes serializa o booleano como STRING ("false").
+    bool("false") seria True (erro!), invertendo a recusa -> só True/"true"/"sim"/1 contam como fiel."""
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        return v.strip().lower() in ("true", "1", "sim", "yes", "verdadeiro")
+    return bool(v)
 
 
 class LLMJuizFidelidade:

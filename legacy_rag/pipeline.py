@@ -73,7 +73,7 @@ def responder(pergunta: str, deps: Dependencias) -> Resposta:
 # --------------------------------------------------------------------------
 
 def _buscar_texto(pergunta: str, rota: Rota, deps: Dependencias, k: int | None = None):
-    k = k or deps.k                                               # multi_fonte passa um k maior
+    k = deps.k if k is None else k                                # multi_fonte passa um k maior (k=0 é respeitado)
     query_vec = deps.encoder.encode([pergunta])[0]
     banco = rota.bancos[0] if len(rota.bancos) == 1 else None     # pré-filtro só se houver 1 banco
     res = buscar_hibrido(deps.con, pergunta, query_vec, k=k, n_ramo=deps.n_ramo, banco=banco)
