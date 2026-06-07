@@ -96,8 +96,8 @@ sondagens: 8
 a gíria "calote" o BGE-M3 (denso) liga a inadimplência, mas o cross-encoder (registro formal) não
 discrimina; a paráfrase perifrástica ("descontado direto da folha") nenhum dos dois liga — e é
 exatamente o sinal que o **gate de evidência (Estágio 2)** usa para recusar honestamente.
-Corpus de texto = **apenas Itaú 4T25** hoje (514 fichas / 169 páginas); ampliar para BB/Bradesco é
-trabalho de ingestão pendente.
+Corpus do **eval de retrieval** = Itaú 4T25 (as 8 sondagens-gold são todas dele); o Bradesco 4T25
+também já está ingerido (para o B3), mas ainda sem sondagens-gold próprias.
 
 ---
 
@@ -179,7 +179,7 @@ Fontes:
 ========================================================================
 [computada (numeros / Bacen)]  Como evoluiu o market share do Banco do Brasil em consignado nos ultimos trimestres?
 ------------------------------------------------------------------------
-Market share de BB em consignado: 2023-09: 19.9%, 2023-12: 20.2%, 2024-03: 20.3%, 2024-06: 20.3%, 2024-09: 20.5%, 2024-12: 20.1%. Variação no período: 19.9% -> 20.1% (alta).
+Market share de BB em consignado: 2023-09: 19.9%, 2023-12: 20.2%, 2024-03: 20.3%, 2024-06: 20.3%, 2024-09: 20.5%, 2024-12: 20.1%, 2025-03: 19.8%, 2025-06: 19.8%, 2025-09: 19.5%, 2025-12: 19.2%. Variação no período: 19.9% -> 19.2% (queda).
 
 Fontes:
   - Bacen IF.data, modalidade=consignado (Empréstimo com Consignação em Folha), market share = carteira / Σ sistema (calc. em SQL)
@@ -200,3 +200,39 @@ pelo LLM a partir do contexto recuperado**, com **citação anexada por código*
 depende do LLM lembrar de citar). A série de market share é **computada em SQL** (determinística,
 auditável por re-execução) — o LLM nem entra nesse caminho. As recusas saem do **Estágio 1**
 (roteador), com o motivo explícito.
+
+---
+
+## 5. Caso B3 ao vivo — DECLARADO × COMPUTADO (caminho `multi_fonte`)
+
+A assinatura do Caso B: cruzar o que o banco **declara** (texto do release) com o que **computamos**
+de forma independente (Bacen IF.data). Comando: `python scripts/resolver_b3.py`
+
+```
+[multi_fonte]  O market share de crédito consignado do Bradesco (INSS, setor privado e público)
+               que ele reporta no balanço bate com o que computamos a partir do Bacen IF.data?
+------------------------------------------------------------------------
+Evidências para comparação (declarado x computado):
+
+[T] (Bradesco, 4T25, release, pág. 14)  ...INSS Privado Público ... 14,1% Total
+[T] (Bradesco, 4T25, release, pág. 41)  ...Crédito Consignado 14,1 14,2 14,3  (cols Dez25/Set25/Dez24)
+[N] (Bacen IF.data, calc. em SQL)        Bradesco em consignado: ... 2024-12: 14.0%, 2025-06: 13.8%,
+                                         2025-12: 13.8%.  (série 3T23->4T25)
+
+Fontes: Bradesco 4T25 release pág.14 e pág.41 ; Bacen IF.data (SQL)
+```
+*(saída resumida — o sistema devolve todos os trechos recuperados, cada um citado; aqui mostramos os
+que carregam o número.)*
+
+**Resultado:** DECLARADO **14,1%** (4T25, do próprio relatório do Bradesco, p.14/p.41) ≈ COMPUTADO
+**13,8%** (Bacen, 4T25) → **confirma** (diferença ~0,3 p.p., metodológica: o "Total" do Bradesco
+inclui sublinhas próprias vs. nosso agregado por conglomerado).
+
+**Leitura honesta (vira ADR-0005):** o sistema **roteou** para `multi_fonte`, **recuperou** o número
+declarado e **computou** a série independente em SQL. Mas o LLM **não narrou** a frase "confere":
+o valor declarado está numa **célula de tabela cujo chunk perdeu o cabeçalho/unidade** (`Crédito
+Consignado 14,1 14,2 14,3`, sem `%` nem a coluna), então o LLM — corretamente instruído a **não
+inventar** — devolveu o sentinela. Em vez de **recusar**, o orquestrador **cai para as duas
+evidências citadas lado a lado** (honesto: não fabrica a leitura; útil: não vira recusa). Esta é
+justamente a fraqueza de **RAG sobre tabelas** que motiva o **caminho dos NÚMEROS** (SQL), onde o
+share sai exato e auditável — e não dependente de o LLM ler uma tabela crua.

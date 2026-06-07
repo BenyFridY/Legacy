@@ -42,7 +42,9 @@ def conectar(path=None) -> duckdb.DuckDBPyConnection:
 def carregar_periodo(con: duckdb.DuckDBPyConnection, ano_mes: int) -> int:
     """Ingere todas as modalidades PF de um período no DuckDB (idempotente: regrava o período)."""
     linhas = carteira_pf_modalidades(ano_mes)
-    con.execute("DELETE FROM carteira_pf WHERE ano_mes = ?", [ano_mes])
+    if not linhas:        # fonte vazia/instável -> PRESERVA o que já existe (não deleta antes de ter o novo)
+        return 0
+    con.execute("DELETE FROM carteira_pf WHERE ano_mes = ?", [ano_mes])  # idempotente só quando há dado
     con.executemany(
         "INSERT INTO carteira_pf VALUES (?, ?, ?, ?)",
         [(r["cod_inst"], r["ano_mes"], r["modalidade"], r["saldo"]) for r in linhas],
@@ -78,7 +80,9 @@ def market_share_serie(con: duckdb.DuckDBPyConnection, cod_inst: str, modalidade
 def carregar_cadastro(con: duckdb.DuckDBPyConnection, ano_mes: int) -> int:
     """Ingere o cadastro (CodInst -> nome + conglomerado prudencial) de um período. Idempotente."""
     mapa = cadastro_conglomerado(ano_mes)
-    con.execute("DELETE FROM cadastro WHERE ano_mes = ?", [ano_mes])
+    if not mapa:          # cadastro indisponível/vazio -> PRESERVA o existente (não apaga numa queda do Bacen)
+        return 0
+    con.execute("DELETE FROM cadastro WHERE ano_mes = ?", [ano_mes])  # idempotente só quando há dado
     con.executemany(
         "INSERT INTO cadastro VALUES (?, ?, ?, ?)",
         [(cod, ano_mes, info["nome"], info["prudencial"]) for cod, info in mapa.items()],
@@ -99,10 +103,12 @@ def market_share_conglomerado_serie(con: duckdb.DuckDBPyConnection, cod_prudenci
             FROM carteira_pf WHERE modalidade = ? GROUP BY ano_mes
         ),
         cong AS (
+            -- LEFT JOIN + COALESCE: até 2024 o cod_inst (financeiro) mapeia para o prudencial via
+            -- cadastro; de 2025 o próprio cod_inst JÁ É o prudencial (sem cadastro) -> cai no fallback.
             SELECT c.ano_mes, SUM(c.saldo) AS saldo
             FROM carteira_pf c
-            JOIN cadastro cad ON c.cod_inst = cad.cod_inst AND c.ano_mes = cad.ano_mes
-            WHERE c.modalidade = ? AND cad.cod_prudencial = ?
+            LEFT JOIN cadastro cad ON c.cod_inst = cad.cod_inst AND c.ano_mes = cad.ano_mes
+            WHERE c.modalidade = ? AND COALESCE(cad.cod_prudencial, c.cod_inst) = ?
             GROUP BY c.ano_mes
         )
         SELECT cong.ano_mes, cong.saldo / s.total AS share
@@ -120,13 +126,13 @@ def ranking_conglomerado(con: duckdb.DuckDBPyConnection, ano_mes: int, modalidad
     Nome = o do MAIOR membro do conglomerado (arg_max em SQL). Para inspeção e apresentação.
     """
     q = """
-        SELECT cad.cod_prudencial,
-               arg_max(cad.nome, c.saldo) AS nome,
+        SELECT COALESCE(cad.cod_prudencial, c.cod_inst) AS prudencial,
+               arg_max(COALESCE(NULLIF(cad.nome, ''), c.cod_inst), c.saldo) AS nome,
                SUM(c.saldo) / (SELECT SUM(saldo) FROM carteira_pf WHERE modalidade = ? AND ano_mes = ?) AS share
         FROM carteira_pf c
-        JOIN cadastro cad ON c.cod_inst = cad.cod_inst AND c.ano_mes = cad.ano_mes
+        LEFT JOIN cadastro cad ON c.cod_inst = cad.cod_inst AND c.ano_mes = cad.ano_mes
         WHERE c.modalidade = ? AND c.ano_mes = ?
-        GROUP BY cad.cod_prudencial
+        GROUP BY COALESCE(cad.cod_prudencial, c.cod_inst)
         ORDER BY share DESC
         LIMIT ?;
     """

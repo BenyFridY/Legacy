@@ -11,25 +11,47 @@ Estrutura descoberta explorando a API ao vivo:
 """
 from __future__ import annotations
 
+import http.client
 import json
+import time
 import urllib.error
 import urllib.request
 
 from legacy_rag.config import OLINDA_IFDATA_BASE
 
 # Coordenadas da carteira PF por modalidade (descobertas ao vivo).
-TIPO_PF_MODALIDADE = 2
+# A QUEBRA de 2025 (Res. 4.966/IFRS9): até 2024 a carteira por modalidade vem no conglomerado
+# FINANCEIRO (Tipo=2); de 2025 ela migrou para o conglomerado PRUDENCIAL (Tipo=1) — e ali o
+# CodInst JÁ É o conglomerado prudencial (ex.: C0080329=BB), então nem precisa agregar via cadastro.
+TIPO_PF_MODALIDADE = 2            # ≤ 2024
+TIPO_PF_MODALIDADE_2025 = 1       # ≥ 2025 (verificado ao vivo: 202503+ só tem dado no Tipo=1)
+ANO_MES_NOVO_LAYOUT = 202503      # primeiro período trimestral com o novo layout
 RELATORIO_PF_MODALIDADE = 11
 COLUNA_TOTAL = "Total"
 GRUPO_CONSIGNADO = "Empréstimo com Consignação em Folha"
+PAGINA_ODATA = 100000            # tamanho de página do $top/$skip (respostas de 2025 passam disso)
+
+
+def _tipo_instituicao(ano_mes: int) -> int:
+    """Nível onde a carteira PF por modalidade é publicada (mudou em 2025, ver acima)."""
+    return TIPO_PF_MODALIDADE_2025 if ano_mes >= ANO_MES_NOVO_LAYOUT else TIPO_PF_MODALIDADE
 
 _HEADERS = {"User-Agent": "LegacyCase/0.1 (research; beny.frid@hashdex.com)"}
 
 
-def _get_json(url: str) -> dict:
-    req = urllib.request.Request(url, headers=_HEADERS)
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.load(resp)
+def _get_json(url: str, tentativas: int = 3) -> dict:
+    """GET + JSON com retry. As respostas de 2025 (Tipo=1) são grandes (~26MB) e a conexão às
+    vezes corta no meio (IncompleteRead) -> tenta de novo com backoff antes de desistir."""
+    erro: Exception | None = None
+    for i in range(tentativas):
+        try:
+            req = urllib.request.Request(url, headers=_HEADERS)
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                return json.load(resp)
+        except (urllib.error.URLError, http.client.IncompleteRead, ConnectionError, TimeoutError) as e:
+            erro = e
+            time.sleep(2.0 * (i + 1))
+    raise erro  # esgotou as tentativas -> propaga (cadastro_conglomerado degrada em URLError)
 
 
 def carteira_pf_modalidades(ano_mes: int) -> list[dict]:
@@ -39,22 +61,31 @@ def carteira_pf_modalidades(ano_mes: int) -> list[dict]:
     modalidades (consignado, cartão, habitação, veículos, ...); o filtro por consignado é feito
     depois, no cálculo. Usa o nível conglomerado financeiro (Tipo 2), onde o Bacen abre por modalidade.
     """
-    url = (f"{OLINDA_IFDATA_BASE}/IfDataValores"
-           "(AnoMes=@AnoMes,TipoInstituicao=@TipoInstituicao,Relatorio=@Relatorio)"
-           f"?@AnoMes={ano_mes}&@TipoInstituicao={TIPO_PF_MODALIDADE}"
-           f"&@Relatorio='{RELATORIO_PF_MODALIDADE}'&$top=100000&$format=json")
-    out: list[dict] = []
-    for row in _get_json(url).get("value", []):
-        if (row.get("Grupo")
-                and row.get("NomeColuna") == COLUNA_TOTAL
-                and row.get("Saldo") is not None):
-            out.append({
-                "cod_inst": row["CodInst"],
-                "ano_mes": int(row["AnoMes"]),
-                "modalidade": row["Grupo"],
-                "saldo": float(row["Saldo"]),
-            })
-    return out
+    base = (f"{OLINDA_IFDATA_BASE}/IfDataValores"
+            "(AnoMes=@AnoMes,TipoInstituicao=@TipoInstituicao,Relatorio=@Relatorio)"
+            f"?@AnoMes={ano_mes}&@TipoInstituicao={_tipo_instituicao(ano_mes)}"
+            f"&@Relatorio='{RELATORIO_PF_MODALIDADE}'&$format=json")
+    # PAGINAÇÃO: algumas respostas de 2025 passam de 100k linhas (a API ECOA linhas duplicadas)
+    # -> pagina com $skip até a página vir incompleta. dedup por (cod_inst, modalidade) colapsa as
+    # cópias da linha "Total" (saldo idêntico; somar dobraria). Em ≤2024 cabe em 1 página -> sem efeito.
+    por_chave: dict[tuple[str, str], dict] = {}
+    skip = 0
+    while True:
+        rows = _get_json(f"{base}&$top={PAGINA_ODATA}&$skip={skip}").get("value", [])
+        for row in rows:
+            if (row.get("Grupo")
+                    and row.get("NomeColuna") == COLUNA_TOTAL
+                    and row.get("Saldo") is not None):
+                por_chave[(row["CodInst"], row["Grupo"])] = {
+                    "cod_inst": row["CodInst"],
+                    "ano_mes": int(row["AnoMes"]),
+                    "modalidade": row["Grupo"],
+                    "saldo": float(row["Saldo"]),
+                }
+        if len(rows) < PAGINA_ODATA:
+            break
+        skip += PAGINA_ODATA
+    return list(por_chave.values())
 
 
 def carteira_por_modalidade(ano_mes: int, grupo: str = GRUPO_CONSIGNADO) -> dict[str, float]:

@@ -48,6 +48,7 @@ class Dependencias:
     modalidade: str = MODALIDADE_FOCO
     limiar: float = LIMIAR_EVIDENCIA_PADRAO
     k: int = 5
+    k_multi: int = 10        # multi_fonte confronta 2 fontes -> mais contexto (achar a célula da tabela declarada)
     n_ramo: int = 50
 
 
@@ -71,12 +72,13 @@ def responder(pergunta: str, deps: Dependencias) -> Resposta:
 # Caminho do TEXTO (doc_unico): busca híbrida -> rerank -> gate -> geração citada.
 # --------------------------------------------------------------------------
 
-def _buscar_texto(pergunta: str, rota: Rota, deps: Dependencias):
+def _buscar_texto(pergunta: str, rota: Rota, deps: Dependencias, k: int | None = None):
+    k = k or deps.k                                               # multi_fonte passa um k maior
     query_vec = deps.encoder.encode([pergunta])[0]
     banco = rota.bancos[0] if len(rota.bancos) == 1 else None     # pré-filtro só se houver 1 banco
-    res = buscar_hibrido(deps.con, pergunta, query_vec, k=deps.k, n_ramo=deps.n_ramo, banco=banco)
+    res = buscar_hibrido(deps.con, pergunta, query_vec, k=k, n_ramo=deps.n_ramo, banco=banco)
     if deps.reranker is not None:
-        res = rerankar(pergunta, res, deps.reranker, top_k=deps.k)
+        res = rerankar(pergunta, res, deps.reranker, top_k=k)
     return res
 
 
@@ -136,7 +138,7 @@ def _caminho_computado(rota: Rota, deps: Dependencias) -> Resposta:
 # --------------------------------------------------------------------------
 
 def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
-    resultados = _buscar_texto(pergunta, rota, deps)
+    resultados = _buscar_texto(pergunta, rota, deps, k=deps.k_multi)
     tem_texto = gate_evidencia(resultados, deps.limiar).responder
     computado = _computar_serie(rota, deps)
 
@@ -156,15 +158,18 @@ def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
         citacoes.append(cit)
 
     contexto = "\n\n".join(blocos)
-    # Sem LLM (ou em fallback determinístico): devolve as duas evidências lado a lado, já citadas.
+    evidencias = Resposta(texto="Evidências para comparação (declarado x computado):\n" + contexto,
+                          citacoes=citacoes)
+    # Sem LLM (fallback determinístico): devolve as duas evidências lado a lado, já citadas.
     if deps.llm is None:
-        return Resposta(texto="Evidências para comparação (declarado x computado):\n" + contexto,
-                        citacoes=citacoes)
+        return evidencias
 
     prompt = (f"{INSTRUCAO}\n\nCONTEXTO (T = declarado no texto; N = computado do IF.data):\n"
               f"{contexto}\n\nPERGUNTA: {pergunta}\n\nRESPOSTA:")
     saida = deps.llm.completar(prompt).strip()
+    # Se o LLM não narrou a reconciliação (ex.: figura declarada numa CÉLULA de tabela sem cabeçalho
+    # no chunk -> ele não inventa), NÃO recusamos: temos as duas evidências citadas -> mostramos lado a
+    # lado p/ o analista comparar. Honesto (não fabrica o número) e útil (não vira recusa). Ver ADR-0005.
     if SENTINELA_NAO_ENCONTRADO in saida.upper():
-        return Resposta(texto="Não disponível na base.", recusou=True,
-                        motivo="O LLM não conseguiu reconciliar declarado x computado com o contexto.")
+        return evidencias
     return Resposta(texto=saida, citacoes=citacoes)

@@ -18,7 +18,9 @@ from legacy_rag.structured.store import (
 )
 
 # Janela trimestral coberta (IF.data e trimestral). Ajuste aqui para ampliar o historico.
-PERIODOS = [202309, 202312, 202403, 202406, 202409, 202412]
+# A partir de 2025 (Res. 4.966/IFRS9) a carteira por modalidade migrou de Tipo=2 p/ Tipo=1 no
+# IF.data -> tratado em bacen._tipo_instituicao; por isso 2025 ja entra normalmente aqui.
+PERIODOS = [202309, 202312, 202403, 202406, 202409, 202412, 202503, 202506, 202509, 202512]
 
 
 def main():
@@ -27,11 +29,14 @@ def main():
         "SELECT DISTINCT ano_mes FROM carteira_pf").fetchall()}
 
     for am in PERIODOS:
-        if am in presentes:
-            print(f"  carteira {am}: ja presente, pulando")
-        else:
-            print(f"  carteira {am}: {carregar_periodo(con, am)} linhas")
-        print(f"  cadastro {am}: {carregar_cadastro(con, am)} instituicoes")
+        try:  # uma queda transitoria do Bacen num periodo nao aborta o resto (base preservada)
+            if am in presentes:
+                print(f"  carteira {am}: ja presente, pulando")
+            else:
+                print(f"  carteira {am}: {carregar_periodo(con, am)} linhas")
+            print(f"  cadastro {am}: {carregar_cadastro(con, am)} instituicoes")
+        except Exception as e:  # noqa: BLE001
+            print(f"  [falha em {am}: {type(e).__name__}: {e} -> pulando este periodo]")
 
     total_cad = con.execute("SELECT COUNT(*) FROM cadastro").fetchone()[0]
     print(f">>> Pronto. cadastro: {total_cad} linhas; modalidade foco: {MODALIDADE_FOCO}")

@@ -38,8 +38,8 @@ e [`docs/pesquisa/evidencias-verificadas.md`](docs/pesquisa/evidencias-verificad
 ## Resultados do eval
 
 > *"Comece pelo eval."* Medimos antes de otimizar. Saídas **reproduzíveis** (com comandos) em
-> [`docs/resultados-eval.md`](docs/resultados-eval.md). Corpus de texto = **Itaú 4T25** (514 fichas /
-> 169 páginas); números = **Bacen IF.data** (6 trimestres).
+> [`docs/resultados-eval.md`](docs/resultados-eval.md). Corpus de texto = **Itaú 4T25 + Bradesco 4T25**
+> (1.182 fichas); números = **Bacen IF.data, 10 trimestres (3T23–4T25)**.
 
 **1) Qualidade de retrieval — hit@k / MRR (BGE-M3 + reranker reais).** Gold por **página**, curado
 por busca **lexical + leitura** (independente do embedding → anti-circular), com **2 sondagens-limite
@@ -71,9 +71,14 @@ auto-avaliação).
 
 **4) Resolução do Caso B — ponta a ponta (modelos reais, incl. Groq/Llama 3.3 70B).** As 3
 categorias resolvidas ao vivo: *lucro Itaú 4T25* **R$ 12,3 bi** (pág. 8); *consignado Itaú 4T25*
-**R$ 75,3 bi** (pág. 21); *market share BB consignado* **19,9% → 20,1%** (série trimestral, IF.data,
-SQL); recusas **R1** (futuro 2027) e **R2** (Nubank IFRS × Itaú Cosif). Saída completa em
-[`docs/resultados-eval.md`](docs/resultados-eval.md).
+**R$ 75,3 bi** (pág. 21); *market share BB consignado* **19,9% → 19,2%** (série trimestral 3T23→4T25,
+IF.data, SQL); recusas **R1** (futuro 2027) e **R2** (Nubank IFRS × Itaú Cosif).
+
+**5) Caso B3 ao vivo — DECLARADO × COMPUTADO (caminho `multi_fonte`).** O sistema cruza o que o
+**Bradesco declara** (texto do release: consignado **14,1%**, p.14/p.41) com o que **computamos** do
+Bacen (**13,8%** no 4T25, SQL) → **confirma**. Quando o LLM não consegue narrar a célula de tabela,
+o orquestrador **cai para as duas evidências citadas lado a lado** (não inventa, não recusa). Saídas
+completas em [`docs/resultados-eval.md`](docs/resultados-eval.md).
 
 > **Honestidade estatística:** os `n` são pequenos (escopo `n=11`, fidelidade `n=4`) — **sanidade
 > forte, não estatística de população**. O Estágio 1 mede só escopo; a **calibração do gate de
@@ -140,16 +145,19 @@ Critério nº 1 do case. **Sem upload manual** — o sistema busca na fonte e in
   programático. `extrair_paginas` (pypdf) devolve uma string **por página**; daí chunking → embedding
   (BGE-M3) → store. Tudo encadeado em `ingerir_release` e **idempotente por (banco, período, tipo)**.
 - **Números (carteira por modalidade + cadastro):** API **Olinda IF.data** do Banco Central. A
-  carteira PF por modalidade vem em `TipoInstituicao=2 / Relatório=11`; o **cadastro** mapeia cada
-  instituição → **conglomerado prudencial**, e o market share é agregado **por conglomerado** (soma os
-  vários CNPJs de um mesmo banco) — divisão `carteira_banco / Σ sistema` feita **em SQL**. Ingestão
-  **idempotente por período**. (`scripts/ingerir_numeros.py`, `legacy_rag/structured/`)
+  carteira PF por modalidade vem em `Relatório=11`; o **cadastro** mapeia cada instituição →
+  **conglomerado prudencial**, e o market share é agregado **por conglomerado** (soma os vários CNPJs
+  de um mesmo banco) — divisão `carteira_banco / Σ sistema` feita **em SQL**, idempotente por período.
+- **Lida com a quebra do IF.data em 2025** (Res. 4.966/IFRS9): a carteira por modalidade **migrou de
+  `TipoInstituicao=2` (≤2024) para `TipoInstituicao=1` (≥2025)** — e nesse nível o código já é o
+  conglomerado prudencial. O cliente **escolhe o nível pelo período**, **pagina** as respostas grandes
+  (com dedup das linhas que a API ecoa), e **nunca apaga dados** numa queda da fonte (preserva o
+  existente). Resultado: série de consignado **contínua e sem salto** de 3T23 a 4T25.
 
-> Hoje a base de **texto** tem **um documento ingerido (Itaú 4T25)**, suficiente para provar o
-> pipeline e o eval de retrieval ponta a ponta. A camada de **números** tem 6 trimestres
-> (202309–202412). Ampliar para BB/Bradesco e crescer para 500+ documentos é, em grande parte,
-> **projeto documentado** (manifesto + dedup por hash de conteúdo + embedding incremental) — ver
-> *Fraquezas e escala*.
+> Hoje a base de **texto** tem **dois documentos** (Itaú 4T25 + Bradesco 4T25; 1.182 fichas) e a de
+> **números**, **10 trimestres (3T23–4T25)** — suficiente para provar o pipeline, o eval e o B3
+> ponta a ponta. Crescer para 500+ documentos é, em grande parte, **projeto documentado** (manifesto +
+> dedup por hash de conteúdo + embedding incremental) — ver *Fraquezas e escala*.
 
 ---
 
@@ -203,8 +211,8 @@ docs/
   conceitos/           5 docs didáticos (RAG, embeddings, BM25/híbrida, números/SQL, arquitetura do código)
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
-scripts/               ingerir_numeros · prova_retrieval_real · eval_retrieval_real · resolver_caso
-tests/                 19 arquivos · 104 testes
+scripts/               ingerir_numeros · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · eval_fidelidade_real · resolver_caso · resolver_b3
+tests/                 21 arquivos · 121 testes
 ```
 
 ---
@@ -213,9 +221,9 @@ tests/                 19 arquivos · 104 testes
 
 Documentado com honestidade — é o que o case pede.
 
-- **Corpus de texto pequeno hoje:** só o Itaú 4T25 está ingerido. O pipeline e o eval de retrieval
-  estão provados nele; ampliar para BB/Bradesco/Santander e múltiplos períodos é trabalho de
-  ingestão (o código já é genérico).
+- **Corpus de texto ainda enxuto:** dois documentos (Itaú 4T25 + Bradesco 4T25). Suficiente para
+  provar retrieval, eval e o B3; ampliar para BB/Santander e múltiplos períodos é trabalho de
+  ingestão (o código já é genérico e idempotente).
 - **Busca exata, sem índice aproximado:** vetorial é **cosseno brute-force** e o BM25 é reconstruído
   em memória por consulta. Ótimo e simples no tamanho atual; em escala (>~100k fichas) entraria um
   índice **HNSW** e um **FTS persistido** — projetado, não construído (sem benchmark medido aqui).
@@ -225,6 +233,10 @@ Documentado com honestidade — é o que o case pede.
 - **Reranker que não discrimina:** com gíria, o cross-encoder empata tudo em ~0,5 e *apaga* o bom
   sinal do vetorial denso. Candidato a ADR: **cair de volta para a ordem do RRF** quando o reranker
   não separa.
+- **RAG sobre tabelas:** o número *declarado* do B3 (consignado **14,1%**) vive numa **célula de
+  tabela**; ao chunkar, o pedaço perde cabeçalho/unidade e o LLM (corretamente) não o lê como "14,1%".
+  Hoje o `multi_fonte` cai para evidência citada lado a lado; o fix real é **chunking ciente de
+  tabela**. É justamente por isso que o share *computado* vai pelo **caminho SQL**, não pelo texto.
 - **Lacunas do roteador (R4/R5/R6):** distinguir *realizado* de *guidance* dentro de 2026 (R4) e
   métricas ainda não ingeridas (R6) caem hoje no Estágio 2. Roadmap em ADR-0005 (planejado).
 - **Dedup só por (banco, período, tipo):** falta dedup por **hash de conteúdo** para reingestão em

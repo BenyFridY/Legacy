@@ -134,3 +134,14 @@ def test_multi_fonte_sem_llm_devolve_evidencias(deps):
         "O market share de consignado do Bradesco computado a partir do IF.data confirma o "
         "~14,2% que o CEO declarou?", deps)
     assert not r.recusou and "declarado x computado" in r.texto
+
+
+def test_multi_fonte_llm_nao_reconcilia_mostra_evidencias(deps):
+    # LLM devolve o sentinela (ex.: figura declarada numa célula de tabela) -> NÃO recusa:
+    # como temos as duas evidências, mostra declarado x computado lado a lado, citados.
+    deps.llm = FakeLLM("NAO_ENCONTRADO")
+    r = responder(
+        "O market share de consignado do Bradesco computado a partir do IF.data confirma o "
+        "~14,2% que o CEO declarou?", deps)
+    assert not r.recusou and "declarado x computado" in r.texto
+    assert len(r.citacoes) == 2
