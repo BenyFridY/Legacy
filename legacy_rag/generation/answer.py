@@ -9,7 +9,7 @@ Fluxo de `responder_de_contexto`:
      de o LLM lembrar de citar. Toda resposta sai com suas fontes (regra inegociável do case).
 
 Isto é o BLOCO de geração ("dado o contexto, responda ou recuse"). O orquestrador completo
-(pergunta -> roteador -> busca/SQL -> este bloco) é o próximo passo, quando ligarmos a busca real.
+(pergunta -> roteador -> busca/SQL -> este bloco) vive em `legacy_rag/pipeline.py`.
 """
 from __future__ import annotations
 

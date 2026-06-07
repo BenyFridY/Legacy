@@ -1,6 +1,6 @@
 """PROVA DE RETRIEVAL SEMANTICO REAL — abre a torneira e mostra que sai agua limpa.
 
-Os 93 testes provam o ENCANAMENTO com um encoder FALSO (os dados fluem, as recusas disparam,
+A suite de testes prova o ENCANAMENTO com um encoder FALSO (os dados fluem, as recusas disparam,
 as citacoes se anexam). Eles NAO provam qualidade semantica. Este script pluga os modelos
 REAIS (BGE-M3 + bge-reranker-v2-m3), ingere um release de verdade e faz buscas que so acertam
 se o sistema entender SIGNIFICADO — nao apenas casar palavra exata.

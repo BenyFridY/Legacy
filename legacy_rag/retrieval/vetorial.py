@@ -1,9 +1,9 @@
 """Busca vetorial — dado o vetor de uma pergunta, acha as fichas mais próximas em SIGNIFICADO.
 
 Busca EXATA (brute-force): compara a pergunta com todos os vetores e ordena por similaridade
-de cosseno. Recall 100%, e a ~40k fichas leva ~8 ms em CPU — simples e defensável; o HNSW só
-valeria acima de ~100k fichas (ver ADR de escala). O cosseno mede o ÂNGULO entre vetores:
-quanto mais alinhados (mesmo sentido), mais perto de 1.
+de cosseno. Recall 100% e simples/defensável no tamanho atual; um índice aproximado (HNSW) só
+valeria acima de ~100k fichas (ver ADR de escala) — não medimos benchmark aqui. O cosseno mede
+o ÂNGULO entre vetores: quanto mais alinhados (mesmo sentido), mais perto de 1.
 
 PRÉ-FILTRO por metadados (banco/período/tipo) ANTES de ranquear: as perguntas B1/B2 do case
 comparam períodos/bancos específicos, então filtrar primeiro (no SQL) evita misturar fichas
