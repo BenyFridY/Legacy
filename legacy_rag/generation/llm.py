@@ -15,6 +15,7 @@ decisão de recusar (gate de escopo + gate de evidência), justamente pra não d
 from __future__ import annotations
 
 import os
+import time
 from typing import Protocol
 
 
@@ -27,6 +28,8 @@ class LLMClient(Protocol):
 # Endpoint COMPATÍVEL com a API da OpenAI — por isso basta `requests`, sem SDK próprio.
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODELO_PADRAO = "llama-3.3-70b-versatile"   # forte o suficiente: o LLM só REDIGE o recuperado
+GROQ_MAX_TENTATIVAS = 4                            # rate-limit (429) no free tier é esperado em rajada
+HTTP_RATE_LIMIT, HTTP_INDISPONIVEL = 429, 503      # status que valem um retry com backoff
 
 
 class GroqClient:
@@ -34,28 +37,47 @@ class GroqClient:
 
     temperature=0 -> saída determinística (reprodutibilidade do eval). A chave vem do ambiente
     (.env, gitignored); sem chave, falha com mensagem clara em vez de vazar erro de rede.
+    Retry com backoff em 429/503: o free tier estoura em rajada (ex.: rodar o eval inteiro de
+    uma vez); respeitamos o header Retry-After quando o Groq o envia.
     """
 
     def __init__(self, modelo: str = GROQ_MODELO_PADRAO, api_key: str | None = None,
-                 timeout: int = 60):
+                 timeout: int = 60, max_tentativas: int = GROQ_MAX_TENTATIVAS):
         self._modelo = modelo
         self._api_key = api_key or os.getenv("GROQ_API_KEY")
         self._timeout = timeout
+        self._max_tentativas = max(1, max_tentativas)
 
     def completar(self, prompt: str) -> str:
         if not self._api_key:
             raise RuntimeError("GROQ_API_KEY ausente: cole a chave no .env (ver .env.example).")
         import requests  # import local: o módulo carrega sem rede p/ os testes
 
-        resp = requests.post(
-            GROQ_URL,
-            headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"},
-            json={"model": self._modelo, "temperature": 0.0,
-                  "messages": [{"role": "user", "content": prompt}]},
-            timeout=self._timeout,
-        )
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        for tentativa in range(self._max_tentativas):
+            resp = requests.post(
+                GROQ_URL,
+                headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"},
+                json={"model": self._modelo, "temperature": 0.0,
+                      "messages": [{"role": "user", "content": prompt}]},
+                timeout=self._timeout,
+            )
+            # rate-limit / indisponível -> espera e tenta de novo (menos na última tentativa)
+            if resp.status_code in (HTTP_RATE_LIMIT, HTTP_INDISPONIVEL) and tentativa < self._max_tentativas - 1:
+                time.sleep(self._espera(resp, tentativa))
+                continue
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+
+    @staticmethod
+    def _espera(resp, tentativa: int) -> float:
+        """Segundos a esperar: respeita Retry-After do Groq se vier; senão backoff exponencial (cap 30s)."""
+        retry_after = (getattr(resp, "headers", None) or {}).get("Retry-After")
+        if retry_after:
+            try:
+                return min(float(retry_after), 30.0)
+            except (TypeError, ValueError):
+                pass
+        return min(2.0 ** (tentativa + 1), 30.0)
 
 
 def criar_llm(provider: str | None = None) -> LLMClient | None:

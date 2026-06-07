@@ -14,10 +14,13 @@ from legacy_rag.generation.llm import GroqClient, criar_llm
 
 
 class _FakeResp:
-    def __init__(self, payload):
+    def __init__(self, payload, status_code=200, headers=None):
         self._payload = payload
+        self.status_code = status_code
+        self.headers = headers or {}
     def raise_for_status(self):
-        pass
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")   # simula requests.HTTPError
     def json(self):
         return self._payload
 
@@ -41,6 +44,34 @@ def test_groq_monta_payload_e_parseia(monkeypatch):
     assert cap["json"]["temperature"] == 0.0                       # determinístico
     assert cap["json"]["messages"][0]["content"] == "Pergunta?"
     assert cap["headers"]["Authorization"] == "Bearer gsk_teste"
+
+
+def test_groq_retry_em_429(monkeypatch):
+    """429 na 1ª chamada, 200 na 2ª -> retorna a resposta (provou o retry com backoff)."""
+    chamadas = {"n": 0}
+    mod = types.ModuleType("requests")
+    def post(url, headers=None, json=None, timeout=None):
+        chamadas["n"] += 1
+        if chamadas["n"] == 1:
+            return _FakeResp(None, status_code=429, headers={"Retry-After": "0"})
+        return _FakeResp({"choices": [{"message": {"content": "OK DEPOIS DO RETRY"}}]})
+    mod.post = post
+    monkeypatch.setitem(sys.modules, "requests", mod)
+    monkeypatch.setattr("legacy_rag.generation.llm.time.sleep", lambda _: None)  # não espera de verdade
+    cli = GroqClient(api_key="gsk_x")
+    assert cli.completar("x") == "OK DEPOIS DO RETRY"
+    assert chamadas["n"] == 2
+
+
+def test_groq_429_persistente_levanta(monkeypatch):
+    """429 em todas as tentativas -> esgota e levanta (erro claro, não silencioso)."""
+    mod = types.ModuleType("requests")
+    mod.post = lambda url, headers=None, json=None, timeout=None: _FakeResp(None, status_code=429)
+    monkeypatch.setitem(sys.modules, "requests", mod)
+    monkeypatch.setattr("legacy_rag.generation.llm.time.sleep", lambda _: None)
+    cli = GroqClient(api_key="gsk_x", max_tentativas=3)
+    with pytest.raises(Exception):
+        cli.completar("x")
 
 
 def test_groq_sem_chave_falha_claro(monkeypatch):
