@@ -36,3 +36,25 @@ def test_top_k_limita():
 
 def test_lista_vazia():
     assert rerankar("consignado", [], FakeReranker()) == []
+
+
+class RerankerCego:
+    """Reranker que NÃO discrimina: devolve notas quase iguais (simula o empate com gíria)."""
+
+    def pontuar(self, query, textos):
+        return [0.50 + 0.001 * i for i in range(len(textos))]   # variação << limiar (0.05)
+
+
+def test_fallback_rrf_quando_reranker_nao_discrimina():
+    """Reranker cego -> preserva a ORDEM DE ENTRADA (RRF), em vez de reordenar por ruído."""
+    res = [_res(1, "trecho A"), _res(2, "trecho B"), _res(3, "trecho C")]   # entrada = ordem do RRF
+    out = rerankar("qualquer", res, RerankerCego())
+    assert [r.chunk_id for r in out] == [1, 2, 3]        # NÃO reordenou (manteve o RRF)
+    assert out[0].score == 0.50                          # mas a nota do reranker continua anexada (p/ o gate)
+
+
+def test_reranker_que_discrimina_reordena_mesmo_contra_rrf():
+    """Quando o reranker discrimina (alta variância), a ordem dele vence a de entrada."""
+    res = [_res(1, "alpha"), _res(2, "consignado consignado consignado"), _res(3, "beta")]
+    out = rerankar("consignado", res, FakeReranker())    # notas [0, 3, 0] -> pstdev alto
+    assert out[0].chunk_id == 2                           # reordenou: o relevante subiu

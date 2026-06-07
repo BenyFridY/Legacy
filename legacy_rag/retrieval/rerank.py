@@ -17,9 +17,10 @@ antigo normalize=True), que é o que o gate de evidência espera.
 from __future__ import annotations
 
 import math
+import statistics
 from typing import Protocol, Sequence
 
-from legacy_rag.config import RERANK_MODEL
+from legacy_rag.config import LIMIAR_DISCRIMINA_RERANK, RERANK_MODEL
 from legacy_rag.retrieval.vetorial import Resultado
 
 
@@ -57,13 +58,24 @@ class BGEReranker:
 
 
 def rerankar(query: str, resultados: list[Resultado], reranker: Reranker,
-             top_k: int | None = None) -> list[Resultado]:
-    """Reordena os resultados pela nota do reranker (cross-encoder) e devolve o top_k."""
+             top_k: int | None = None,
+             limiar_discrimina: float = LIMIAR_DISCRIMINA_RERANK) -> list[Resultado]:
+    """Reordena os resultados pela nota do reranker (cross-encoder) e devolve o top_k.
+
+    FALLBACK PARA A ORDEM DO RRF: se as notas do reranker quase não variam (desvio-padrão <
+    limiar_discrimina), o cross-encoder NÃO está discriminando — acontece com gíria, em que ele
+    empata tudo em ~0.5 e, ao reordenar por esse empate, APAGA o bom sinal que a busca densa achou.
+    Nesse caso preservamos a ORDEM DE ENTRADA (que já vem ordenada por RRF da busca híbrida) em vez
+    de reordenar por ruído. As notas do reranker continuam anexadas — o gate de evidência usa a
+    MELHOR nota, independentemente da ordem. Ver ADR-0005.
+    """
     if not resultados:
         return []
     notas = reranker.pontuar(query, [r.texto for r in resultados])
-    reordenados = sorted(
-        (Resultado(r.chunk_id, r.banco, r.periodo, r.tipo_doc, r.pagina, r.ordinal, r.texto, score=float(s))
-         for r, s in zip(resultados, notas)),
-        key=lambda r: r.score, reverse=True)
+    pares = list(zip(resultados, notas))
+    if len(notas) > 1 and statistics.pstdev(notas) >= limiar_discrimina:
+        pares.sort(key=lambda par: par[1], reverse=True)     # reranker discrimina -> sua ordem
+    # senão: mantém a ordem de entrada = ordem do RRF (fallback robusto contra reranker "cego")
+    reordenados = [Resultado(r.chunk_id, r.banco, r.periodo, r.tipo_doc, r.pagina, r.ordinal, r.texto,
+                             score=float(s)) for r, s in pares]
     return reordenados[:top_k] if top_k is not None else reordenados

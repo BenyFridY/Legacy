@@ -17,10 +17,12 @@ import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from legacy_rag.runtime import construir_deps   # preparar_torch() roda no import (torch antes de numpy)
+from legacy_rag.config import ROOT
 from legacy_rag.pipeline import responder
 from legacy_rag.router.router import rotear
 
 PORTA = 8000
+LOGO = ROOT / "assets" / "legacy-logo.png"      # logo da Legacy, servido em /logo.png
 DEPS = None  # carregado UMA vez em main()
 
 # Exemplos ROBUSTOS de propósito (cobrem as 4 rotas + 2 tipos de recusa). Evita-se a frase
@@ -39,10 +41,12 @@ PAGINA = """<!doctype html>
 <html lang="pt-br"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Legacy Capital - Retrieval Demo</title>
 <style>
- :root{--verde:#14533b;--verde2:#1f7a52;--bg:#f4f7f5;--card:#fff;--linha:#e2e8e4;--texto:#1c2b24}
+ :root{--verde:#1a4d36;--verde2:#246b4f;--bg:#f4f7f5;--card:#fff;--linha:#e2e8e4;--texto:#1c2b24}
  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--texto)}
- header{background:var(--verde);color:#fff;padding:18px 24px} header h1{margin:0;font-size:18px;font-weight:700;letter-spacing:.3px}
- header p{margin:4px 0 0;opacity:.85;font-size:13px}
+ header{background:#fff;border-bottom:3px solid var(--verde);padding:14px 24px;display:flex;align-items:center;gap:16px}
+ header img{height:46px;width:auto}
+ header .ht h1{margin:0;font-size:16px;font-weight:700;color:var(--verde);letter-spacing:.2px}
+ header .ht p{margin:3px 0 0;color:#5b6b62;font-size:12.5px}
  main{max-width:880px;margin:24px auto;padding:0 16px}
  .card{background:var(--card);border:1px solid var(--linha);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
  textarea{width:100%;border:1px solid var(--linha);border-radius:8px;padding:12px;font-size:15px;resize:vertical;min-height:64px;font-family:inherit}
@@ -60,8 +64,9 @@ PAGINA = """<!doctype html>
  .fontes h4{margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#5b6b62}
  .fontes li{font-size:13px;color:var(--verde)} .spin{color:#5b6b62;font-size:14px}
 </style></head><body>
-<header><h1>Legacy Capital - Retrieval para Research de Equities</h1>
-<p>Demo ao vivo - roteador deterministico - citacao por construcao - recusa honesta</p></header>
+<header><img src="/logo.png" alt="Legacy Capital">
+<div class="ht"><h1>Retrieval para Research de Equities</h1>
+<p>Demo ao vivo - roteador deterministico - citacao por construcao - recusa honesta</p></div></header>
 <main>
  <div class="card">
   <textarea id="q" placeholder="Pergunte algo sobre os bancos (ex.: lucro do Itau no 4T25, market share de consignado do BB)..."></textarea>
@@ -115,6 +120,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(corpo)
 
     def do_GET(self):
+        if self.path == "/logo.png":
+            try:
+                return self._send(200, LOGO.read_bytes(), "image/png")
+            except Exception:
+                return self._send(404, b"sem logo", "text/plain; charset=utf-8")
         if self.path != "/":
             return self._send(404, b"nao encontrado", "text/plain; charset=utf-8")
         html = PAGINA.replace("__EXEMPLOS__", json.dumps(EXEMPLOS, ensure_ascii=False))

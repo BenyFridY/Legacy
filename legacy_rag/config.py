@@ -50,3 +50,8 @@ ANO_COBERTURA_MAX = 2026
 # recusa "não disponível na base". PLACEHOLDER a calibrar contra um mini-gold (varrer o "joelho"
 # da curva over-recusa x alucinação); ver ADR-0005. Não é um valor sagrado — é um ponto de partida.
 LIMIAR_EVIDENCIA_PADRAO = 0.30
+
+# Limiar de DISCRIMINAÇÃO DO RERANKER: se o desvio-padrão das notas do cross-encoder fica ABAIXO
+# disto, ele "não está decidindo" (empata tudo — acontece com gíria) -> caímos de volta para a ORDEM
+# DO RRF em vez de reordenar por ruído. Ver retrieval/rerank.py e ADR-0005.
+LIMIAR_DISCRIMINA_RERANK = 0.05
