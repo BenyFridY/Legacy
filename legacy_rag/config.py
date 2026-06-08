@@ -47,9 +47,11 @@ ENTIDADES = {
 ANO_COBERTURA_MAX = 2026
 
 # Limiar do GATE DE EVIDÊNCIA (Estágio 2): nota do reranker (0–1, normalizada) abaixo disto ->
-# recusa "não disponível na base". PLACEHOLDER a calibrar contra um mini-gold (varrer o "joelho"
-# da curva over-recusa x alucinação); ver ADR-0005. Não é um valor sagrado — é um ponto de partida.
-LIMIAR_EVIDENCIA_PADRAO = 0.30
+# recusa "não disponível na base". CALIBRADO (não mais placeholder): a varredura contra o mini-gold
+# (eval/gate_gold.yaml; rode scripts/calibrar_gate.py) mostrou respondíveis ~0,72 e fora-da-base
+# ~0,50, com o "joelho" (0% over-recusa, 0% vazamento) em ~0,60. O 0,30 antigo deixava 100% das
+# fora-da-base passarem. Banda segura medida ~[0,60; 0,71]; escolhido 0,60. Ver ADR-0005.
+LIMIAR_EVIDENCIA_PADRAO = 0.60
 
 # Limiar de DISCRIMINAÇÃO DO RERANKER: se o desvio-padrão das notas do cross-encoder fica ABAIXO
 # disto, ele "não está decidindo" (empata tudo — acontece com gíria) -> caímos de volta para a ORDEM

@@ -38,36 +38,48 @@ e [`docs/pesquisa/evidencias-verificadas.md`](docs/pesquisa/evidencias-verificad
 ## Resultados do eval
 
 > *"Comece pelo eval."* Medimos antes de otimizar. Saídas **reproduzíveis** (com comandos) em
-> [`docs/resultados-eval.md`](docs/resultados-eval.md). Corpus de texto = **Itaú 4T25 + Bradesco 4T25**
-> (1.182 fichas); números = **Bacen IF.data, 10 trimestres (3T23–4T25)**.
+> [`docs/resultados-eval.md`](docs/resultados-eval.md). Corpus de **texto** = **11 documentos** de
+> **5 fontes** (Itaú, Bradesco, BB, Santander, Bacen), **4 tipos** (release, transcrição, sumário,
+> nota), **longo × curto** (de 312 pp a 4 pp) e **multi-período** (3T25/4T25/1T26) — **3.845 fichas**,
+> alimentadas por um **manifesto** (ver *Como a base é alimentada*); números = **Bacen IF.data,
+> 10 trimestres (3T23–4T25)**.
 
 **1) Qualidade de retrieval — hit@k / MRR (BGE-M3 + reranker reais).** Gold por **página**, curado
-por busca **lexical + leitura** (independente do embedding → anti-circular), com **2 sondagens-limite
-de propósito**:
+por busca **lexical + leitura** (independente do embedding → anti-circular). **13 sondagens** em
+**4 bancos e 4 tipos** de documento, com **retrieval ciente de período** (quando a pergunta nomeia o
+trimestre, um filtro de metadados fixa o documento certo no corpus multi-período):
 
 | conjunto | hit@1 | hit@3 | hit@5 | MRR |
 |---|---|---|---|---|
-| **6 sondagens realistas** | — | **100%** | 100% | — |
-| **8 sondagens** (inclui 2 limite) | 62,5% | 75,0% | 75,0% | **0,688** |
+| **sondagens realistas** (sem gíria/paráfrase) | — | **82%** | — | — |
+| **13 sondagens** (inclui 2 limite + transcrição/nota) | 46,2% | 69,2% | 76,9% | **0,592** |
 
-As 2 "difíceis" (gíria *"calote"*; paráfrase *"descontado direto da folha"*) **falham como esperado**
-e viram narrativa de engenharia (ver abaixo) — não são escondidas.
+**Limites honestos** (não escondidos): a gíria *"calote"* e a paráfrase *"descontado direto da folha"*
+falham de propósito; e a **transcrição** (fala do CEO) perde para o texto **formal** do release no
+mesmo tema — um achado real de retrieval em corpus heterogêneo (ver *Fraquezas*). O **filtro de
+período** recuperou as sondagens do Itaú para o **topo** (rank 1) ao remover a competição entre 4T25/3T25/1T26.
 
-**2) Recusa por escopo — Estágio 1 (roteador determinístico, sem modelo).** 11 perguntas, 3
+**2) Recusa por escopo — Estágio 1 (roteador determinístico, sem modelo).** 12 perguntas, 3
 categorias de comportamento + 1 distrator anti-over-recusa:
 
 | métrica | valor |
 |---|---|
-| acurácia de comportamento | **11/11** |
+| acurácia de comportamento | **12/12** |
 | recusa correta (dos que deviam recusar) | **100%** |
 | over-recusa (recusou um respondível) | **0%** |
 | alucinação (respondeu o que devia recusar) | **0** |
 
-**3) Fidelidade da resposta — faithfulness (LLM-juiz, Groq temp 0).** Nas respostas geradas (texto,
-Itaú 4T25): **3/4 inteiramente sustentadas** pelo contexto citado. O caso reprovado (margem) tem uma
-cifra que o juiz **não achou no contexto** — exatamente o que a métrica existe para pegar; reportamos
-a alegação para revisão humana. Ressalvas: `n=4` e **juiz = gerador** (mesmo modelo → risco de
-auto-avaliação).
+**3) Fidelidade da resposta — faithfulness (juiz LLM INDEPENDENTE, Groq temp 0).** Nas respostas
+geradas (texto, **4 bancos**): **6/6 inteiramente sustentadas** pelo contexto citado — e o juiz é um
+**modelo de família diferente** do gerador (`openai/gpt-oss-120b` ≠ Llama 3.3 70B → **sem viés de
+auto-avaliação**). 2 perguntas foram **corretamente recusadas** (guidance ausente no contexto; share
+do Bradesco numa célula de tabela) — defesa em profundidade. Ressalva: `n=6` é sanidade forte.
+
+**3b) Calibração do gate de evidência — Estágio 2.** O limiar deixou de ser placeholder: varrendo um
+mini-gold (6 respondíveis × 6 fora-da-base), as respondíveis pontuam **~0,72** e as fora-da-base
+**~0,50**, com **joelho em 0,60** (0% over-recusa, 0% vazamento). O antigo **0,30 deixava 100% das
+fora-da-base passarem** — agora a *"receita de bolo"* é barrada **pelo gate**, não só pelo LLM.
+`LIMIAR_EVIDENCIA_PADRAO` foi ajustado **0,30 → 0,60** com esse lastro.
 
 **4) Resolução do Caso B — ponta a ponta (modelos reais, incl. Groq/Llama 3.3 70B).** As 3
 categorias resolvidas ao vivo: *lucro Itaú 4T25* **R$ 12,3 bi** (pág. 8); *consignado Itaú 4T25*
@@ -75,15 +87,16 @@ categorias resolvidas ao vivo: *lucro Itaú 4T25* **R$ 12,3 bi** (pág. 8); *con
 IF.data, SQL); recusas **R1** (futuro 2027) e **R2** (Nubank IFRS × Itaú Cosif).
 
 **5) Caso B3 ao vivo — DECLARADO × COMPUTADO (caminho `multi_fonte`).** O sistema cruza o que o
-**Bradesco declara** (texto do release: consignado **14,1%**, p.14/p.41) com o que **computamos** do
-Bacen (**13,8%** no 4T25, SQL) → **confirma**. Quando o LLM não consegue narrar a célula de tabela,
-o orquestrador **cai para as duas evidências citadas lado a lado** (não inventa, não recusa). Saídas
-completas em [`docs/resultados-eval.md`](docs/resultados-eval.md).
+**Bradesco declara** — agora incluindo a **fala do CEO na teleconferência 3T25** (*"market share de
+~14,2%; INSS 15,4%, público 14,3%, privado 7,5%"*, recuperada da **transcrição**) e a tabela do release
+4T25 (**14,1%**) — com o que **computamos** do Bacen (**13,8%** no 4T25, SQL) → **confirma**. Quando o
+LLM hesita diante de cifras próximas em tabelas cruas, o orquestrador **cai para as evidências citadas
+lado a lado** (não inventa, não recusa). Saídas completas em [`docs/resultados-eval.md`](docs/resultados-eval.md).
 
-> **Honestidade estatística:** os `n` são pequenos (escopo `n=11`, fidelidade `n=4`) — **sanidade
-> forte, não estatística de população**. O Estágio 1 mede só escopo; a **calibração do gate de
-> evidência (Estágio 2)**, um **juiz de fidelidade independente** (hoje juiz = gerador) e `n` maior
-> seguem como trabalho aberto (ver *Fraquezas* e ADR-0005, planejado).
+> **Honestidade estatística:** os `n` são pequenos (escopo `n=12`, fidelidade `n=6`, calibração do
+> gate `n=12`) — **sanidade forte, não estatística de população**. O gate **foi calibrado** e o juiz
+> de fidelidade **agora é independente** (antes ambos pendentes); o que segue aberto está em
+> *Fraquezas* e [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md).
 
 ---
 
@@ -116,7 +129,7 @@ completas em [`docs/resultados-eval.md`](docs/resultados-eval.md).
   IFRS × Cosif — como **conjunção** de sinais, **nunca** pelo nome do banco), **R3** (pede frase
   *verbatim* que não existe na base).
 - **Estágio 2 — evidência** (gate): mesmo no escopo, se a melhor nota do reranker fica **abaixo do
-  limiar**, recusa em vez de redigir sobre evidência fraca.
+  limiar** (**0,60**, calibrado — ver *Resultados*), recusa em vez de redigir sobre evidência fraca.
 
 **Roteador determinístico** (e não agente LLM aberto) é uma escolha de projeto deliberada: como o
 eval pesa **50%** da nota e roda o sistema repetidamente, *mesma pergunta → mesmo caminho* mantém a
@@ -140,10 +153,12 @@ avaliação **reprodutível e auditável**. O preço (fragilidade léxica) é as
 
 Critério nº 1 do case. **Sem upload manual** — o sistema busca na fonte e indexa sozinho:
 
-- **Texto (releases/transcrições):** `baixar(url)` pega os **bytes crus do PDF no CDN mziq**
-  (`filemanager-cdn.mziq.com`) — *não* pela página de RI, que responde **403** a cliente
-  programático. `extrair_paginas` (pypdf) devolve uma string **por página**; daí chunking → embedding
-  (BGE-M3) → store. Tudo encadeado em `ingerir_release` e **idempotente por (banco, período, tipo)**.
+- **Texto (releases/transcrições/notas):** um **manifesto** (`corpus/manifesto.yaml`) lista as fontes
+  e `scripts/ingerir_corpus.py` abastece a base **sozinho** — baixa, extrai por página, chunka, embeda
+  (BGE-M3) e persiste — **idempotente por (banco, período, tipo_doc)** e com `try/except` por documento
+  (uma fonte que cai não derruba o lote). `baixar(url)` traz os **bytes do PDF** com **retry/backoff**
+  do CDN/`api.mziq.com` (a página de RI dá **403** a robô; o backend do mziq **não**) ou direto do
+  Bacen. `extrair_paginas` (pypdf) devolve uma string **por página** — a âncora da citação.
 - **Números (carteira por modalidade + cadastro):** API **Olinda IF.data** do Banco Central. A
   carteira PF por modalidade vem em `Relatório=11`; o **cadastro** mapeia cada instituição →
   **conglomerado prudencial**, e o market share é agregado **por conglomerado** (soma os vários CNPJs
@@ -154,10 +169,11 @@ Critério nº 1 do case. **Sem upload manual** — o sistema busca na fonte e in
   (com dedup das linhas que a API ecoa), e **nunca apaga dados** numa queda da fonte (preserva o
   existente). Resultado: série de consignado **contínua e sem salto** de 3T23 a 4T25.
 
-> Hoje a base de **texto** tem **dois documentos** (Itaú 4T25 + Bradesco 4T25; 1.182 fichas) e a de
-> **números**, **10 trimestres (3T23–4T25)** — suficiente para provar o pipeline, o eval e o B3
-> ponta a ponta. Crescer para 500+ documentos é, em grande parte, **projeto documentado** (manifesto +
-> dedup por hash de conteúdo + embedding incremental) — ver *Fraquezas e escala*.
+> A base de **texto** tem **11 documentos** (Itaú 4T25/3T25/1T26, Bradesco 4T25/3T25 + transcrição,
+> BB 4T25 + sumário, Santander 4T25, 2 notas do Bacen; **3.845 fichas**) e a de **números**,
+> **10 trimestres (3T23–4T25)**. Crescer para 500+ é **acrescentar linhas ao manifesto**; o que falta
+> para essa escala (dedup por **hash de conteúdo**, índice **HNSW**, embedding incremental) está em
+> *Fraquezas e escala*.
 
 ---
 
@@ -173,17 +189,19 @@ copy .env.example .env          :: opcional: LLM_PROVIDER=groq_free + GROQ_API_K
 :: no Windows, prefixe os scripts pesados com estas 3 variáveis (carrega torch sem conflito de OpenMP):
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 
-python -m pytest -q                      :: 126 testes — sem rede, sem torch, sem chave (fakes)
+python -m pytest -q                      :: 134 testes — sem rede, sem torch, sem chave (fakes)
 python -m legacy_rag.eval.runner         :: matriz de recusa-por-escopo (sem modelo)
 python scripts\ingerir_numeros.py        :: alimenta carteira_pf + cadastro (Bacen IF.data)
-python scripts\prova_retrieval_real.py   :: ingere Itaú 4T25 + busca real (baixa BGE-M3 ~ na 1ª vez)
-python scripts\eval_retrieval_real.py    :: hit@k / MRR reais
+python scripts\ingerir_corpus.py         :: alimenta a base de TEXTO pelo manifesto (11 docs, 5 fontes)
+python scripts\eval_retrieval_real.py    :: hit@k / MRR reais (ciente de período)
+python scripts\calibrar_gate.py          :: calibra o limiar do gate (over-recusa × vazamento → joelho)
+python scripts\eval_fidelidade_real.py   :: faithfulness com juiz INDEPENDENTE (Groq)
 python scripts\resolver_caso.py          :: resolve o Caso B ponta a ponta (LLM real, se .env tiver chave)
 python scripts\perguntar.py "..."        :: pergunta LIVRE: mostra a rota + resposta citada ou recusa
 python scripts\ui_demo.py                :: UI de demo local (http://localhost:8000) — extra p/ apresentação
 ```
 
-Os **126 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **134 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -205,48 +223,56 @@ legacy_rag/
   generation/          gate de evidência · geração com citação estrutural · LLMClient (Groq)
   pipeline.py          orquestrador: pergunta → resposta citada ou recusa explicada
   runtime.py           fábrica única das dependências reais (modelos + DuckDB + LLM) p/ CLI e UI de demo
-  eval/                métricas (hit@k, P@k, R@k, MRR, matriz de recusa) · eval de retrieval · runner de escopo
+  eval/                métricas · eval de retrieval · runner de escopo · calibração do gate · faithfulness
+corpus/
+  manifesto.yaml       fontes da base de TEXTO (banco/período/tipo/url) — a "base ligada", reproduzível
 eval/
-  questions.yaml       11 perguntas (3 categorias de comportamento + 1 distrator anti-over-recusa)
-  retrieval_gold.yaml  8 sondagens (gold por página; 2 limite de propósito)
+  questions.yaml       12 perguntas (3 categorias de comportamento + 1 distrator + 1 B2 de tom)
+  retrieval_gold.yaml  13 sondagens (gold por página; 4 bancos, 4 tipos; 2 limite de propósito)
+  gate_gold.yaml       mini-gold da calibração do gate (respondíveis × fora-da-base)
 docs/
-  decisions/           ADRs 0001–0004 — a "progressão de raciocínio" que o case pede
+  decisions/           ADRs 0001–0005 — a "progressão de raciocínio" que o case pede
   conceitos/           5 docs didáticos (RAG, embeddings, BM25/híbrida, números/SQL, arquitetura do código)
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
-scripts/               ingerir_numeros · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 21 arquivos · 126 testes
+scripts/               ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
+tests/                 22 arquivos · 134 testes
 ```
 
 ---
 
 ## Fraquezas e o que faria diferente em escala
 
-Documentado com honestidade — é o que o case pede.
+Documentado com honestidade — é o que o case pede. **Vários itens antes "abertos" viraram código
+medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o que sobra está nomeado.
 
-- **Corpus de texto ainda enxuto:** dois documentos (Itaú 4T25 + Bradesco 4T25). Suficiente para
-  provar retrieval, eval e o B3; ampliar para BB/Santander e múltiplos períodos é trabalho de
-  ingestão (o código já é genérico e idempotente).
+- **Corpus em dezenas, não centenas:** 11 documentos (5 fontes, 4 tipos, longo × curto, multi-período)
+  — provam retrieval heterogêneo, eval e o B3, mas ainda longe dos 500+. Crescer é **acrescentar linhas
+  ao manifesto** (`corpus/manifesto.yaml`); o gargalo de escala é índice + dedup (abaixo), não o pipeline.
 - **Busca exata, sem índice aproximado:** vetorial é **cosseno brute-force** e o BM25 é reconstruído
-  em memória por consulta. Ótimo e simples no tamanho atual; em escala (>~100k fichas) entraria um
-  índice **HNSW** e um **FTS persistido** — projetado, não construído (sem benchmark medido aqui).
-- **Limiar do gate de evidência = 0,30 é placeholder**, não calibrado. Falta varrer o "joelho"
-  over-recusa × alucinação contra um mini-gold rotulado. As notas observadas (~0,71/0,73 quando há
-  resposta vs ~0,5 quando não há) dão a intuição, mas o número final precisa de calibração.
-- **Reranker que não discrimina:** com gíria, o cross-encoder empata tudo em ~0,5 e *apaga* o bom
-  sinal do vetorial denso. Candidato a ADR: **cair de volta para a ordem do RRF** quando o reranker
-  não separa.
+  em memória por consulta. Ótimo no tamanho atual; em >~100k fichas entraria **HNSW** + **FTS persistido**
+  — projetado, não construído (sem benchmark medido aqui).
+- **Retrieval ciente de período exige o período na pergunta:** com 3 períodos do mesmo banco, uma
+  pergunta *period-ambígua* faz a página de um trimestre competir com a do outro. O filtro de metadados
+  resolve **quando a pergunta nomeia o trimestre** ("4T25"); sem período, fica à mercê do ranqueamento.
+  Fix futuro: inferir o trimestre "mais recente" como default, ou desambiguar com o usuário.
+- **Transcrição perde para o release no mesmo tema:** a sondagem da teleconferência do Bradesco falha
+  no hit@5 — a busca prefere o texto **formal** do release à fala conversacional do CEO. Achado real de
+  corpus heterogêneo; fix: dar peso ao `tipo_doc` quando a pergunta o pede ("na teleconferência").
+- **Gate calibrado num gold pequeno:** o limiar **0,60** veio de varrer um mini-gold (joelho com 0%
+  over-recusa / 0% vazamento), mas `n=12`; produção pede um gold maior e idealmente por-modalidade.
+- **Fallback do reranker é heurístico:** caímos para a ordem do RRF quando o desvio-padrão das notas
+  fica < 0,05. Esse limiar do "não-discrimina" foi escolhido por inspeção, não calibrado.
 - **RAG sobre tabelas:** o número *declarado* do B3 (consignado **14,1%**) vive numa **célula de
-  tabela**; ao chunkar, o pedaço perde cabeçalho/unidade e o LLM (corretamente) não o lê como "14,1%".
-  Hoje o `multi_fonte` cai para evidência citada lado a lado; o fix real é **chunking ciente de
-  tabela**. É justamente por isso que o share *computado* vai pelo **caminho SQL**, não pelo texto.
-- **Lacunas do roteador (R4/R5/R6):** distinguir *realizado* de *guidance* dentro de 2026 (R4) e
-  métricas ainda não ingeridas (R6) caem hoje no Estágio 2. Roadmap em ADR-0005 (planejado).
-- **Dedup só por (banco, período, tipo):** falta dedup por **hash de conteúdo** para reingestão em
-  escala — projetado, não construído.
-- **Faithfulness medido em escala pequena:** já há LLM-juiz (3/4 no Itaú 4T25), mas `n=4`, **juiz =
-  gerador** (mesmo modelo → risco de auto-avaliação) e corpus de um doc. Próximo passo: **juiz
-  independente** + `n` maior.
+  tabela**; ao chunkar, perde cabeçalho/unidade e o LLM (corretamente) não o lê. Hoje o `multi_fonte`
+  cai para evidência citada lado a lado; o fix real é **chunking ciente de tabela**. É por isso que o
+  share *computado* vai pelo **caminho SQL**, não pelo texto.
+- **Lacunas do roteador (R4/R6):** distinguir *realizado* de *guidance* dentro de 2026 (R4) e métricas
+  ainda não ingeridas (R6) caem hoje no Estágio 2 (gate), não numa regra dedicada.
+- **Dedup só por (banco, período, tipo_doc):** falta dedup por **hash de conteúdo** para reingestão em
+  escala (mesmo arquivo, URL diferente) — projetado, não construído.
+- **Faithfulness em n pequeno:** já com **juiz independente** (gpt-oss-120b ≠ gerador) e `n=6` em 4
+  bancos (6/6); ainda assim é amostra pequena — produção pede `n` maior e mais bancos/períodos.
 
 ---
 

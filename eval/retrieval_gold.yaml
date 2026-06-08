@@ -15,14 +15,14 @@
 # Schema:
 #   id, banco, periodo, tipo_doc, question, gold_paginas, dificuldade (facil|media|dificil), note
 
-corpus_observacao: "Hoje so o Itau 4T25 esta ingerido. Adicionar BB/Bradesco -> mais sondagens."
+corpus_observacao: "Corpus heterogeneo: Itau (4T25/3T25/1T26), Bradesco (release+transcricao), BB (release+sumario), Santander, Bacen (notas). As sondagens cobrem varios BANCOS e TIPOS (inclui doc curto e transcricao)."
 
 sondagens:
   - id: itau-consignado-saldo
     banco: Itau
     periodo: "4T25"
     tipo_doc: release
-    question: "qual o saldo da carteira de credito consignado do Itau"
+    question: "qual o saldo da carteira de credito consignado do Itau no 4T25"
     gold_paginas: [7, 21]
     dificuldade: facil
     note: "Termo 'consignado' presente: tabela de carteira (pag.7) e destaque (pag.21, R$75,3 bi)."
@@ -31,7 +31,7 @@ sondagens:
     banco: Itau
     periodo: "4T25"
     tipo_doc: release
-    question: "qual foi o lucro liquido recorrente do banco no trimestre"
+    question: "qual foi o lucro liquido recorrente do Itau no 4T25"
     gold_paginas: [7, 8]
     dificuldade: media
     note: "Resultado Recorrente Gerencial R$12,3 bi: linha na pag.7, narrado na pag.8 (Sumario Exec.)."
@@ -40,7 +40,7 @@ sondagens:
     banco: Itau
     periodo: "4T25"
     tipo_doc: release
-    question: "qual o indice de inadimplencia acima de 90 dias"
+    question: "qual o indice de inadimplencia acima de 90 dias do Itau no 4T25"
     gold_paginas: [5, 14]
     dificuldade: facil
     note: "Tabela de destaques (pag.5, 1,9%) e secao Qualidade do Credito / NPL 90 (pag.14)."
@@ -58,7 +58,7 @@ sondagens:
     banco: Itau
     periodo: "4T25"
     tipo_doc: release
-    question: "qual o indice de Basileia e o capital do banco"
+    question: "qual o indice de Basileia e o capital do Itau no 4T25"
     gold_paginas: [5, 23]
     dificuldade: media
     note: "Indice de Basileia na tabela de destaques (pag.5) e secao de Capital (pag.23)."
@@ -67,7 +67,7 @@ sondagens:
     banco: Itau
     periodo: "4T25"
     tipo_doc: release
-    question: "qual a margem financeira com clientes"
+    question: "qual a margem financeira com clientes do Itau no 4T25"
     gold_paginas: [8, 12]
     dificuldade: facil
     note: "Narrado na pag.8 e tabela dedicada na pag.12 (Margem Financeira com Clientes)."
@@ -76,7 +76,7 @@ sondagens:
     banco: Itau
     periodo: "4T25"
     tipo_doc: release
-    question: "qual o nivel de calote dos clientes do banco"
+    question: "qual o nivel de calote dos clientes do Itau no 4T25"
     gold_paginas: [5, 14]
     dificuldade: dificil
     note: "GIRIA: 'calote'=inadimplencia. O denso liga; o cross-encoder formal tende a nao ligar."
@@ -85,7 +85,53 @@ sondagens:
     banco: Itau
     periodo: "4T25"
     tipo_doc: release
-    question: "emprestimo descontado direto da folha de pagamento do trabalhador"
+    question: "emprestimo do Itau no 4T25 descontado direto da folha de pagamento do trabalhador"
     gold_paginas: [7, 21]
     dificuldade: dificil
     note: "PARAFRASE EXTREMA de consignado, ZERO palavra em comum -> esperamos falhar (justifica hibrido)."
+
+  # ---------- corpus HETEROGENEO: outros bancos, periodos e TIPOS de documento ----------
+  - id: bb-consignado-4t25
+    banco: BB
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual o desempenho da carteira de credito consignado do Banco do Brasil no 4T25"
+    gold_paginas: [12, 55]
+    dificuldade: media
+    note: "BB 4T25 (doc LONGO, 312pp): crescimento do consignado (p.12) e secao de Credito (p.55)."
+
+  - id: bb-lucro-sumario-curto
+    banco: BB
+    periodo: "3T25"
+    tipo_doc: sumario
+    question: "qual o lucro liquido ajustado acumulado do Banco do Brasil no 3T25"
+    gold_paginas: [1]
+    dificuldade: facil
+    note: "Documento CURTO (Sumario do Resultado, 4pp): lucro liquido ajustado 9M25 na p.1."
+
+  - id: santander-lucro-4t25
+    banco: Santander
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual foi o lucro liquido do Santander Brasil no 4T25"
+    gold_paginas: [3, 10]
+    dificuldade: facil
+    note: "Santander 4T25 (banco novo): destaques (p.3) e analise do desempenho (p.10, R$ 4,1 bi)."
+
+  - id: bradesco-transcricao-politica-credito
+    banco: Bradesco
+    periodo: "3T25"
+    tipo_doc: transcricao
+    question: "o que o management do Bradesco falou sobre a politica de credito na teleconferencia do 3T25"
+    gold_paginas: [2, 3]
+    dificuldade: media
+    note: "TIPO transcricao: fala do management sobre politica de credito mais restritiva (p.2-3)."
+
+  - id: bacen-nota-credito
+    banco: Bacen
+    periodo: "2026-04"
+    tipo_doc: nota
+    question: "o que a nota do Banco Central aponta sobre a evolucao do credito"
+    gold_paginas: [2]
+    dificuldade: media
+    note: "TIPO nota (doc CURTO, fonte publica do BC em texto): evolucao do credito por modalidade (p.2)."

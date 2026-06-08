@@ -62,6 +62,7 @@ def _sem_acento(texto: str) -> str:
 class Slots:
     bancos: list[str] = field(default_factory=list)   # chaves de ENTIDADES mencionadas
     anos: list[int] = field(default_factory=list)      # anos citados (de "2027" e de "4T25")
+    periodos: list[str] = field(default_factory=list)  # trimestres citados ("4t25" -> "4T25"), p/ filtro de metadados
     metrica: str = "outra"                              # rótulo grosso p/ transparência/log
     cita_ifdata: bool = False                           # "segundo o IF.data", "Bacen"
     declarado: bool = False                             # "declarou", "CEO", "guidance", "estratégia"
@@ -86,6 +87,14 @@ def _detectar_anos(t: str) -> list[int]:
     return sorted(set(anos))
 
 
+def _detectar_periodos(t: str) -> list[str]:
+    """Trimestres citados, no formato do DB ("4t25" -> "4T25"). Usado como FILTRO DE METADADOS
+    p/ fixar o documento certo num corpus multi-período. Só TOKEN DE TRIMESTRE (4T25) vira filtro —
+    um ano "solto" (ex.: 'guidance para 2026') é ASSUNTO, não o período do documento, e não filtra."""
+    vistos = dict.fromkeys(f"{q}T{yy}" for q, yy in re.findall(r"\b([1-4])t(\d{2})\b", t))
+    return list(vistos)
+
+
 def extrair_slots(pergunta: str) -> Slots:
     """Lê a pergunta e preenche os slots por regras léxicas (determinístico, sem modelo)."""
     t = _sem_acento(pergunta)
@@ -102,6 +111,7 @@ def extrair_slots(pergunta: str) -> Slots:
     return Slots(
         bancos=_detectar_bancos(t),
         anos=_detectar_anos(t),
+        periodos=_detectar_periodos(t),
         metrica=metrica,
         cita_ifdata=bool(re.search(r"if[\s.]?data|bacen", t)),
         declarado=bool(re.search(r"declar|disse|afirm|coment|\bceo\b|telecon|\bcall\b|guidance|estrateg|prometeu", t)),
@@ -166,8 +176,9 @@ def _classificar_caminho(s: Slots) -> str:
 class Rota:
     categoria: str                 # uma de CATEGORIAS
     bancos: list[str]              # entidades detectadas (chaves de ENTIDADES)
-    anos: list[int]                # períodos detectados
+    anos: list[int]                # anos detectados
     metrica: str                   # rótulo grosso da métrica
+    periodos: list[str] = field(default_factory=list)  # trimestres ("4T25") p/ filtro de metadados
     motivo_recusa: str | None = None   # preenchido quando categoria == "nao_respondivel"
 
     @property
@@ -180,5 +191,6 @@ def rotear(pergunta: str) -> Rota:
     s = extrair_slots(pergunta)
     motivo = _gate_escopo(s)
     if motivo is not None:
-        return Rota("nao_respondivel", s.bancos, s.anos, s.metrica, motivo_recusa=motivo)
-    return Rota(_classificar_caminho(s), s.bancos, s.anos, s.metrica)
+        return Rota("nao_respondivel", s.bancos, s.anos, s.metrica,
+                    periodos=s.periodos, motivo_recusa=motivo)
+    return Rota(_classificar_caminho(s), s.bancos, s.anos, s.metrica, periodos=s.periodos)

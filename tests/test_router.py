@@ -60,6 +60,14 @@ def test_motivo_de_recusa_e_explicavel():
     assert rotear("Cite a frase literal do CEO do Itaú no 4T25.").motivo_recusa.startswith("R3")
 
 
+def test_extrai_periodo_de_trimestre_para_filtro():
+    """O TRIMESTRE vira período filtrável ('4t25' -> '4T25') p/ fixar o doc num corpus multi-período;
+    um ano-ASSUNTO solto (ex.: guidance 'para 2026') NÃO vira filtro de período."""
+    assert rotear("Qual o lucro do Itau no 4T25?").periodos == ["4T25"]
+    assert rotear("Qual a faixa de guidance do Itau para 2026?").periodos == []   # 2026 = assunto, não doc
+    assert rotear("Compare o 3T25 com o 4T25 do Bradesco").periodos == ["3T25", "4T25"]
+
+
 # (2) ---------------------------------------------------- casos-fronteira dos críticos
 
 def test_nubank_consignado_cosif_e_respondivel():

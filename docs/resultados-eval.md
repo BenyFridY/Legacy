@@ -2,8 +2,9 @@
 
 > Este arquivo guarda a **saída real** dos avaliadores, para os números citados no
 > [README](../README.md) terem **lastro reproduzível** — não "confie em mim".
-> Reproduza com os comandos indicados em cada bloco (corpus de texto = Itaú 4T25;
-> números = Bacen IF.data já ingeridos em `data/legacy.duckdb`).
+> Corpus de **texto** = **11 documentos** (Itaú 4T25/3T25/1T26, Bradesco 4T25/3T25 + transcrição,
+> BB 4T25 + sumário, Santander 4T25, 2 notas do Bacen; **3.845 fichas**) alimentado pelo
+> `corpus/manifesto.yaml`; números = Bacen IF.data (10 trimestres) em `data/legacy.duckdb`.
 >
 > Execução registrada em **2026-06-07**. Prefixe os comandos no Windows com
 > `set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8 &`.
@@ -28,6 +29,7 @@ id                                     esperado  previsto  ok  rota
 bb-custo-credito-realizado-2025        answer    answer    ok  doc_unico
 itau-guidance-custo-credito-2026       answer    answer    ok  doc_unico
 bradesco-share-consignado-declarado    answer    answer    ok  doc_unico
+bradesco-tom-macro-3t25                answer    answer    ok  doc_unico
 bb-guidance-vs-realizado-2025          answer    answer    ok  multi_fonte
 bradesco-share-declarado-vs-computado  answer    answer    ok  multi_fonte
 itau-estrategia-clt-vs-share-real      answer    answer    ok  multi_fonte
@@ -40,20 +42,20 @@ nubank-share-cartao-respondivel        answer    answer    ok  computada
 Matriz de confusao de recusa:
   recusas corretas (recusou certo) ............. 3
   alucinacoes (respondeu o que devia recusar) .. 0
-  respostas corretas (respondeu certo) ......... 8
+  respostas corretas (respondeu certo) ......... 9
   recusas indevidas (recusou demais) ........... 0
 
   Taxa de recusa correta ... 100%   (dos que DEVIAM recusar)
   Taxa de over-recusa ...... 0%   (dos respondiveis, recusou por engano)
-  Acuracia de comportamento  11/11
+  Acuracia de comportamento  12/12
 
-Distribuicao de rotas: {'doc_unico': 3, 'multi_fonte': 3, 'computada': 2, 'nao_respondivel': 3}
+Distribuicao de rotas: {'doc_unico': 4, 'multi_fonte': 3, 'computada': 2, 'nao_respondivel': 3}
 ```
 
-**Leitura honesta:** isto mede **só o Estágio 1** (escopo). O distrator
-`nubank-share-cartao-respondivel` é proposital — Nubank em **cartão** É respondível no Cosif
-(IF.data), então a recusa NÃO é por nome; é por cruzar bases contábeis incompatíveis. `n=11`
-é **sanidade forte, não estatística de população**.
+**Leitura honesta:** isto mede **só o Estágio 1** (escopo). Inclui `bradesco-tom-macro-3t25` (B2 de
+**tom**, respondível pela transcrição do Bradesco) e o distrator `nubank-share-cartao-respondivel` —
+Nubank em **cartão** É respondível no Cosif (IF.data), então a recusa NÃO é por nome; é por cruzar
+bases contábeis incompatíveis. `n=12` é **sanidade forte, não estatística de população**.
 
 ---
 
@@ -61,85 +63,130 @@ Distribuicao de rotas: {'doc_unico': 3, 'multi_fonte': 3, 'computada': 2, 'nao_r
 
 Mede se o trecho certo sobe ao topo. Gold ancorado por **página** (estável entre reingestões),
 curado por busca **lexical + leitura** — **independente do embedding**, para não ser circular.
-Inclui **de propósito** 2 sondagens-limite (gíria "calote", paráfrase de consignado) que **devem
-falhar** — eval honesto, sem cherry-picking. Comando (corpus = Itaú 4T25):
+**13 sondagens** em **4 bancos e 4 tipos** de documento, com **retrieval ciente de período**
+(a pergunta nomeia o trimestre → filtro de metadados fixa o documento certo). Inclui **de propósito**
+2 sondagens-limite (gíria, paráfrase) que **devem falhar** — eval honesto, sem cherry-picking. Comando:
 
 ```
-python scripts/prova_retrieval_real.py    # ingere o Itaú 4T25 (idempotente) se ainda não estiver
-python scripts/eval_retrieval_real.py     # roda hit@k/MRR com os modelos reais
+python scripts/ingerir_corpus.py          # alimenta a base de texto pelo manifesto (idempotente)
+python scripts/eval_retrieval_real.py     # roda hit@k/MRR com os modelos reais (ciente de periodo)
 ```
 
 ```
 ================================================================
 EVAL DE RETRIEVAL (hit@k / MRR) — gold por pagina
 ================================================================
-sondagens: 8
+sondagens: 13
   id                          dif      h@1  h@3  h@5   RR
   itau-consignado-saldo       facil     ok  ok  ok   1.00
   itau-lucro-recorrente       media     ok  ok  ok   1.00
-  itau-inadimplencia-90d      facil     ok  ok  ok   1.00
+  itau-inadimplencia-90d      facil      .  ok  ok   0.33
   itau-guidance-2026          media     ok  ok  ok   1.00
-  itau-basileia-capital       media      .  ok  ok   0.50
+  itau-basileia-capital       media     ok  ok  ok   1.00
   itau-margem-clientes        facil     ok  ok  ok   1.00
   itau-calote-giria           dificil    .   .   .   0.00
-  itau-consignado-parafrase   dificil    .   .   .   0.00
+  itau-consignado-parafrase   dificil    .   .   .   0.11
+  bb-consignado-4t25          media      .  ok  ok   0.50
+  bb-lucro-sumario-curto      facil     ok  ok  ok   1.00
+  santander-lucro-4t25        facil      .  ok  ok   0.50
+  bradesco-transcricao-...    media      .   .   .   0.00
+  bacen-nota-credito          media      .   .  ok   0.25
 ----------------------------------------------------------------
-  hit@1:  62.5%
-  hit@3:  75.0%
-  hit@5:  75.0%
-  MRR  : 0.688
+  hit@1:  46.2%
+  hit@3:  69.2%
+  hit@5:  76.9%
+  MRR  : 0.592
 ================================================================
+  Leitura: hit@3 nas sondagens realistas (sem giria/parafrase): 82%
 ```
 
-**Leitura honesta:** nas **6 sondagens realistas**, **hit@3 = 100%** (5 em 1º lugar, Basileia em
-2º). As 2 "difíceis" puxam o agregado para baixo **de propósito** e viram narrativa de engenharia:
-a gíria "calote" o BGE-M3 (denso) liga a inadimplência, mas o cross-encoder (registro formal) não
-discrimina; a paráfrase perifrástica ("descontado direto da folha") nenhum dos dois liga — e é
-exatamente o sinal que o **gate de evidência (Estágio 2)** usa para recusar honestamente.
-Corpus do **eval de retrieval** = Itaú 4T25 (as 8 sondagens-gold são todas dele); o Bradesco 4T25
-também já está ingerido (para o B3), mas ainda sem sondagens-gold próprias.
+**Leitura honesta:** o **filtro de período** trouxe as sondagens do Itaú de volta ao **topo** (rank 1)
+ao remover a competição entre 4T25/3T25/1T26 — sem ele, a página de consignado de um trimestre roubava
+o lugar da do outro. Nas **realistas**, **hit@3 = 82%**. Os **limites honestos** que puxam o agregado:
+(1) gíria/paráfrase falham de propósito (o cross-encoder formal não liga "calote"→inadimplência; a
+paráfrase perifrástica nem o denso liga); (2) a **transcrição** (fala conversacional do CEO) **perde
+para o release formal** no mesmo tema — achado real de corpus heterogêneo; (3) a **nota do Bacen**
+entra no hit@5, não no hit@3. Nada disso é escondido — é o que o eval existe para revelar.
 
 ---
 
-## 3. Fidelidade da resposta — faithfulness (**LLM-juiz: Groq/Llama 3.3 70B, temperatura 0**)
+## 3. Fidelidade da resposta — faithfulness (**juiz INDEPENDENTE: openai/gpt-oss-120b ≠ gerador**)
 
 A terceira perna: quando o sistema **responde**, cada afirmação está **sustentada pelo contexto
-citado**? Um juiz (LLM) vê só `(pergunta, resposta, contexto)` e audita, listando o que não tem
-suporte. Roda no pipeline **real** sobre o Itaú 4T25. Comando:
+citado**? Um juiz (LLM) vê só `(pergunta, resposta, contexto)` e audita. O juiz é um **modelo de
+família diferente** do gerador (gpt-oss-120b vs. Llama 3.3 70B) → **sem viés de auto-avaliação**.
+Roda no pipeline **real** sobre 4 bancos. Comando:
 
 ```
 python scripts/eval_fidelidade_real.py
 ```
 
 ```
-  [respondeu] itau-lucro: 'O lucro líquido recorrente do Itaú no 4T25 foi de R$ 12,3 bi'
+>>> Eval de fidelidade — gerador=llama-3.3-70b-versatile | juiz INDEPENDENTE=openai/gpt-oss-120b
+  [respondeu] itau-resultado: 'R$ 12,3 bi.'
   [respondeu] itau-consignado: 'R$ 75,3 bi.'
   [respondeu] itau-inadimplencia: '1,9%'
-  [respondeu] itau-margem: 'A margem financeira com clientes do Itaú cresceu 1,5% no 4T2'
+  [respondeu] itau-basileia: '15,2%'
   [pulado: recusou] itau-guidance: O LLM não encontrou a resposta no contexto fornecido.
+  [pulado: recusou] bradesco-share: O LLM não encontrou a resposta no contexto fornecido.
+  [respondeu] bb-lucro: 'R$ 5,7 bilhões.'
+  [respondeu] santander-lucro: 'R$ 4,1 bilhões.'
 
 ================================================================
 EVAL - Fidelidade (faithfulness): a resposta e sustentada pelo contexto?
 ================================================================
-casos: 4
+casos: 6
   id                               fiel?  alegacoes_sem_suporte
 ----------------------------------------------------------------
-  itau-lucro                       ok
+  itau-resultado                   ok
   itau-consignado                  ok
   itau-inadimplencia               ok
-  itau-margem                      X      a margem financeira com clientes subiu 8,6% no 4T25 em compa
+  itau-basileia                    ok
+  bb-lucro                         ok
+  santander-lucro                  ok
 ----------------------------------------------------------------
-  Taxa de fidelidade: 75%  (3/4)
+  Taxa de fidelidade: 100%  (6/6)
 ================================================================
 ```
 
-**Leitura honesta:** 3/4 das respostas geradas são **inteiramente sustentadas** pelo contexto. O
-caso reprovado (margem) trouxe uma 2ª cifra (8,6%) que o juiz **não encontrou no contexto citado**
-— exatamente o tipo de alegação sutil que a métrica existe para pegar; por isso reportamos a
-**alegação**, não só a taxa, e ela vai para **revisão humana**. A `itau-guidance` foi corretamente
-**pulada** (o LLM não achou a resposta no contexto → recusou: defesa em profundidade). Ressalvas
-declaradas: `n=4` (corpus = só Itaú 4T25) e **juiz = gerador** (mesmo modelo Groq) → risco de viés
-de auto-avaliação; um juiz independente + `n` maior é o próximo passo (ADR-0005).
+**Leitura honesta:** **6/6** das respostas geradas (em 4 bancos) são **inteiramente sustentadas** pelo
+contexto citado — agora com **juiz independente** (gpt-oss-120b ≠ gerador), removendo o viés de
+auto-avaliação do `n=4` anterior (em que juiz = gerador). 2 perguntas foram **corretamente recusadas**:
+`itau-guidance` (faixa ausente no contexto recuperado) e `bradesco-share` (número numa **célula de
+tabela** — ver §5) → defesa em profundidade, não alucinação. Ressalva: `n=6` é sanidade forte, não
+estatística de população; produção pede `n` maior e mais períodos.
+
+---
+
+## 3b. Calibração do gate de evidência (Estágio 2)
+
+O limiar do gate deixou de ser placeholder. Pontuando um **mini-gold** (`eval/gate_gold.yaml`:
+6 respondíveis × 6 fora-da-base) com o retrieval real e varrendo o limiar. Comando:
+
+```
+python scripts/calibrar_gate.py
+```
+
+```
+  itau-consignado            answer  melhor_nota=0.728      fora-receita-bolo   refuse  melhor_nota=0.500
+  itau-basileia              answer  melhor_nota=0.723      fora-copa-2022      refuse  melhor_nota=0.502
+  itau-margem-clientes       answer  melhor_nota=0.715      fora-petrobras      refuse  melhor_nota=0.586
+  itau-inadimplencia         answer  melhor_nota=0.726      fora-tempo          refuse  melhor_nota=0.502
+  itau-resultado-recorrente  answer  melhor_nota=0.730      fora-bitcoin        refuse  melhor_nota=0.504
+  bradesco-share-consignado  answer  melhor_nota=0.725      fora-populacao      refuse  melhor_nota=0.513
+
+  limiar  over-recusa   vazamento    custo
+   0.30    0/6 (  0%)   6/6 (100%)   1.00      <- antigo placeholder: deixava 100% vazar!
+   0.55    0/6 (  0%)   1/6 ( 17%)   0.17
+   0.60    0/6 (  0%)   0/6 (  0%)   0.00      <- joelho (escolhido)
+  Recomendado (joelho): limiar = 0.60
+```
+
+**Leitura honesta:** respondíveis pontuam **~0,72**, fora-da-base **~0,50** — há uma **lacuna clara**.
+O **0,30 antigo deixava 100% das fora-da-base passarem** (a "receita de bolo" só era barrada depois,
+pelo LLM); o **0,60** separa perfeitamente (0% over-recusa, 0% vazamento) e barra fora-de-escopo **no
+gate**. `LIMIAR_EVIDENCIA_PADRAO` foi ajustado para 0,60. Ressalva: `n=12` é pequeno; produção pede um
+gold maior e por-modalidade (banda segura medida ~[0,60; 0,71]).
 
 ---
 
@@ -155,14 +202,14 @@ python scripts/resolver_caso.py
 >>> Redator: GroqClient
 
 ========================================================================
-[documento unico (texto)]  Qual foi o lucro liquido recorrente do Itau no 4T25?
+[documento unico (texto)]  Qual foi o Resultado Recorrente Gerencial do Itau no 4T25?
 ------------------------------------------------------------------------
-R$ 12,3 bi +3,7% 4T25 x 3T25
+R$ 12,3 bi, com um aumento de 3,7% em relação ao 3T25.
 
 Fontes:
   - Itau, 4T25, release, pág. 8
+  - Itau, 4T25, release, pág. 26
   - Itau, 4T25, release, pág. 5
-  - Itau, 4T25, release, pág. 39
 
 ========================================================================
 [documento unico (texto)]  Qual o saldo da carteira de credito consignado do Itau no 4T25?
@@ -205,8 +252,8 @@ auditável por re-execução) — o LLM nem entra nesse caminho. As recusas saem
 
 ## 5. Caso B3 ao vivo — DECLARADO × COMPUTADO (caminho `multi_fonte`)
 
-A assinatura do Caso B: cruzar o que o banco **declara** (texto do release) com o que **computamos**
-de forma independente (Bacen IF.data). Comando: `python scripts/resolver_b3.py`
+A assinatura do Caso B: cruzar o que o banco **declara** (texto) com o que **computamos** de forma
+independente (Bacen IF.data). Comando: `python scripts/resolver_b3.py`
 
 ```
 [multi_fonte]  O market share de crédito consignado do Bradesco (INSS, setor privado e público)
@@ -214,25 +261,28 @@ de forma independente (Bacen IF.data). Comando: `python scripts/resolver_b3.py`
 ------------------------------------------------------------------------
 Evidências para comparação (declarado x computado):
 
-[T] (Bradesco, 4T25, release, pág. 14)  ...INSS Privado Público ... 14,1% Total
-[T] (Bradesco, 4T25, release, pág. 41)  ...Crédito Consignado 14,1 14,2 14,3  (cols Dez25/Set25/Dez24)
-[N] (Bacen IF.data, calc. em SQL)        Bradesco em consignado: ... 2024-12: 14.0%, 2025-06: 13.8%,
-                                         2025-12: 13.8%.  (série 3T23->4T25)
+[T2] (Bradesco, 3T25, transcricao, pág. 2)  "...o crédito consignado no Bradesco fechou agora o
+     trimestre com quase R$ 102 bilhões... Temos um market share de aproximadamente 14,2%, dentre os
+     bancos privados somos o maior... Nossa carteira de INSS tem 15,4%. No público, 14,3%. No
+     privado, 7,5%..."   <- FALA DO CEO (declaração em linguagem natural)
+[T6] (Bradesco, 4T25, release, pág. 14)  "...INSS 14,8%  Privado 6,6%  Público 15,2%  Total 14,1%"
+[N1] (Bacen IF.data, calc. em SQL)  Bradesco em consignado: 2024-12: 14.0% ... 2025-09: 13.8%,
+     2025-12: 13.8%   (série 3T23 -> 4T25)
 
-Fontes: Bradesco 4T25 release pág.14 e pág.41 ; Bacen IF.data (SQL)
+Fontes: Bradesco 3T25 transcricao p.2/3/13 ; Bradesco 4T25 release p.14/p.41 ; Bacen IF.data (SQL)
 ```
-*(saída resumida — o sistema devolve todos os trechos recuperados, cada um citado; aqui mostramos os
-que carregam o número.)*
+*(saída resumida — o sistema recupera 10 trechos citados de 3 documentos do Bradesco + a série SQL;
+aqui destacamos os que carregam o número.)*
 
-**Resultado:** DECLARADO **14,1%** (4T25, do próprio relatório do Bradesco, p.14/p.41) ≈ COMPUTADO
-**13,8%** (Bacen, 4T25) → **confirma** (diferença ~0,3 p.p., metodológica: o "Total" do Bradesco
-inclui sublinhas próprias vs. nosso agregado por conglomerado).
+**Resultado:** DECLARADO ≈ **14,2%** (CEO na teleconferência do 3T25) / **14,1%** (tabela do release
+4T25) ≈ COMPUTADO **13,8%** (Bacen, 4T25) → **confirma** (~0,3-0,4 p.p. de diferença metodológica).
+Com a transcrição na base, o sistema agora traz a **fala do CEO** — a declaração mais limpa, exatamente
+como o Exemplo B3 do enunciado pede ("o que o CEO declarou").
 
-**Leitura honesta (vira ADR-0005):** o sistema **roteou** para `multi_fonte`, **recuperou** o número
-declarado e **computou** a série independente em SQL. Mas o LLM **não narrou** a frase "confere":
-o valor declarado está numa **célula de tabela cujo chunk perdeu o cabeçalho/unidade** (`Crédito
-Consignado 14,1 14,2 14,3`, sem `%` nem a coluna), então o LLM — corretamente instruído a **não
-inventar** — devolveu o sentinela. Em vez de **recusar**, o orquestrador **cai para as duas
-evidências citadas lado a lado** (honesto: não fabrica a leitura; útil: não vira recusa). Esta é
-justamente a fraqueza de **RAG sobre tabelas** que motiva o **caminho dos NÚMEROS** (SQL), onde o
-share sai exato e auditável — e não dependente de o LLM ler uma tabela crua.
+**Leitura honesta (ADR-0005):** o sistema **roteou** para `multi_fonte`, recuperou o declarado (release
+**e** transcrição) e **computou** a série independente em SQL. Mesmo com a fala do CEO ("14,2%") no
+contexto, o LLM **não narrou** a frase "confere" e devolveu o sentinela: diante de 3 cifras próximas
+(14,2% fala / 14,1% tabela / 13,8% computado) num contexto longo e cheio de **tabelas cruas**, ele —
+corretamente instruído a **não inventar** — hesitou. Em vez de **recusar**, o orquestrador **cai para
+as evidências citadas lado a lado** (honesto: não fabrica; útil: não vira recusa). Reforça a fraqueza de
+**RAG sobre tabelas** que motiva o **caminho dos NÚMEROS** (SQL), onde o share sai exato e auditável.

@@ -33,7 +33,9 @@ except Exception:
 # (categoria do case, pergunta) — todas respondiveis/recusaveis com a base atual (Itau 4T25 + Bacen).
 PERGUNTAS = [
     ("documento unico (texto)",
-     "Qual foi o lucro liquido recorrente do Itau no 4T25?"),
+     # termo EXATO do documento ("Resultado Recorrente Gerencial" = lucro recorrente do Itau):
+     # robusto, evita a borderline "lucro liquido recorrente" que oscila no LLM mesmo a temp 0.
+     "Qual foi o Resultado Recorrente Gerencial do Itau no 4T25?"),
     ("documento unico (texto)",
      "Qual o saldo da carteira de credito consignado do Itau no 4T25?"),
     ("computada (numeros / Bacen)",

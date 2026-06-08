@@ -76,7 +76,10 @@ def _buscar_texto(pergunta: str, rota: Rota, deps: Dependencias, k: int | None =
     k = deps.k if k is None else k                                # multi_fonte passa um k maior (k=0 é respeitado)
     query_vec = deps.encoder.encode([pergunta])[0]
     banco = rota.bancos[0] if len(rota.bancos) == 1 else None     # pré-filtro só se houver 1 banco
-    res = buscar_hibrido(deps.con, pergunta, query_vec, k=k, n_ramo=deps.n_ramo, banco=banco)
+    periodo = rota.periodos[0] if len(rota.periodos) == 1 else None  # e só se houver 1 trimestre (ex.: "4T25")
+    # Filtro de metadados (banco + período) fixa o DOCUMENTO certo num corpus multi-período: sem ele,
+    # a página de consignado do 3T25 compete com a do 4T25. Ver ADR-0005 (retrieval ciente de período).
+    res = buscar_hibrido(deps.con, pergunta, query_vec, k=k, n_ramo=deps.n_ramo, banco=banco, periodo=periodo)
     if deps.reranker is not None:
         res = rerankar(pergunta, res, deps.reranker, top_k=k)
     return res
