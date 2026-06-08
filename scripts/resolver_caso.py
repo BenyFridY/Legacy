@@ -2,10 +2,11 @@
 
 Liga tudo: pergunta -> roteador -> (busca hibrida+rerank no texto | SQL nos numeros) -> gate
 de evidencia -> redator real (Groq) com CITACAO estrutural, ou RECUSA explicada. Exercita as
-TRES categorias que o enunciado exige no eval:
-  - documento unico (texto do release do Itau)
-  - computada / multi-fonte (market share via Bacen, deterministico)
-  - nao-respondivel (recusa por escopo, sem inventar)
+QUATRO rotas (= as 3 categorias do enunciado + o cruzamento que e o coracao do Caso B):
+  - documento unico  (texto do release do Itau)
+  - computada        (market share via Bacen, SQL deterministico; generaliza p/ qualquer modalidade)
+  - multi-fonte (B3) (declarado no texto x computado do Bacen, lado a lado)
+  - nao-respondivel  (recusa por escopo, sem inventar)
 
 Pre-requisitos: base ingerida (scripts/ingerir_numeros.py + scripts/prova_retrieval_real.py)
 e GROQ_API_KEY no .env. Uso:
@@ -40,6 +41,12 @@ PERGUNTAS = [
      "Qual o saldo da carteira de credito consignado do Itau no 4T25?"),
     ("computada (numeros / Bacen)",
      "Como evoluiu o market share do Banco do Brasil em consignado nos ultimos trimestres?"),
+    ("computada (generaliza: OUTRA modalidade)",
+     # o caminho de numeros e generico: a modalidade vem da pergunta (aqui, cartao em vez de consignado)
+     "Qual o market share do Nubank em cartao de credito, segundo o IF.data?"),
+    ("multi-fonte (declarado x computado, B3)",
+     # o coracao do Caso B: o que o CEO DECLAROU (transcricao) x o que COMPUTAMOS do Bacen
+     "O market share de consignado do Bradesco no balanco bate com o que computamos do Bacen IF.data?"),
     ("nao-respondivel (futuro)",
      "Qual sera o custo de credito do Bradesco no 2o trimestre de 2027?"),
     ("nao-respondivel (cruza base contabil)",

@@ -118,13 +118,22 @@ def formatar_relatorio(res: ResultadoRetrieval) -> str:
     ks = res.ks
     cab = "  " + "id".ljust(28) + "dif".ljust(9) + "  ".join(f"h@{k}" for k in ks) + "   RR"
     linhas.append(cab)
+    orfaos = []
     for r in res.por_sondagem:
         marca = lambda b: " ok " if b else "  . "
         hits = "".join(marca(r.hits.get(k, False)) for k in ks)
-        linhas.append(f"  {r.id.ljust(28)}{r.dificuldade.ljust(9)}{hits}  {r.rr:.2f}")
+        aviso = "  <- GOLD-VAZIO" if r.n_gold == 0 else ""
+        linhas.append(f"  {r.id.ljust(28)}{r.dificuldade.ljust(9)}{hits}  {r.rr:.2f}{aviso}")
+        if r.n_gold == 0:
+            orfaos.append(r.id)
     linhas.append("-" * 64)
     for k in ks:
         linhas.append(f"  hit@{k}: {res.hit_rate(k) * 100:5.1f}%")
     linhas.append(f"  MRR  : {res.mrr:.3f}")
+    if orfaos:                          # gold que nao resolve (pagina/tipo/periodo errado) vira miss SILENCIOSO
+        linhas.append("-" * 64)
+        linhas.append(f"  AVISO: {len(orfaos)} sondagem(ns) com gold IRRESOLVIVEL (pagina/tipo/periodo nao")
+        linhas.append("         existe no DB) -> contam como MISS e DEPRIMEM o agregado. Confira o YAML:")
+        linhas.append(f"         {', '.join(orfaos)}")
     linhas.append("=" * 64)
     return "\n".join(linhas)

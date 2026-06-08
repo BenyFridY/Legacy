@@ -28,6 +28,18 @@ INSTRUCAO = (
     f"resposta, responda exatamente '{SENTINELA_NAO_ENCONTRADO}'. Seja conciso e em português."
 )
 
+# Instrução do caminho MULTI-FONTE (B3): o LLM recebe evidência DECLARADA (texto, [T]) e COMPUTADA
+# (série do Bacen, [N]) e deve RECONCILIAR — não punir a pergunta com recusa só porque o número
+# declarado veio da teleconferência e não do balanço. Pede comparação concisa, citando os dois lados.
+INSTRUCAO_MULTI = (
+    "Você é um assistente de research de equities. Recebe EVIDÊNCIAS de dois tipos: trechos "
+    "DECLARADOS pela empresa (marcados [T], de release ou teleconferência) e uma série COMPUTADA "
+    "por nós a partir do Bacen IF.data (marcada [N]). Compare os dois lados e responda à PERGUNTA "
+    "dizendo se BATEM, citando o número de cada lado (o declarado e o computado, com o período de "
+    "cada um). Use SOMENTE as evidências; não invente números. Se um lado não trouxer um número "
+    "claro, diga explicitamente qual lado tem o quê. Máximo 3 frases, em português."
+)
+
 
 @dataclass
 class Resposta:

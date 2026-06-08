@@ -46,18 +46,18 @@ e [`docs/pesquisa/evidencias-verificadas.md`](docs/pesquisa/evidencias-verificad
 
 **1) Qualidade de retrieval — hit@k / MRR (BGE-M3 + reranker reais).** Gold por **página**, curado
 por busca **lexical + leitura** (independente do embedding → anti-circular). **13 sondagens** em
-**4 bancos e 4 tipos** de documento, com **retrieval ciente de período** (quando a pergunta nomeia o
+**5 fontes (4 bancos + Bacen) e 4 tipos** de documento, com **retrieval ciente de período** (quando a pergunta nomeia o
 trimestre, um filtro de metadados fixa o documento certo no corpus multi-período):
 
 | conjunto | hit@1 | hit@3 | hit@5 | MRR |
 |---|---|---|---|---|
-| **sondagens realistas** (sem gíria/paráfrase) | — | **82%** | — | — |
-| **13 sondagens** (inclui 2 limite + transcrição/nota) | 46,2% | 69,2% | 76,9% | **0,592** |
+| **sondagens realistas** (sem gíria/paráfrase) | — | **91%** | — | — |
+| **13 sondagens** (inclui 2 limite + transcrição/nota) | 46,2% | 76,9% | 76,9% | **0,603** |
 
 **Limites honestos** (não escondidos): a gíria *"calote"* e a paráfrase *"descontado direto da folha"*
 falham de propósito; e a **transcrição** (fala do CEO) perde para o texto **formal** do release no
-mesmo tema — um achado real de retrieval em corpus heterogêneo (ver *Fraquezas*). O **filtro de
-período** recuperou as sondagens do Itaú para o **topo** (rank 1) ao remover a competição entre 4T25/3T25/1T26.
+mesmo tema — um achado real de retrieval em corpus heterogêneo (ver *Fraquezas*). Com o **filtro de
+período** (remove a competição 4T25/3T25/1T26), **5 das 6** sondagens realistas do Itaú ficam em **rank 1**.
 
 **2) Recusa por escopo — Estágio 1 (roteador determinístico, sem modelo).** 12 perguntas, 3
 categorias de comportamento + 1 distrator anti-over-recusa:
@@ -84,7 +84,8 @@ fora-da-base passarem** — agora a *"receita de bolo"* é barrada **pelo gate**
 **4) Resolução do Caso B — ponta a ponta (modelos reais, incl. Groq/Llama 3.3 70B).** As 3
 categorias resolvidas ao vivo: *lucro Itaú 4T25* **R$ 12,3 bi** (pág. 8); *consignado Itaú 4T25*
 **R$ 75,3 bi** (pág. 21); *market share BB consignado* **19,9% → 19,2%** (série trimestral 3T23→4T25,
-IF.data, SQL); recusas **R1** (futuro 2027) e **R2** (Nubank IFRS × Itaú Cosif).
+IF.data, SQL — e o caminho é **genérico**: *Nubank em cartão* **11,1% → 14,9%**, qualquer banco ×
+modalidade, a modalidade vem da pergunta); recusas **R1** (futuro 2027) e **R2** (Nubank IFRS × Itaú Cosif).
 
 **5) Caso B3 ao vivo — DECLARADO × COMPUTADO (caminho `multi_fonte`).** O sistema cruza o que o
 **Bradesco declara** — agora incluindo a **fala do CEO na teleconferência 3T25** (*"market share de
@@ -228,7 +229,7 @@ corpus/
   manifesto.yaml       fontes da base de TEXTO (banco/período/tipo/url) — a "base ligada", reproduzível
 eval/
   questions.yaml       12 perguntas (3 categorias de comportamento + 1 distrator + 1 B2 de tom)
-  retrieval_gold.yaml  13 sondagens (gold por página; 4 bancos, 4 tipos; 2 limite de propósito)
+  retrieval_gold.yaml  13 sondagens (gold por página; 5 fontes, 4 tipos; 2 limite de propósito)
   gate_gold.yaml       mini-gold da calibração do gate (respondíveis × fora-da-base)
 docs/
   decisions/           ADRs 0001–0005 — a "progressão de raciocínio" que o case pede

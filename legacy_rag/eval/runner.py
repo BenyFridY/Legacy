@@ -13,6 +13,9 @@ O que este runner AINDA NÃO mede (espera os modelos reais + gold de chunk_id):
 Ou seja: este é o primeiro NÚMERO REAL do eval — a regra inegociável "recuse quando
 não está na base", na parte que o roteador resolve sozinho. O n é pequeno (uma dúzia de
 perguntas): o número é uma sanidade forte, não uma estatística de população (reportamos o n junto).
+
+CIRCULARIDADE (honesto): estas perguntas e as regras R1/R2/R3 co-evoluíram (mesmo autor) -> o placar
+mede CONSISTÊNCIA INTERNA do gate de escopo, não generalização para perguntas não vistas.
 """
 from __future__ import annotations
 
@@ -131,6 +134,8 @@ def formatar_relatorio(r: ResultadoEscopo) -> str:
     L.append(f"Distribuicao de rotas: {r.distribuicao_rotas}")
     L.append(f"(n={r.total}: sanidade forte, nao estatistica de populacao. Estagio 2 e retrieval")
     L.append(" esperam os modelos reais + gold de chunk_id fixado na ingestao.)")
+    L.append("CIRCULARIDADE: estas perguntas e as regras R1/R2/R3 co-evoluiram (mesmo autor) -> mede")
+    L.append(" consistencia INTERNA do gate de escopo, NAO generalizacao p/ perguntas nao vistas.")
     L.append("=" * 72)
     return "\n".join(L)
 

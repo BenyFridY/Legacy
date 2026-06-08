@@ -4,7 +4,7 @@ Le corpus/manifesto.yaml e abastece o DuckDB SOZINHO — sem upload manual. Idem
 (banco, periodo, tipo_doc): rodar de novo PULA o que ja esta na base (so baixa/embeda o novo).
 Por-documento try/except: uma fonte que cair (404/403/timeout) NAO aborta as outras.
 
-Documentos heterogeneos de proposito (release longo, comunicado curto, transcricao, nota; varios
+Documentos heterogeneos de proposito (release longo, transcricao, sumario curto, nota; varios
 bancos e periodos) -> provam o criterio de heterogeneidade (10%) e o caminho de escala.
 
 Uso:
@@ -54,6 +54,10 @@ def main() -> None:
                 continue
             print(f"  + INGERE {chave}: {d.get('fonte', '')}")
             n = ingerir_release(con, d["url"], d["banco"], d["periodo"], d["tipo_doc"], encoder)
+            if n == 0:                  # baixou (200) mas SEM texto extraível (PDF-imagem) -> não é sucesso
+                print("    ! 0 fichas: documento sem texto extraível (fonte degradada/imagem?) -> FALHA.")
+                falhas += 1
+                continue                # não conta como 'novo'; idempotência não fica presa em doc vazio
             print(f"    -> {n} fichas gravadas.")
             novos += 1
         except Exception as e:                              # uma fonte ruim nao derruba o resto

@@ -4,8 +4,8 @@
 # manual, idempotente por (banco, periodo, tipo_doc): rodar de novo PULA o que ja esta na base e so
 # baixa/embeda o que falta. Adicionar um documento = adicionar uma entrada aqui.
 #
-# Documentos HETEROGENEOS de proposito (release LONGO x comunicado CURTO; varios TIPOS: release,
-# comunicado, nota, transcricao; varios bancos e periodos) -> prova o criterio de heterogeneidade
+# Documentos HETEROGENEOS de proposito (release LONGO x sumario/nota CURTOS; varios TIPOS: release,
+# transcricao, sumario, nota; varios bancos e periodos) -> prova o criterio de heterogeneidade
 # (10%) e o caminho de escala. Cada URL e validada por download real antes de entrar aqui
 # (HTTP 200 + assinatura %PDF + camada de texto); fontes que dao 403 a cliente programatico
 # (paginas de RI) NAO entram — usamos o arquivo direto no CDN/dominio publico.

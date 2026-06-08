@@ -32,3 +32,15 @@ def test_ingerir_paginas_idempotente_por_documento():
     n2 = ingerir_paginas(con, paginas, "BB", "4T25", "release", FakeEncoder())  # regrava o mesmo doc
     assert n1 == n2
     assert contar_chunks(con) == n1            # não duplicou
+
+
+def test_ingerir_paginas_vazias_nao_grava_nada():
+    """Doc que baixou (200) mas sem texto extraível (PDF-imagem): 0 fichas e nada gravado.
+
+    É o caso que o ingerir_corpus passa a tratar como FALHA (não 'novo'), evitando o doc-fantasma
+    que quebrava a idempotência (0 fichas -> re-baixado toda rodada). Ver Bug 2 / ADR-0005.
+    """
+    con = conectar(":memory:")
+    n = ingerir_paginas(con, ["", "   ", "\n"], "BB", "4T25", "release", FakeEncoder())
+    assert n == 0
+    assert contar_chunks(con) == 0

@@ -31,14 +31,19 @@ def baixar(url: str, timeout: int = 120, tentativas: int = MAX_TENTATIVAS) -> by
 
     Mesma política do cliente do Bacen (bacen._get_json): um PDF de ~6MB do CDN às vezes corta no
     meio (ChunkedEncodingError) ou bate num 5xx momentâneo -> tenta de novo com backoff. Já um erro
-    4xx (403/404) é PERMANENTE -> propaga na hora, sem retry inútil. A separação baixar (impuro) x
-    extrair (puro) segue: a responsabilidade aqui é só "trazer o arquivo da rede".
+    4xx (403/404) é PERMANENTE -> propaga na hora, sem retry inútil. Um 200 cujo corpo NÃO começa com
+    "%PDF" (página HTML/captcha em vez do arquivo) também é permanente -> levanta ValueError na hora.
+    A separação baixar (impuro) x extrair (puro) segue: a responsabilidade aqui é só "trazer o arquivo".
     """
     erro: Exception | None = None
     for i in range(max(1, tentativas)):    # sempre ≥1 tentativa (evita 'raise None' se tentativas<=0)
         try:
             resp = requests.get(url, headers=_HEADERS, timeout=timeout)
             resp.raise_for_status()        # levanta HTTPError em 4xx e 5xx
+            if not resp.content.startswith(b"%PDF"):   # 200, mas NÃO é PDF -> permanente, não adianta repetir
+                raise ValueError(
+                    f"resposta não é PDF (status {resp.status_code}, {len(resp.content)} bytes, "
+                    f"início {resp.content[:16]!r}): provável página HTML/captcha em vez do arquivo.")
             return resp.content
         except requests.exceptions.HTTPError as e:
             sc = getattr(e.response, "status_code", None)

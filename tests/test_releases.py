@@ -56,6 +56,21 @@ def test_baixar_nao_repete_em_4xx(monkeypatch):
     assert chamadas["n"] == 1                                      # não repetiu no 4xx
 
 
+def test_baixar_rejeita_200_nao_pdf(monkeypatch):
+    """200 OK cujo corpo NÃO começa com %PDF (página HTML/captcha) -> ValueError na hora, sem retry."""
+    chamadas = {"n": 0}
+
+    def fake_get(url, headers=None, timeout=None):
+        chamadas["n"] += 1
+        return _Resp(b"<!doctype html><html>captcha wall</html>", 200)
+
+    monkeypatch.setattr(releases.requests, "get", fake_get)
+    monkeypatch.setattr(releases.time, "sleep", lambda _s: None)
+    with pytest.raises(ValueError):
+        releases.baixar("http://x/bloqueado.html", tentativas=3)
+    assert chamadas["n"] == 1                                      # 200-não-PDF é permanente: não insistiu
+
+
 def _pdf(paginas: list[str]) -> bytes:
     """Monta um PDF válido de N páginas, uma linha de texto por página (para teste)."""
     n = len(paginas)

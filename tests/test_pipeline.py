@@ -59,14 +59,18 @@ def deps():
     ]
     persistir_chunks(con, chunks, embedar_chunks(chunks, enc))
 
-    # carteira_pf (consignado): BB e Bradesco + um "outro" pra fechar o denominador do sistema.
+    # carteira_pf: modalidade em nome CANÔNICO do Bacen (o que o roteador detecta e a tabela guarda).
+    CONS = "Empréstimo com Consignação em Folha"     # = consignado
+    CART = "Cartão de Crédito"
     linhas = [
-        ("C0000001", 202403, "consignado", 200.0),  # BB  -> share 0.20
-        ("C0000002", 202403, "consignado", 140.0),  # Bradesco -> 0.14
-        ("C9999999", 202403, "consignado", 660.0),  # resto -> total 1000
-        ("C0000001", 202412, "consignado", 250.0),  # BB  -> 0.25
-        ("C0000002", 202412, "consignado", 142.0),  # Bradesco -> 0.142
-        ("C9999999", 202412, "consignado", 608.0),  # resto -> total 1000
+        ("C0000001", 202403, CONS, 200.0),  # BB  -> share 0.20
+        ("C0000002", 202403, CONS, 140.0),  # Bradesco -> 0.14
+        ("C9999999", 202403, CONS, 660.0),  # resto -> total 1000
+        ("C0000001", 202412, CONS, 250.0),  # BB  -> 0.25
+        ("C0000002", 202412, CONS, 142.0),  # Bradesco -> 0.142
+        ("C9999999", 202412, CONS, 608.0),  # resto -> total 1000
+        ("C0000003", 202412, CART, 110.0),  # Nubank em CARTÃO -> share 0.55 (outra modalidade!)
+        ("C9999999", 202412, CART,  90.0),  # resto cartão -> total 200
     ]
     con.executemany("INSERT INTO carteira_pf VALUES (?, ?, ?, ?)", linhas)
     # cadastro: cada CNPJ -> conglomerado prudencial (aqui 1 CNPJ por banco, mas a via é a mesma).
@@ -74,14 +78,14 @@ def deps():
         ("C0000001", 202403, "Banco do Brasil", "PRUD_BB"), ("C0000002", 202403, "Bradesco", "PRUD_BRAD"),
         ("C9999999", 202403, "Outro", "PRUD_OUTRO"),
         ("C0000001", 202412, "Banco do Brasil", "PRUD_BB"), ("C0000002", 202412, "Bradesco", "PRUD_BRAD"),
-        ("C9999999", 202412, "Outro", "PRUD_OUTRO"),
+        ("C9999999", 202412, "Outro", "PRUD_OUTRO"), ("C0000003", 202412, "Nu Pagamentos", "PRUD_NU"),
     ]
     con.executemany("INSERT INTO cadastro VALUES (?, ?, ?, ?)", cad)
 
     return Dependencias(
         con=con, encoder=enc, reranker=FakeReranker(), llm=FakeLLM(),
-        mapa_prudencial={"BB": "PRUD_BB", "Bradesco": "PRUD_BRAD"},
-        modalidade="consignado", limiar=0.3,   # auto-consistente: casa com as linhas inseridas acima
+        mapa_prudencial={"BB": "PRUD_BB", "Bradesco": "PRUD_BRAD", "Nubank": "PRUD_NU"},
+        limiar=0.3,   # casa com as linhas inseridas acima (modalidade vem da pergunta, via roteador)
     )
 
 
@@ -116,6 +120,15 @@ def test_computada_sem_conglomerado_recusa_honesta(deps):
     deps.mapa_prudencial = {}          # banco sem conglomerado mapeado -> recusa, não inventa
     r = responder("Como evoluiu o market share do Banco do Brasil em consignado?", deps)
     assert r.recusou and "conglomerado" in r.motivo
+
+
+def test_computada_detecta_modalidade_da_pergunta_cartao(deps):
+    """A modalidade NÃO é fixa em consignado: 'cartão' na pergunta -> calcula CARTÃO (Nubank, 55%).
+    Prova que o caminho de números é genérico (qualquer banco x qualquer modalidade)."""
+    r = responder("Qual o market share do Nubank em cartão de crédito, segundo o IF.data?", deps)
+    assert not r.recusou
+    assert "55.0%" in r.texto
+    assert "Cartão de Crédito" in r.citacoes[0]
 
 
 def test_multi_fonte_cruza_declarado_e_computado(deps):

@@ -23,7 +23,7 @@ MESMA pergunta e o número de eval tremeria. Regras: mesma entrada -> mesmo cami
 e auditável. O preço é fragilidade (uma frase com palavras estranhas pode cair no caminho errado);
 por isso a acurácia do roteamento é MEDIDA no eval, não escondida.
 
-LIMITAÇÕES CONHECIDAS (1º corte; ver ADR-0005). Cobre R1/R2/R3 + as 11 perguntas do eval. Lacunas
+LIMITAÇÕES CONHECIDAS (1º corte; ver ADR-0005). Cobre R1/R2/R3 + as 12 perguntas do eval. Lacunas
 documentadas para a ingestão larga (ADR-0004), deixadas honestas em vez de fingidas:
   R4  distinguir REALIZADO de GUIDANCE dentro de 2026 (pedir realizado de período ainda não
       publicado deveria recusar) — hoje cai no gate de evidência (Estágio 2).
@@ -38,7 +38,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 
-from legacy_rag.config import ANO_COBERTURA_MAX, ENTIDADES
+from legacy_rag.config import ANO_COBERTURA_MAX, ENTIDADES, MODALIDADE_FOCO, MODALIDADES
 
 CATEGORIAS = ("doc_unico", "computada", "multi_fonte", "nao_respondivel")
 
@@ -64,6 +64,7 @@ class Slots:
     anos: list[int] = field(default_factory=list)      # anos citados (de "2027" e de "4T25")
     periodos: list[str] = field(default_factory=list)  # trimestres citados ("4t25" -> "4T25"), p/ filtro de metadados
     metrica: str = "outra"                              # rótulo grosso p/ transparência/log
+    modalidade: str = MODALIDADE_FOCO                   # produto do Bacen citado (cartão, veículos...); default consignado
     cita_ifdata: bool = False                           # "segundo o IF.data", "Bacen"
     declarado: bool = False                             # "declarou", "CEO", "guidance", "estratégia"
     confronto: bool = False                             # "confirmou", "subiu", "vs" — promete-vs-entrega
@@ -95,6 +96,15 @@ def _detectar_periodos(t: str) -> list[str]:
     return list(vistos)
 
 
+def _detectar_modalidade(t: str) -> str:
+    """Produto do Bacen citado na pergunta (cartão, veículos, ...). Default: MODALIDADE_FOCO (consignado).
+    O motor de cálculo é genérico (qualquer banco x qualquer modalidade); aqui escolhemos qual."""
+    for canonico, palavras in MODALIDADES:
+        if any(p in t for p in palavras):
+            return canonico
+    return MODALIDADE_FOCO
+
+
 def extrair_slots(pergunta: str) -> Slots:
     """Lê a pergunta e preenche os slots por regras léxicas (determinístico, sem modelo)."""
     t = _sem_acento(pergunta)
@@ -113,6 +123,7 @@ def extrair_slots(pergunta: str) -> Slots:
         anos=_detectar_anos(t),
         periodos=_detectar_periodos(t),
         metrica=metrica,
+        modalidade=_detectar_modalidade(t),
         cita_ifdata=bool(re.search(r"if[\s.]?data|bacen", t)),
         declarado=bool(re.search(r"declar|disse|afirm|coment|\bceo\b|telecon|\bcall\b|guidance|estrateg|prometeu", t)),
         confronto=bool(re.search(r"confirm|bate com|\bvs\b|versus|subiu|caiu|aumentou|diminuiu|se confirmou", t)),
@@ -179,6 +190,7 @@ class Rota:
     anos: list[int]                # anos detectados
     metrica: str                   # rótulo grosso da métrica
     periodos: list[str] = field(default_factory=list)  # trimestres ("4T25") p/ filtro de metadados
+    modalidade: str = MODALIDADE_FOCO  # produto do Bacen p/ o caminho de números (default consignado)
     motivo_recusa: str | None = None   # preenchido quando categoria == "nao_respondivel"
 
     @property
@@ -192,5 +204,6 @@ def rotear(pergunta: str) -> Rota:
     motivo = _gate_escopo(s)
     if motivo is not None:
         return Rota("nao_respondivel", s.bancos, s.anos, s.metrica,
-                    periodos=s.periodos, motivo_recusa=motivo)
-    return Rota(_classificar_caminho(s), s.bancos, s.anos, s.metrica, periodos=s.periodos)
+                    periodos=s.periodos, modalidade=s.modalidade, motivo_recusa=motivo)
+    return Rota(_classificar_caminho(s), s.bancos, s.anos, s.metrica,
+                periodos=s.periodos, modalidade=s.modalidade)

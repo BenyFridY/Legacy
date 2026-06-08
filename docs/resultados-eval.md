@@ -52,10 +52,12 @@ Matriz de confusao de recusa:
 Distribuicao de rotas: {'doc_unico': 4, 'multi_fonte': 3, 'computada': 2, 'nao_respondivel': 3}
 ```
 
-**Leitura honesta:** isto mede **só o Estágio 1** (escopo). Inclui `bradesco-tom-macro-3t25` (B2 de
-**tom**, respondível pela transcrição do Bradesco) e o distrator `nubank-share-cartao-respondivel` —
-Nubank em **cartão** É respondível no Cosif (IF.data), então a recusa NÃO é por nome; é por cruzar
-bases contábeis incompatíveis. `n=12` é **sanidade forte, não estatística de população**.
+**Leitura honesta:** isto mede **só o Estágio 1** (a ROTA). Inclui `bradesco-tom-macro-3t25` (B2 de
+**tom**, respondível pela transcrição) e o distrator `nubank-share-cartao-respondivel` — Nubank em
+**cartão** é respondível no Cosif e **responde ponta a ponta**: o caminho de números é **genérico**
+(detecta a modalidade da pergunta e computa qualquer banco × modalidade — *Nubank cartão* **11,1% → 14,9%**).
+A recusa do Nubank só ocorre ao **cruzar bases contábeis** (R2), nunca pelo nome. `n=12` é **sanidade
+forte, não estatística** — e estas perguntas co-evoluíram com as regras (mede **consistência interna**).
 
 ---
 
@@ -63,7 +65,7 @@ bases contábeis incompatíveis. `n=12` é **sanidade forte, não estatística d
 
 Mede se o trecho certo sobe ao topo. Gold ancorado por **página** (estável entre reingestões),
 curado por busca **lexical + leitura** — **independente do embedding**, para não ser circular.
-**13 sondagens** em **4 bancos e 4 tipos** de documento, com **retrieval ciente de período**
+**13 sondagens** em **5 fontes (4 bancos + Bacen) e 4 tipos** de documento, com **retrieval ciente de período**
 (a pergunta nomeia o trimestre → filtro de metadados fixa o documento certo). Inclui **de propósito**
 2 sondagens-limite (gíria, paráfrase) que **devem falhar** — eval honesto, sem cherry-picking. Comando:
 
@@ -79,34 +81,35 @@ EVAL DE RETRIEVAL (hit@k / MRR) — gold por pagina
 sondagens: 13
   id                          dif      h@1  h@3  h@5   RR
   itau-consignado-saldo       facil     ok  ok  ok   1.00
-  itau-lucro-recorrente       media     ok  ok  ok   1.00
-  itau-inadimplencia-90d      facil      .  ok  ok   0.33
+  itau-lucro-recorrente       media      .  ok  ok   0.33
+  itau-inadimplencia-90d      facil     ok  ok  ok   1.00
   itau-guidance-2026          media     ok  ok  ok   1.00
   itau-basileia-capital       media     ok  ok  ok   1.00
   itau-margem-clientes        facil     ok  ok  ok   1.00
   itau-calote-giria           dificil    .   .   .   0.00
-  itau-consignado-parafrase   dificil    .   .   .   0.11
+  itau-consignado-parafrase   dificil    .   .   .   0.00
   bb-consignado-4t25          media      .  ok  ok   0.50
   bb-lucro-sumario-curto      facil     ok  ok  ok   1.00
   santander-lucro-4t25        facil      .  ok  ok   0.50
   bradesco-transcricao-...    media      .   .   .   0.00
-  bacen-nota-credito          media      .   .  ok   0.25
+  bacen-nota-credito          media      .  ok  ok   0.50
 ----------------------------------------------------------------
   hit@1:  46.2%
-  hit@3:  69.2%
+  hit@3:  76.9%
   hit@5:  76.9%
-  MRR  : 0.592
+  MRR  : 0.603
 ================================================================
-  Leitura: hit@3 nas sondagens realistas (sem giria/parafrase): 82%
+  Leitura: hit@3 nas sondagens realistas (sem giria/parafrase): 91%
 ```
 
-**Leitura honesta:** o **filtro de período** trouxe as sondagens do Itaú de volta ao **topo** (rank 1)
-ao remover a competição entre 4T25/3T25/1T26 — sem ele, a página de consignado de um trimestre roubava
-o lugar da do outro. Nas **realistas**, **hit@3 = 82%**. Os **limites honestos** que puxam o agregado:
+**Leitura honesta:** o eval mede a **mesma busca da produção** (pré-filtro banco+período, funde 10,
+rerank → 5). Com o **filtro de período**, **5 das 6** sondagens realistas do Itaú ficam em **rank 1** —
+sem ele, a página de consignado de um trimestre roubava o lugar da do outro. Nas **realistas**, **hit@3 = 91%** (10/11). Os **limites honestos** que puxam o agregado:
 (1) gíria/paráfrase falham de propósito (o cross-encoder formal não liga "calote"→inadimplência; a
 paráfrase perifrástica nem o denso liga); (2) a **transcrição** (fala conversacional do CEO) **perde
-para o release formal** no mesmo tema — achado real de corpus heterogêneo; (3) a **nota do Bacen**
-entra no hit@5, não no hit@3. Nada disso é escondido — é o que o eval existe para revelar.
+para o release formal** no mesmo tema — achado real de corpus heterogêneo (é o único miss entre as
+realistas). A **nota do Bacen**, antes só no hit@5, subiu ao **hit@3** com o filtro de período. Nada
+disso é escondido — é o que o eval existe para revelar.
 
 ---
 

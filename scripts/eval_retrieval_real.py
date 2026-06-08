@@ -4,7 +4,12 @@ Pluga a busca real (hibrido + rerank) na logica de avaliacao de legacy_rag/eval/
 e mede hit@k / MRR contra o gold curado (eval/retrieval_gold.yaml). Honesto: inclui sondagens
 dificeis (giria, parafrase) que esperamos falhar — o numero NAO sera 100%, e e esse o ponto.
 
-Pre-requisito: o corpus do gold ja ingerido (rode scripts/prova_retrieval_real.py antes).
+O eval mede a MESMA busca da PRODUCAO (legacy_rag/pipeline.py:_buscar_texto): pre-filtro
+banco+periodo (a pergunta nomeia o trimestre -> fixa o documento certo num corpus multi-periodo),
+funde FUSAO candidatos e o cross-encoder devolve os FINAL melhores. O numero reproduz o caminho
+que roda em producao, nao uma busca so-banco.
+
+Pre-requisito: o corpus do gold ja ingerido (rode scripts/ingerir_corpus.py antes).
 Uso:  set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8 &
       python scripts/eval_retrieval_real.py
 """
@@ -25,7 +30,8 @@ try:
 except Exception:
     pass
 
-TOP = 10                               # ranqueia 10 -> mede hit@1/3/5 com folga
+FUSAO = 10                             # pool que o pipeline funde antes do rerank (Dependencias.k_rerank)
+FINAL = 5                              # top-k FINAL que a producao entrega (Dependencias.k) — o que o usuario ve
 
 
 def main():
@@ -33,10 +39,11 @@ def main():
     encoder, reranker = BGEM3Encoder(), BGEReranker()
     sondagens = carregar_sondagens()
 
+    # Espelha legacy_rag/pipeline.py:_buscar_texto -> pre-filtro banco+periodo, funde FUSAO, rerank -> FINAL.
     def busca_fn(s):
         qv = encoder.encode([s.question])[0]
-        hib = buscar_hibrido(con, s.question, qv, k=TOP, n_ramo=50, banco=s.banco)
-        top = rerankar(s.question, hib, reranker, top_k=TOP)
+        hib = buscar_hibrido(con, s.question, qv, k=FUSAO, n_ramo=50, banco=s.banco, periodo=s.periodo)
+        top = rerankar(s.question, hib, reranker, top_k=FINAL)
         return [r.chunk_id for r in top]
 
     print(f">>> Avaliando {len(sondagens)} sondagens com BGE-M3 + reranker reais...")
