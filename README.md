@@ -15,6 +15,43 @@ que foi **provada a fundo** num fio condutor — bancos brasileiros, crédito **
 
 ---
 
+## TL;DR — em 2 minutos ⏱️
+
+**Sistema de retrieval *dual-path* para research de equities.** A sacada que organiza tudo: **separar
+texto de número** — texto se **recupera e cita**; número se **computa em SQL** (o LLM **nunca** faz a
+conta). Por isso o número é **exato e auditável**, e o sistema **recusa em vez de inventar**.
+
+| retrieval — hit@3 | recusa por escopo | fidelidade (juiz independente) | alucinação |
+|:---:|:---:|:---:|:---:|
+| **91%** realista · 76,9% completo · MRR **0,603** | **12/12** · over-recusa **0%** | **6/6** sustentadas | **0** |
+
+> **Corpus provado a fundo, não largo (escolha assumida):** 11 documentos reais — 5 fontes, 4 tipos,
+> de **312 pp a 4 pp**, multi-período — + Bacen IF.data (10 trimestres). Escalar p/ **500+** é
+> *acrescentar linhas ao manifesto*; o gargalo é índice/dedup, **não** o pipeline (ver *Fraquezas e escala*).
+
+### Ver funcionando em 30 segundos
+
+> O case diz, com razão, que **o backend é o que importa** (UI não é avaliada). O chat abaixo é só a
+> **janela** mais rápida pra ver os quatro caminhos num lugar só:
+
+```bat
+set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
+python scripts\ui_demo.py        :: abra http://localhost:8000
+```
+
+![Chat de demo — Legacy · Research de Equities](assets/UI.png)
+
+**Cole estas quatro perguntas** — cada uma exercita um caminho diferente (o roteador ignora acento e maiúscula):
+
+| pergunta | caminho | o que prova |
+|---|---|---|
+| *Qual foi o Resultado Recorrente Gerencial do Itaú no 4T25?* | **texto** | acha e cita **R$ 12,3 bi** (pág. 8) num corpus multi-período |
+| *Qual o market share do Nubank em cartão de crédito, segundo o IF.data?* | **número genérico** | série computada em SQL — **qualquer banco × modalidade**, não só consignado |
+| *O market share de consignado do Bradesco no balanço bate com o que computamos do Bacen?* | **multi-fonte** | **declarado** (texto) × **computado** (Bacen), lado a lado |
+| *Qual será o custo de crédito do Bradesco no 2º trimestre de 2027?* | **recusa** | fora da base (futuro) → diz o **motivo**, não inventa |
+
+---
+
 ## Abordagem em uma frase
 
 **Não é RAG ingênuo.** É um **sistema dual-path roteado**:
@@ -85,7 +122,8 @@ fora-da-base passarem** — agora a *"receita de bolo"* é barrada **pelo gate**
 categorias resolvidas ao vivo: *lucro Itaú 4T25* **R$ 12,3 bi** (pág. 8); *consignado Itaú 4T25*
 **R$ 75,3 bi** (pág. 21); *market share BB consignado* **19,9% → 19,2%** (série trimestral 3T23→4T25,
 IF.data, SQL — e o caminho é **genérico**: *Nubank em cartão* **11,1% → 14,9%**, qualquer banco ×
-modalidade, a modalidade vem da pergunta); recusas **R1** (futuro 2027) e **R2** (Nubank IFRS × Itaú Cosif).
+modalidade, e **compara 2+ bancos** (cross-bank — ex.: *Nubank +3,8 p.p. × Itaú -4,1 p.p. em cartão*));
+recusas **R1** (futuro 2027) e **R2** (Nubank IFRS × Itaú Cosif).
 
 **5) Caso B3 ao vivo — DECLARADO × COMPUTADO (caminho `multi_fonte`).** O sistema cruza o que o
 **Bradesco declara** — agora incluindo a **fala do CEO na teleconferência 3T25** (*"market share de
@@ -147,6 +185,11 @@ avaliação **reprodutível e auditável**. O preço (fragilidade léxica) é as
 - **Duas formas por ficha:** `.indexavel` = cabeçalho de metadados (`banco | período | tipo |
   página`) + trecho, que vai para o **embedding** (dá contexto à busca); `.texto` = trecho cru, que é
   o que se **cita**.
+- **Dado estruturado NÃO é "chunkado" — é a outra metade do *dual-path*.** Número não se recupera por
+  similaridade (ADR-0001): a carteira do Bacen entra como **linhas numa tabela DuckDB** (banco ×
+  período × modalidade) e o market share é **calculado em SQL na hora da pergunta** — não vira texto,
+  não passa por embedding. Texto é chunkado e citado **por página**; número é computado e citado **pela
+  fonte + a query**. Assim documento longo, documento curto e série numérica vão cada um pelo caminho certo.
 
 ---
 
@@ -190,7 +233,7 @@ copy .env.example .env          :: opcional: LLM_PROVIDER=groq_free + GROQ_API_K
 :: no Windows, prefixe os scripts pesados com estas 3 variáveis (carrega torch sem conflito de OpenMP):
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 
-python -m pytest -q                      :: 134 testes — sem rede, sem torch, sem chave (fakes)
+python -m pytest -q                      :: 150 testes — sem rede, sem torch, sem chave (fakes)
 python -m legacy_rag.eval.runner         :: matriz de recusa-por-escopo (sem modelo)
 python scripts\ingerir_numeros.py        :: alimenta carteira_pf + cadastro (Bacen IF.data)
 python scripts\ingerir_corpus.py         :: alimenta a base de TEXTO pelo manifesto (11 docs, 5 fontes)
@@ -202,7 +245,7 @@ python scripts\perguntar.py "..."        :: pergunta LIVRE: mostra a rota + resp
 python scripts\ui_demo.py                :: UI de demo local (http://localhost:8000) — extra p/ apresentação
 ```
 
-Os **134 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **150 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -237,7 +280,7 @@ docs/
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
 scripts/               ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 22 arquivos · 134 testes
+tests/                 23 arquivos · 150 testes
 ```
 
 ---
@@ -251,8 +294,11 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   — provam retrieval heterogêneo, eval e o B3, mas ainda longe dos 500+. Crescer é **acrescentar linhas
   ao manifesto** (`corpus/manifesto.yaml`); o gargalo de escala é índice + dedup (abaixo), não o pipeline.
 - **Busca exata, sem índice aproximado:** vetorial é **cosseno brute-force** e o BM25 é reconstruído
-  em memória por consulta. Ótimo no tamanho atual; em >~100k fichas entraria **HNSW** + **FTS persistido**
-  — projetado, não construído (sem benchmark medido aqui).
+  em memória por consulta — **exato e instantâneo abaixo de ~100k fichas** (temos 3.845; nesse regime,
+  força bruta *vence* o índice aproximado, que pode errar o vizinho mais próximo). Acima disso, a migração
+  é **in-place no próprio DuckDB**: a extensão **VSS** liga um índice **HNSW** (lib `usearch`) no **mesmo
+  arquivo**, com um `CREATE INDEX` — **sem trocar de sistema nem mover dados** para um vector DB externo.
+  Projetado, não construído (sem benchmark medido aqui).
 - **Retrieval ciente de período exige o período na pergunta:** com 3 períodos do mesmo banco, uma
   pergunta *period-ambígua* faz a página de um trimestre competir com a do outro. O filtro de metadados
   resolve **quando a pergunta nomeia o trimestre** ("4T25"); sem período, fica à mercê do ranqueamento.

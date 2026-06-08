@@ -59,6 +59,29 @@ pede explicitamente "fraquezas reveladas" e "como escalaria de centenas para dez
    de `TipoInstituicao=2` (≤2024) para `=1` (≥2025); o cliente escolhe o nível pelo período, **pagina** as
    respostas grandes (dedup das linhas ecoadas) e **nunca apaga** dados numa queda da fonte.
 
+10. **Gate de futuro v2 — responder DATA documentada sem alucinar** (`router._gate_escopo` +
+    `pipeline._aterrar_ano_futuro` + `tests/test_gate_futuro.py`). A bateria revelou que o R1 era um corte
+    **cego por ano**: over-recusava perguntas sobre uma DATA futura que **está num documento** (vigência da
+    Res. 4.966 em 2027, vencimento de dívida em 2028, janela de recompra até 2027 — todas presentes no
+    corpus, verificado por query). Refinado: o R1 só recusa CEDO o **valor de uma métrica** (market share /
+    custo de crédito / guidance) em ano futuro — o caso em que inventar é o risco. Pergunta de **data/evento**
+    com ano futuro vai para o texto, onde uma **trava de aterramento** só deixa responder se um trecho
+    recuperado menciona aquele ano **como ano** — casamento por **fronteira de palavra**, ignorando o ano
+    dentro de código (`C0052027`) ou de valor (`R$ 2027 milhões`); senão, recusa. Resultado: não inventa o
+    futuro (valor não documentado é barrado) **e** para de over-recusar a data documentada. **Medido: 11/11**
+    em `tests/test_gate_futuro.py` (3 recusa-R1, 3 âncora-responde, 2 aterramento-recusa, 2 sanidade + **1
+    adversarial** — "2027" como valor monetário, que **quebrou** a 1ª versão por substring ingênuo e motivou
+    o casamento robusto); suíte total **148 verde**, sem regressão.
+
+11. **Comparação cross-bank no caminho de números** (`router._classificar_caminho` → rota `comparativo`,
+    `pipeline._caminho_comparativo`, `tests/test_pipeline.py`). A bateria com modelos reais mostrou que o
+    sistema **recusava** *"entre BB e Bradesco, quem ganhou mais share?"* — comparar **2 bancos** não era
+    suportado (o caminho de números exigia 1 banco). Generalizado: aceita **2+ bancos**, computa a série de
+    cada um (SQL) e compara a variação — *ganhou mais / perdeu menos*, citando o Bacen. Verificado **com
+    dados reais**: BB×Bradesco e BB×Itaú em consignado (todos caíram; BB caiu menos) e **Nubank×Itaú em
+    cartão** (Nubank **+3,8 p.p.** → 14,9%; Itaú **−4,1 p.p.** → 21,0%). Recusa honesta se < 2 bancos têm
+    série computável. Suíte total **150 verde**.
+
 ## Descoberta que virou decisão de projeto
 
 **O LLM não é determinístico nem a temperatura 0.** A mesma pergunta *"lucro líquido recorrente"*
@@ -72,7 +95,10 @@ peça menos crítica da nota. É também o "o que me surpreendeu" da apresentaç
 - **Roteador R4/R6:** distinguir *realizado* de *guidance* dentro de 2026 (R4) e métricas ainda não
   ingeridas (R6) caem hoje no **Estágio 2** (gate de evidência), não numa regra dedicada.
 - **Índice aproximado:** a busca vetorial é **cosseno brute-force** e o BM25 é reconstruído por consulta.
-  Ótimo no tamanho atual; em >~100k fichas entraria **HNSW** + **FTS persistido** — projetado, sem benchmark.
+  Exato e instantâneo abaixo de ~100k fichas (temos 3.845). Acima disso, **upgrade in-place no próprio
+  DuckDB**: a extensão **VSS** adiciona um índice **HNSW** (backed pela lib `usearch`) — **mesmo store, um
+  `CREATE INDEX`**, sem migrar para um vector DB externo (Pinecone/Weaviate) nem fazer o dado sair da
+  máquina; + **FTS persistido** para o BM25. Projetado, sem benchmark.
 - **Dedup por hash de conteúdo:** a idempotência é por `(banco, período, tipo_doc)`; falta dedup por
   **hash** para reingestão em escala (mesmo arquivo, URL diferente).
 - **RAG sobre tabelas:** número numa célula perde cabeçalho/unidade ao chunkar (ex.: o share declarado do

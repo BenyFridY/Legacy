@@ -131,6 +131,22 @@ def test_computada_detecta_modalidade_da_pergunta_cartao(deps):
     assert "Cartão de Crédito" in r.citacoes[0]
 
 
+def test_comparativo_cross_bank_quem_ganhou_mais(deps):
+    """Cross-bank: compara a série de 2 bancos (SQL) e diz quem ganhou mais share.
+    BB 20->25% (+5 p.p.) vs Bradesco 14->14,2% (+0,2 p.p.) -> BB ganhou mais."""
+    r = responder("Entre o Banco do Brasil e o Bradesco, qual ganhou mais participação em consignado?", deps)
+    assert not r.recusou
+    assert "25.0%" in r.texto and "14.2%" in r.texto            # finais de cada banco
+    assert "ganhou mais" in r.texto and "BB" in r.texto.split("ganhou mais")[-1]   # líder = BB
+    assert "IF.data" in r.citacoes[0]
+
+
+def test_comparativo_recusa_se_menos_de_dois_computaveis(deps):
+    """Santander não está no mapa_prudencial do fixture -> só BB computa -> recusa honesta (exige >= 2)."""
+    r = responder("Compare o market share de consignado do Banco do Brasil e do Santander.", deps)
+    assert r.recusou and "ao menos 2" in r.motivo
+
+
 def test_multi_fonte_cruza_declarado_e_computado(deps):
     r = responder(
         "O market share de consignado do Bradesco computado a partir do IF.data confirma o "

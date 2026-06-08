@@ -4,7 +4,9 @@ Duas decisões, NESTA ordem:
 
   1) GATE DE ESCOPO — a pergunta é respondível pela base? Se não, vira `nao_respondivel`
      e o sistema RECUSA antes mesmo de buscar (a regra inegociável do case). Três regras:
-       R1  período futuro/inexistente (ano além da cobertura da base).
+       R1  VALOR de métrica em período futuro (ano além da cobertura). Pergunta de DATA/evento com
+           ano futuro NÃO cai aqui — vai p/ o texto + trava de aterramento (só responde se um trecho
+           documentar o ano). Ver pipeline._aterrar_ano_futuro e ADR-0005.
        R2  comparação entre BASES CONTÁBEIS incompatíveis (IFRS x Cosif) numa métrica de
            release/Cosif (guidance / custo de crédito / PDD). É uma CONJUNÇÃO: só dispara com
            (comparação) E (entidade só-IFRS) E (métrica de release) — NUNCA pelo nome "Nubank".
@@ -15,6 +17,7 @@ Duas decisões, NESTA ordem:
   2) CAMINHO (se estiver no escopo):
        doc_unico   um fato em um único documento (release/MD&A).
        computada   número/série calculado do IF.data via SQL (market share etc.).
+       comparativo compara o market share de 2+ bancos (cross-bank), tudo em SQL.
        multi_fonte cruza o DECLARADO (texto) com o COMPUTADO (número) — o coração do Caso B.
 
 Por que DETERMINÍSTICO (regras), e não um LLM decidindo solto? REPRODUTIBILIDADE. O eval vale
@@ -40,7 +43,7 @@ from dataclasses import dataclass, field
 
 from legacy_rag.config import ANO_COBERTURA_MAX, ENTIDADES, MODALIDADE_FOCO, MODALIDADES
 
-CATEGORIAS = ("doc_unico", "computada", "multi_fonte", "nao_respondivel")
+CATEGORIAS = ("doc_unico", "computada", "comparativo", "multi_fonte", "nao_respondivel")
 
 
 # --------------------------------------------------------------------------
@@ -109,7 +112,7 @@ def extrair_slots(pergunta: str) -> Slots:
     """Lê a pergunta e preenche os slots por regras léxicas (determinístico, sem modelo)."""
     t = _sem_acento(pergunta)
 
-    if re.search(r"market share|participacao de mercado|\bshare\b", t):
+    if re.search(r"market share|participacao|\bshare\b", t):
         metrica = "market_share"
     elif re.search(r"custo (do|de) credito|\bpdd\b|provis", t):
         metrica = "custo_credito"
@@ -141,9 +144,13 @@ _METRICAS_RELEASE_COSIF = {"guidance", "custo_credito"}  # só existem no releas
 
 
 def _gate_escopo(s: Slots) -> str | None:
-    # R1 — período futuro/inexistente.
-    if s.anos and max(s.anos) > ANO_COBERTURA_MAX:
-        return (f"R1: período {max(s.anos)} está além da cobertura da base "
+    # R1 — VALOR de métrica em período futuro/inexistente. Refinado (ADR-0005): só recusa CEDO quando a
+    # pergunta pede o VALOR de uma métrica (market share / custo de crédito / guidance) num ano além da
+    # cobertura — é o caso em que inventar é o risco. Pergunta de DATA/EVENTO com ano futuro (vigência de
+    # norma, vencimento de dívida) NÃO é barrada aqui: segue p/ o texto, onde a "trava de aterramento"
+    # (pipeline._aterrar_ano_futuro) só responde se um trecho recuperado documentar literalmente o ano.
+    if s.anos and max(s.anos) > ANO_COBERTURA_MAX and s.metrica != "outra":
+        return (f"R1: valor de '{s.metrica}' em {max(s.anos)} está além da cobertura da base "
                 f"(realizado até 4T25, guidance até {ANO_COBERTURA_MAX}).")
 
     # R2 — comparação entre bases contábeis incompatíveis (CONJUNÇÃO, nunca só o nome).
@@ -164,10 +171,13 @@ def _gate_escopo(s: Slots) -> str | None:
 
 # --------------------------------------------------------------------------
 # Estágio 1 (continuação) — classificação do caminho (só se estiver no escopo).
-# Precedência: confronto declarado-vs-computado -> número puro -> fato único.
+# Precedência: comparação cross-bank -> confronto declarado-vs-computado -> número puro -> fato único.
 # --------------------------------------------------------------------------
 
 def _classificar_caminho(s: Slots) -> str:
+    # comparativo: market share de 2+ bancos -> compara as séries (cross-bank), tudo em SQL.
+    if s.metrica == "market_share" and len(s.bancos) >= 2:
+        return "comparativo"
     # multi_fonte: cruza o DECLARADO (texto) com o COMPUTADO/realizado (número).
     if s.confronto and (s.declarado or s.cita_ifdata):
         return "multi_fonte"

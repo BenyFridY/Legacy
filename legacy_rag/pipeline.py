@@ -5,6 +5,7 @@
           - nao_respondivel -> RECUSA por escopo (Estágio 1), com motivo
           - doc_unico   -> busca híbrida + rerank -> gate de evidência -> geração citada
           - computada   -> market share em SQL (determinístico, auditável) -> resposta citada
+          - comparativo -> market share de 2+ bancos comparado (cross-bank), tudo em SQL
           - multi_fonte -> DECLARADO (texto) + COMPUTADO (número) -> LLM reconcilia, cita os dois
 
 Tudo por INJEÇÃO DE DEPENDÊNCIAS (`Dependencias`): a conexão DuckDB, o encoder, o reranker e o
@@ -19,9 +20,10 @@ inventar um número (e o cadastro degrada para {} mantendo o cálculo por CodIns
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
-from legacy_rag.config import ENTIDADES, LIMIAR_EVIDENCIA_PADRAO, ROTULOS_MODALIDADE
+from legacy_rag.config import ANO_COBERTURA_MAX, ENTIDADES, LIMIAR_EVIDENCIA_PADRAO, ROTULOS_MODALIDADE
 from legacy_rag.generation.answer import (
     INSTRUCAO_MULTI,
     SENTINELA_NAO_ENCONTRADO,
@@ -65,6 +67,8 @@ def responder(pergunta: str, deps: Dependencias) -> Resposta:
         return Resposta(texto="Não disponível na base.", recusou=True, motivo=rota.motivo_recusa)
     if rota.categoria == "computada":
         return _caminho_computado(rota, deps)
+    if rota.categoria == "comparativo":
+        return _caminho_comparativo(rota, deps)
     if rota.categoria == "multi_fonte":
         return _caminho_multi(pergunta, rota, deps)
     return _caminho_texto(pergunta, rota, deps)             # doc_unico (default)
@@ -88,8 +92,50 @@ def _buscar_texto(pergunta: str, rota: Rota, deps: Dependencias, k: int | None =
     return res
 
 
+_MARCA_VALOR = re.compile(r"\s*(?:mil|milh|bilh|tri|%)", re.IGNORECASE)  # "2027 milhões", "2027%" -> é VALOR
+
+
+def _documenta_ano(texto: str, ano: int) -> bool:
+    """O trecho menciona `ano` como ANO (referência temporal) — não como CÓDIGO nem VALOR monetário?
+
+    Evita falsos positivos do substring ingênuo: '2027' dentro de 'C0052027' (sem fronteira de palavra),
+    de 'R$ 2027 milhões' (precedido por R$) ou de '2027 milhões' (seguido de magnitude). Conservador:
+    na dúvida (ex.: precedido por dígito/cifrão ou seguido de 'milhões'), NÃO conta como ano.
+    """
+    for m in re.finditer(rf"\b{ano}\b", texto):            # \b já descarta '2027' dentro de 'C0052027'
+        antes = texto[max(0, m.start() - 3):m.start()].replace(" ", "").lower()
+        if antes.endswith(("r$", "$")):                    # R$ 2027 -> valor, não ano
+            continue
+        if _MARCA_VALOR.match(texto[m.end():m.end() + 12].lower()):  # 2027 milhões/% -> valor
+            continue
+        return True
+    return False
+
+
+def _aterrar_ano_futuro(rota: Rota, resultados, limiar: float) -> str | None:
+    """Trava de aterramento p/ ANO FUTURO documentado (ADR-0005). Se a pergunta cita um ano além da
+    cobertura, só deixamos responder quando um trecho RELEVANTE (acima do gate) menciona esse ano
+    COMO ANO (não como código/valor — ver `_documenta_ano`) — ex.: vencimento de dívida, vigência de
+    norma. Senão, recusa: impede inferir um VALOR futuro a partir de um trecho de outro período.
+    Não dispara se a pergunta não cita ano futuro."""
+    anos_fut = [a for a in rota.anos if a > ANO_COBERTURA_MAX]
+    if not anos_fut:
+        return None
+    relevantes = [r for r in resultados if r.score >= limiar]
+    if not relevantes:
+        return None                      # sem evidência forte: o gate normal recusa (motivo mais preciso)
+    if any(_documenta_ano(r.texto, a) for r in relevantes for a in anos_fut):
+        return None                      # aterrado: há trecho relevante documentando o ano -> responde
+    return (f"R1-evidência: a pergunta cita {max(anos_fut)} (além de {ANO_COBERTURA_MAX}); nenhum trecho "
+            f"recuperado documenta esse período -> recuso em vez de inferir o futuro.")
+
+
 def _caminho_texto(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
-    return responder_de_contexto(pergunta, _buscar_texto(pergunta, rota, deps), deps.llm, deps.limiar)
+    resultados = _buscar_texto(pergunta, rota, deps)
+    motivo = _aterrar_ano_futuro(rota, resultados, deps.limiar)
+    if motivo is not None:
+        return Resposta(texto="Não disponível na base.", recusou=True, motivo=motivo)
+    return responder_de_contexto(pergunta, resultados, deps.llm, deps.limiar)
 
 
 # --------------------------------------------------------------------------
@@ -137,6 +183,39 @@ def _caminho_computado(rota: Rota, deps: Dependencias) -> Resposta:
     banco, serie = computado
     return Resposta(texto=_formatar_serie(banco, rota.modalidade, serie),
                     citacoes=[_citacao_ifdata(rota.modalidade)])
+
+
+# --------------------------------------------------------------------------
+# Caminho COMPARATIVO (cross-bank): compara o market share de 2+ bancos, tudo em SQL.
+# --------------------------------------------------------------------------
+
+def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
+    """Computa a série de market share de CADA banco da pergunta (SQL) e compara a variação no período.
+
+    Generaliza o caminho de números p/ N bancos — remove a recusa antiga de comparação cross-bank.
+    Recusa honesta se menos de 2 bancos tiverem série computável (conglomerado mapeado + dado na base).
+    """
+    series = []
+    for banco in rota.bancos:
+        prud = deps.mapa_prudencial.get(banco)
+        if not prud:
+            continue
+        s = market_share_conglomerado_serie(deps.con, prud, rota.modalidade)
+        if s:
+            series.append((banco, s))
+    if len(series) < 2:
+        return Resposta(texto="Não disponível na base.", recusou=True,
+                        motivo="comparação cross-bank exige série de ao menos 2 bancos "
+                               "(conglomerado mapeado? série na base?).")
+    detalhes = [(banco, s[-1][1] * 100 - s[0][1] * 100, s[0][1] * 100, s[-1][1] * 100)
+                for banco, s in series]                       # (banco, delta_pp, ini, fim)
+    detalhes.sort(key=lambda d: d[1], reverse=True)           # maior variação primeiro
+    lider = detalhes[0][0]
+    verbo = "ganhou mais" if detalhes[0][1] > 0 else "perdeu menos"
+    corpo = "; ".join(f"{b}: {ini:.1f}% -> {fim:.1f}% ({d:+.1f} p.p.)" for b, d, ini, fim in detalhes)
+    resumo = (f"Market share em {_rotulo(rota.modalidade)} (Bacen IF.data, calc. em SQL) — {corpo}. "
+              f"Quem {verbo} participação no período: {lider}.")
+    return Resposta(texto=resumo, citacoes=[_citacao_ifdata(rota.modalidade)])
 
 
 # --------------------------------------------------------------------------
