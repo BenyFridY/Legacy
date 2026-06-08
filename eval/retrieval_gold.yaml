@@ -135,3 +135,86 @@ sondagens:
     gold_paginas: [2]
     dificuldade: media
     note: "TIPO nota (doc CURTO, fonte publica do BC em texto): evolucao do credito por modalidade (p.2)."
+
+  # ---------- EXPANSAO DO GOLD (equilibra os bancos/tipos sub-amostrados; gold curado por busca
+  #            LEXICAL + leitura no doc REAL, independente do embedding — anti-circular) ----------
+  - id: bradesco-lucro-recorrente-4t25
+    banco: Bradesco
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual foi o lucro liquido recorrente do Bradesco no 4T25"
+    gold_paginas: [6, 7, 8]
+    dificuldade: media
+    note: "Lucro liquido recorrente R$ 6,5 bi: destaque (p.7), narrado (p.6), tabela de movimentacao (p.8)."
+
+  - id: bradesco-consignado-3t25
+    banco: Bradesco
+    periodo: "3T25"
+    tipo_doc: release
+    question: "qual o saldo da carteira de credito consignado do Bradesco no 3T25"
+    gold_paginas: [11, 12, 15]
+    dificuldade: media
+    note: "Credito Pessoal Consignado R$ 62.987 mi: tabelas de carteira (p.11, p.15) e originacao (p.12)."
+
+  - id: bradesco-inadimplencia-transcricao-3t25
+    banco: Bradesco
+    periodo: "3T25"
+    tipo_doc: transcricao
+    question: "o que o Bradesco falou sobre a inadimplencia acima de 90 dias na teleconferencia do 3T25"
+    gold_paginas: [10, 23]
+    dificuldade: media
+    note: "TIPO transcricao: fala do management sobre a inadimplencia 90d (4,1% em set, p.23; alta comentada p.10)."
+
+  - id: itau-resultado-1t26
+    banco: Itau
+    periodo: "1T26"
+    tipo_doc: release
+    question: "qual o resultado recorrente gerencial do Itau no 1T26"
+    gold_paginas: [6, 7, 8]
+    dificuldade: media
+    note: "MULTI-PERIODO: RRG 1T26 R$ 12,3 bi (tabela p.6/7 + sumario exec p.8, mesma convencao do probe 4T25). Testa o filtro de periodo vs 3T25/4T25 do mesmo banco."
+
+  - id: itau-resultado-3t25
+    banco: Itau
+    periodo: "3T25"
+    tipo_doc: release
+    question: "qual o resultado recorrente gerencial do Itau no 3T25"
+    gold_paginas: [6, 7, 8]
+    dificuldade: media
+    note: "MULTI-PERIODO: RRG 3T25 R$ 11.876 mi (tabela p.6/7 + sumario exec p.8, mesma convencao do probe 4T25). Testa o filtro de periodo."
+
+  - id: santander-consignado-4t25
+    banco: Santander
+    periodo: "4T25"
+    tipo_doc: release
+    question: "o que o Santander reportou sobre a carteira de credito consignado no 4T25"
+    gold_paginas: [21, 22]
+    dificuldade: media
+    note: "Retracao no consignado (-3,2%): analise da carteira de credito (p.21, p.22)."
+
+  - id: bb-guidance-custo-credito-2026
+    banco: BB
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual o guidance de custo de credito do Banco do Brasil para 2026"
+    gold_paginas: [15, 16]
+    dificuldade: media
+    note: "Projecoes Corporativas (guidance) 2026: secao (p.15) e tabela do guidance 2026 (p.16). Sem token de trimestre na pergunta (proposital)."
+
+  - id: bb-inadimplencia-90d-4t25
+    banco: BB
+    periodo: "4T25"
+    tipo_doc: release
+    question: "qual o indice de inadimplencia acima de 90 dias do Banco do Brasil no 4T25"
+    gold_paginas: [12, 61]
+    dificuldade: media
+    note: "Inadimplencia +90d encerrou dez/2025 em 5,17%: indicadores (p.12) e secao Inadimplencia e Cobertura (p.61)."
+
+  - id: bacen-inadimplencia-2026-01
+    banco: Bacen
+    periodo: "2026-01"
+    tipo_doc: nota
+    question: "o que a nota do Banco Central de janeiro de 2026 aponta sobre a inadimplencia do credito"
+    gold_paginas: [5]
+    dificuldade: media
+    note: "TIPO nota (doc curto do BC): percentual de inadimplencia do credito total, atrasos acima de 90 dias (p.5)."

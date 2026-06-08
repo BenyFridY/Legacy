@@ -2,8 +2,9 @@
 
 Mesma estratégia do Encoder e do Reranker: o resto do sistema NÃO conhece o provedor
 concreto, só o contrato `LLMClient.completar(prompt) -> texto`. Isso deixa o pipeline
-testável com um LLM FALSO (determinístico, sem rede, sem chave) e permite trocar
-claude_code / gemini_free / groq_free / ollama / anthropic mudando uma linha.
+testável com um LLM FALSO (determinístico, sem rede, sem chave) e permite plugar outro
+provedor sem tocar no resto. Hoje só `groq_free` está implementado; os demais
+(gemini_free / ollama / anthropic / claude_code) são a interface prevista (ver __init__.py).
 
 Por que a geração é a ÚLTIMA peça e a "menos crítica" da nota: a qualidade do sistema
 mora no RETRIEVAL (achar o trecho certo) e na RECUSA. O LLM só REDIGE o que já foi

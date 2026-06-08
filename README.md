@@ -23,7 +23,7 @@ conta). Por isso o número é **exato e auditável**, e o sistema **recusa em ve
 
 | retrieval — hit@3 | recusa por escopo | fidelidade (juiz independente) | alucinação |
 |:---:|:---:|:---:|:---:|
-| **91%** realista · 76,9% completo · MRR **0,603** | **12/12** · over-recusa **0%** | **6/6** sustentadas | **0** |
+| **85%** realista · 77,3% completo · MRR **0,663** | **12/12** · over-recusa **0%** | **6/6** sustentadas | **0** |
 
 > **Corpus provado a fundo, não largo (escolha assumida):** 11 documentos reais — 5 fontes, 4 tipos,
 > de **312 pp a 4 pp**, multi-período — + Bacen IF.data (10 trimestres). Escalar p/ **500+** é
@@ -82,19 +82,20 @@ e [`docs/pesquisa/evidencias-verificadas.md`](docs/pesquisa/evidencias-verificad
 > 10 trimestres (3T23–4T25)**.
 
 **1) Qualidade de retrieval — hit@k / MRR (BGE-M3 + reranker reais).** Gold por **página**, curado
-por busca **lexical + leitura** (independente do embedding → anti-circular). **13 sondagens** em
+por busca **lexical + leitura** (independente do embedding → anti-circular). **22 sondagens** em
 **5 fontes (4 bancos + Bacen) e 4 tipos** de documento, com **retrieval ciente de período** (quando a pergunta nomeia o
 trimestre, um filtro de metadados fixa o documento certo no corpus multi-período):
 
 | conjunto | hit@1 | hit@3 | hit@5 | MRR |
 |---|---|---|---|---|
-| **sondagens realistas** (sem gíria/paráfrase) | — | **91%** | — | — |
-| **13 sondagens** (inclui 2 limite + transcrição/nota) | 46,2% | 76,9% | 76,9% | **0,603** |
+| **sondagens realistas** (sem gíria/paráfrase) | — | **85%** | — | — |
+| **22 sondagens** (inclui 2 limite + transcrição/nota) | 54,5% | 77,3% | 81,8% | **0,663** |
 
 **Limites honestos** (não escondidos): a gíria *"calote"* e a paráfrase *"descontado direto da folha"*
-falham de propósito; e a **transcrição** (fala do CEO) perde para o texto **formal** do release no
-mesmo tema — um achado real de retrieval em corpus heterogêneo (ver *Fraquezas*). Com o **filtro de
-período** (remove a competição 4T25/3T25/1T26), **5 das 6** sondagens realistas do Itaú ficam em **rank 1**.
+falham de propósito; uma **tabela densa** (saldo de consignado do Bradesco 3T25) não ranqueia (em produção
+**recusaria**); e a transcrição de *política de crédito* perde para o release formal — **embora** a de
+*inadimplência 90d* (também transcrição) acerte em **rank 1** (ver *Fraquezas*). Com o **filtro de período**
+(remove a competição 4T25/3T25/1T26), **7 das 8** sondagens realistas do Itaú ficam em **rank 1**.
 
 **2) Recusa por escopo — Estágio 1 (roteador determinístico, sem modelo).** 12 perguntas, 3
 categorias de comportamento + 1 distrator anti-over-recusa:
@@ -272,14 +273,14 @@ corpus/
   manifesto.yaml       fontes da base de TEXTO (banco/período/tipo/url) — a "base ligada", reproduzível
 eval/
   questions.yaml       12 perguntas (3 categorias de comportamento + 1 distrator + 1 B2 de tom)
-  retrieval_gold.yaml  13 sondagens (gold por página; 5 fontes, 4 tipos; 2 limite de propósito)
+  retrieval_gold.yaml  22 sondagens (gold por página; 5 fontes, 4 tipos; 2 limite de propósito)
   gate_gold.yaml       mini-gold da calibração do gate (respondíveis × fora-da-base)
 docs/
   decisions/           ADRs 0001–0005 — a "progressão de raciocínio" que o case pede
   conceitos/           5 docs didáticos (RAG, embeddings, BM25/híbrida, números/SQL, arquitetura do código)
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
-scripts/               ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
+scripts/               ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
 tests/                 23 arquivos · 150 testes
 ```
 
@@ -303,9 +304,11 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   pergunta *period-ambígua* faz a página de um trimestre competir com a do outro. O filtro de metadados
   resolve **quando a pergunta nomeia o trimestre** ("4T25"); sem período, fica à mercê do ranqueamento.
   Fix futuro: inferir o trimestre "mais recente" como default, ou desambiguar com o usuário.
-- **Transcrição perde para o release no mesmo tema:** a sondagem da teleconferência do Bradesco falha
-  no hit@5 — a busca prefere o texto **formal** do release à fala conversacional do CEO. Achado real de
-  corpus heterogêneo; fix: dar peso ao `tipo_doc` quando a pergunta o pede ("na teleconferência").
+- **Transcrição é irregular (não some):** a sondagem de *política de crédito* na teleconferência do
+  Bradesco falha (a busca prefere o release **formal** à fala conversacional), **mas** a de *inadimplência
+  90d* (também transcrição) acerta em **rank 1** — depende do quão "verbatim" é o trecho. E o saldo de
+  consignado em **tabela densa** (Bradesco 3T25) não ranqueia (recusaria no gate). Fixes: peso por
+  `tipo_doc` quando a pergunta o pede ("na teleconferência") e **chunking ciente de tabela**.
 - **Gate calibrado num gold pequeno:** o limiar **0,60** veio de varrer um mini-gold (joelho com 0%
   over-recusa / 0% vazamento), mas `n=12`; produção pede um gold maior e idealmente por-modalidade.
 - **Fallback do reranker é heurístico:** caímos para a ordem do RRF quando o desvio-padrão das notas

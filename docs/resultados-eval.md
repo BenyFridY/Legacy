@@ -65,7 +65,7 @@ forte, não estatística** — e estas perguntas co-evoluíram com as regras (me
 
 Mede se o trecho certo sobe ao topo. Gold ancorado por **página** (estável entre reingestões),
 curado por busca **lexical + leitura** — **independente do embedding**, para não ser circular.
-**13 sondagens** em **5 fontes (4 bancos + Bacen) e 4 tipos** de documento, com **retrieval ciente de período**
+**22 sondagens** em **5 fontes (4 bancos + Bacen) e 4 tipos** de documento, com **retrieval ciente de período**
 (a pergunta nomeia o trimestre → filtro de metadados fixa o documento certo). Inclui **de propósito**
 2 sondagens-limite (gíria, paráfrase) que **devem falhar** — eval honesto, sem cherry-picking. Comando:
 
@@ -78,38 +78,51 @@ python scripts/eval_retrieval_real.py     # roda hit@k/MRR com os modelos reais 
 ================================================================
 EVAL DE RETRIEVAL (hit@k / MRR) — gold por pagina
 ================================================================
-sondagens: 13
-  id                          dif      h@1  h@3  h@5   RR
-  itau-consignado-saldo       facil     ok  ok  ok   1.00
-  itau-lucro-recorrente       media      .  ok  ok   0.33
-  itau-inadimplencia-90d      facil     ok  ok  ok   1.00
-  itau-guidance-2026          media     ok  ok  ok   1.00
-  itau-basileia-capital       media     ok  ok  ok   1.00
-  itau-margem-clientes        facil     ok  ok  ok   1.00
-  itau-calote-giria           dificil    .   .   .   0.00
-  itau-consignado-parafrase   dificil    .   .   .   0.00
-  bb-consignado-4t25          media      .  ok  ok   0.50
-  bb-lucro-sumario-curto      facil     ok  ok  ok   1.00
-  santander-lucro-4t25        facil      .  ok  ok   0.50
-  bradesco-transcricao-...    media      .   .   .   0.00
-  bacen-nota-credito          media      .  ok  ok   0.50
+sondagens: 22
+  id                                  dif      h@1 h@3 h@5   RR
+  itau-consignado-saldo               facil     ok  ok  ok  1.00
+  itau-lucro-recorrente               media      .  ok  ok  0.33
+  itau-inadimplencia-90d              facil     ok  ok  ok  1.00
+  itau-guidance-2026                  media     ok  ok  ok  1.00
+  itau-basileia-capital               media     ok  ok  ok  1.00
+  itau-margem-clientes                facil     ok  ok  ok  1.00
+  itau-calote-giria                   dificil    .   .   .  0.00
+  itau-consignado-parafrase           dificil    .   .   .  0.00
+  bb-consignado-4t25                  media      .  ok  ok  0.50
+  bb-lucro-sumario-curto              facil     ok  ok  ok  1.00
+  santander-lucro-4t25                facil      .  ok  ok  0.50
+  bradesco-transcricao-politica-cred  media      .   .   .  0.00
+  bacen-nota-credito                  media      .  ok  ok  0.50
+  bradesco-lucro-recorrente-4t25      media      .  ok  ok  0.50
+  bradesco-consignado-3t25            media      .   .   .  0.00
+  bradesco-inadimplencia-transcr-3t25 media     ok  ok  ok  1.00
+  itau-resultado-1t26                 media     ok  ok  ok  1.00
+  itau-resultado-3t25                 media     ok  ok  ok  1.00
+  santander-consignado-4t25           media      .   .  ok  0.25
+  bb-guidance-custo-credito-2026      media     ok  ok  ok  1.00
+  bb-inadimplencia-90d-4t25           media     ok  ok  ok  1.00
+  bacen-inadimplencia-2026-01         media     ok  ok  ok  1.00
 ----------------------------------------------------------------
-  hit@1:  46.2%
-  hit@3:  76.9%
-  hit@5:  76.9%
-  MRR  : 0.603
+  hit@1:  54.5%
+  hit@3:  77.3%
+  hit@5:  81.8%
+  MRR  : 0.663
 ================================================================
-  Leitura: hit@3 nas sondagens realistas (sem giria/parafrase): 91%
+  Leitura: hit@3 nas sondagens realistas (sem giria/parafrase): 85%
 ```
 
 **Leitura honesta:** o eval mede a **mesma busca da produção** (pré-filtro banco+período, funde 10,
-rerank → 5). Com o **filtro de período**, **5 das 6** sondagens realistas do Itaú ficam em **rank 1** —
-sem ele, a página de consignado de um trimestre roubava o lugar da do outro. Nas **realistas**, **hit@3 = 91%** (10/11). Os **limites honestos** que puxam o agregado:
+rerank → 5). **Ampliamos o gold de 13 → 22 sondagens** para equilibrar os bancos (antes ~8 eram do Itaú)
+e cobrir mais tipos/períodos — o hit@3 **subiu** (76,9% → 77,3%) num conjunto maior, e o MRR foi a
+**0,663**. Com o **filtro de período**, **7 das 8** sondagens realistas do Itaú ficam em **rank 1** —
+incluindo o **RRG de 1T26 e de 3T25**, que testam a desambiguação entre trimestres quase idênticos do
+mesmo banco. Nas **realistas**, **hit@3 = 85%**. Os **limites honestos** que puxam o agregado:
 (1) gíria/paráfrase falham de propósito (o cross-encoder formal não liga "calote"→inadimplência; a
-paráfrase perifrástica nem o denso liga); (2) a **transcrição** (fala conversacional do CEO) **perde
-para o release formal** no mesmo tema — achado real de corpus heterogêneo (é o único miss entre as
-realistas). A **nota do Bacen**, antes só no hit@5, subiu ao **hit@3** com o filtro de período. Nada
-disso é escondido — é o que o eval existe para revelar.
+paráfrase perifrástica nem o denso liga); (2) **tabela densa** — o saldo de consignado do Bradesco 3T25
+vive numa tabela de crédito grande e não ranqueia (top score < 0,60: em produção o sistema **recusaria**);
+(3) **transcrição conversacional** — a fala sobre *política de crédito* do Bradesco perde para o release
+formal, **embora** a fala sobre *inadimplência 90d* (também transcrição) acerte em **rank 1**. Nada disso
+é escondido — é o que o eval existe para revelar.
 
 ---
 

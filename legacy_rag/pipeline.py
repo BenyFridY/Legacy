@@ -155,9 +155,11 @@ def _citacao_ifdata(modalidade: str) -> str:
 def _formatar_serie(banco: str, modalidade: str, serie: list[tuple[int, float]]) -> str:
     pontos = ", ".join(f"{am // 100}-{am % 100:02d}: {sh * 100:.1f}%" for am, sh in serie)
     ini, fim = serie[0][1] * 100, serie[-1][1] * 100
+    am0, amN = serie[0][0], serie[-1][0]                       # nomeia o intervalo REAL coberto
+    janela = f"{am0 // 100}-{am0 % 100:02d} a {amN // 100}-{amN % 100:02d}"
     tend = "estável" if abs(fim - ini) < 0.1 else ("alta" if fim > ini else "queda")
     return (f"Market share de {banco} em {_rotulo(modalidade)}: {pontos}. "
-            f"Variação no período: {ini:.1f}% -> {fim:.1f}% ({tend}).")
+            f"Variação ({janela}): {ini:.1f}% -> {fim:.1f}% ({tend}).")
 
 
 def _computar_serie(rota: Rota, deps: Dependencias):
@@ -212,8 +214,11 @@ def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
     detalhes.sort(key=lambda d: d[1], reverse=True)           # maior variação primeiro
     lider = detalhes[0][0]
     verbo = "ganhou mais" if detalhes[0][1] > 0 else "perdeu menos"
+    s0 = series[0][1]                                          # todos os bancos cobrem os mesmos trimestres
+    am0, amN = s0[0][0], s0[-1][0]
+    janela = f"{am0 // 100}-{am0 % 100:02d} a {amN // 100}-{amN % 100:02d}"
     corpo = "; ".join(f"{b}: {ini:.1f}% -> {fim:.1f}% ({d:+.1f} p.p.)" for b, d, ini, fim in detalhes)
-    resumo = (f"Market share em {_rotulo(rota.modalidade)} (Bacen IF.data, calc. em SQL) — {corpo}. "
+    resumo = (f"Market share em {_rotulo(rota.modalidade)} ({janela}, Bacen IF.data, calc. em SQL) — {corpo}. "
               f"Quem {verbo} participação no período: {lider}.")
     return Resposta(texto=resumo, citacoes=[_citacao_ifdata(rota.modalidade)])
 
