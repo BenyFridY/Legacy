@@ -123,25 +123,102 @@ Beny Frid · Legacy Capital · junho/2026
 
 # 5 · Responder ou recusar (honestidade como feature)
 
-> _(a preencher — recusa em 2 estágios: escopo R1/R2/R3 + gate de evidência)_
+**Recusar bem é tão importante quanto responder.** Duas camadas, responsabilidades separadas:
+
+**Estágio 1 — ESCOPO** (o roteador, *antes* de buscar — barato): a pergunta cabe na base?
+- **R1 · futuro** — pede o *valor* de uma métrica num ano além da cobertura (> 2026). *Mas* uma **data
+  documentada** (ex.: vigência de norma em 2027) **passa**: uma trava de aterramento só responde se um
+  trecho recuperado citar aquele ano.
+- **R2 · bases incompatíveis** — cruza **IFRS × Cosif** (ex.: Nubank × Itaú) numa métrica de release.
+  É **conjunção de sinais** — nunca o nome do banco — e exige os **dois lados** reais presentes.
+- **R3 · verbatim ausente** — pede a *frase literal* de quem não tem transcrição oficial na base.
+
+**Estágio 2 — EVIDÊNCIA** (o gate, *depois* de buscar): mesmo no escopo, se a melhor nota do reranker
+fica **< 0,60** (calibrado), recusa em vez de redigir sobre evidência fraca.
+
+**Toda recusa diz o MOTIVO** (R1/R2/R3 ou "evidência fraca") — auditável, nunca um "não sei" seco.
+Medido: **over-recusa 0%**.
+
+> 🎤 **Fale:** "Num sistema de research, recusar não é falha — é feature. Recuso em duas camadas. Primeiro **escopo**: antes de gastar busca, o roteador vê se a pergunta cabe na base — futuro, bases contábeis incompatíveis, ou citação literal que não existe. Depois **evidência**: mesmo dentro do escopo, se o melhor trecho não passa de uma nota mínima calibrada, recuso. E toda recusa vem com o **motivo**."
+>
+> 💡 **Lógica:** a banca vai testar isso ("e se eu perguntar algo que não está na base?"). O slide mostra que a honestidade é **projetada em camadas**, não acidente — e o "0% over-recusa" prova que recusar não virou paranoia.
+>
+> 🛡️ **Se perguntarem "e se recusar demais?":** "Medi: **0% de over-recusa** nas 12 perguntas de comportamento. E refinei o caso mais sutil — uma pergunta sobre uma **data futura documentada** (vigência de norma em 2027) é **respondida**, porque uma trava confere se um trecho realmente cita o ano. Recuso o valor que eu inventaria, não a data que está escrita."
+> 🛡️ **Se perguntarem "de onde vem o 0,60?":** "Calibrei: variei o limiar contra um mini-gold de respondíveis × fora-da-base e achei o 'joelho' — respondíveis pontuam ~0,72, fora-da-base ~0,50, e 0,60 separa com 0% vazamento e 0% over-recusa. Antes era 0,30, um placeholder que deixava tudo passar."
 
 ---
 
-# 6 · Caso B — ao vivo (as 4 rotas)
+# 6 · Caso B — ao vivo (as rotas em ação)
 
-> _(a preencher — documento único · computada genérica · multi-fonte B3 · recusa; DEMO do chat)_
+**A demo é o centro.** Abro o chat e colo perguntas que exercitam cada rota — o sistema mostra a
+**rota escolhida**, a **resposta citada** ou a **recusa com motivo**.
+
+| pergunta | rota | resultado |
+|---|---|---|
+| *Resultado Recorrente Gerencial do Itaú no 4T25?* | **texto** | **R$ 12,3 bi**, citado da **pág. 8** |
+| *Market share do Nubank em cartão, segundo o IF.data?* | **número** | série SQL — **qualquer banco × modalidade** |
+| *Entre BB e Bradesco, quem ganhou mais share de consignado de 2023 a 2024?* | **comparativo** | BB **+0,7 p.p. a mais** (cross-bank, **janela escolhida**) |
+| *O share do Bradesco no balanço bate com o que computamos do Bacen?* | **multi-fonte** | declarado **14,2%** (call) / **14,1%** (release) × computado **13,8%** → **confirma** |
+| *Custo de crédito do Bradesco no 2T2027?* | **recusa** | **R1** — futuro fora da base, diz o motivo |
+
+> 🎤 **Fale:** "Agora ao vivo. [abrir o chat] **Texto**: o lucro do Itaú — ele acha na página 8 e **cita**. **Número**: market share do Nubank em cartão, computado em SQL — e repara que funciona pra **qualquer banco e produto**, não só consignado. **Comparação entre bancos numa janela de anos**: quem ganhou mais share, com o **número exato** da diferença. O **coração do Caso B**, multi-fonte: cruzo o que o Bradesco **declarou** na call com o que **computei** do Bacen — e digo se bate. E a **recusa**: pergunto o futuro, ele recusa **com o motivo**."
+>
+> 💡 **Lógica:** aqui a tese vira concreta — cada pergunta é uma rota, e a banca vê o sistema **decidir e citar** em tempo real. Tenha as 5 perguntas **coladas** num bloco de notas pra não digitar errado ao vivo.
+>
+> 🛡️ **Se a demo falhar (sem internet/modelo):** "Sem chave de LLM o sistema ainda **roteia, recupera, computa o número e cita** — só não redige o texto livre. A parte crítica não depende do LLM." (tenha um print/saída salvo como backup)
+> 🛡️ **Se perguntarem "isso é mocado?":** "Não — é o backend real. Roteador é regra, número é SQL sobre o Bacen, citação é anexada por código. Posso mostrar o teste, ou rodem a pergunta que quiserem."
 
 ---
 
 # 7 · Resultados do eval ("comece pelo eval")
 
-> _(a preencher — hit@3, MRR, realista, recusa 12/12, faithfulness + honestidades)_
+**Medi antes de otimizar.** Tudo reproduzível por script (`docs/resultados-eval.md`).
+
+**Retrieval** (BGE-M3 + reranker reais; gold por **página**, curado por busca lexical + leitura → *anti-circular*):
+- **hit@3 81,8%** · **MRR 0,686** · **hit@5 86,4%** — em **22 sondagens**, **5 fontes, 4 tipos** de doc
+- **90%** nas sondagens *realistas* (sem gíria/paráfrase, que falham de propósito)
+
+**Recusa por escopo** (determinístico): **12/12** comportamento certo · **over-recusa 0%** · **0 alucinação**
+
+**Fidelidade** (faithfulness, juiz LLM **independente** — gpt-oss-120b ≠ gerador): **6/6** sustentadas
+
+**Gate** calibrado: **0,60** é o joelho medido (0% vazamento, 0% over-recusa). **171 testes** de fluxo (sem rede/modelo).
+
+> **O eval pegou um bug real:** um documento rotulado "Bradesco 3T25" era, na verdade, o release de
+> **4T19** (URL errada na fonte). O hit@3 caiu, investiguei, troquei a URL — e subiu **77% → 82%**.
+> *"Comece pelo eval"* funcionou na prática, não só no slide.
+
+> 🎤 **Fale:** "O case diz 'comece pelo eval', e comecei. Retrieval: **hit@3 de 82%**, 90% nas perguntas realistas, num conjunto **heterogêneo** — releases longos e notas curtas, 5 fontes. Recusa: **12 de 12** certas, **zero** over-recusa. Fidelidade: 6 de 6, com um juiz de **outra família** de modelo pra não ter viés de auto-avaliação. E o melhor: o eval **pegou um erro real** — um documento que eu achava 3T25 era de 2019; o número caiu, investiguei e corrigi. Medir antes de afirmar."
+>
+> 💡 **Lógica:** o slide que mais pontua (eval = 50%). Lidere com os números, mas a **história do bug pego** é o que mostra maturidade — qualquer um cola um número; poucos deixam o eval **governar** a decisão.
+>
+> 🛡️ **Se perguntarem "n é pequeno":** "É, e sou explícito: escopo n=12, fidelidade n=6. **Sanidade forte**, não estatística de população. Em produção o gold cresce, idealmente por modalidade. Mas o arcabouço de medição está pronto e roda em segundos."
+> 🛡️ **Se perguntarem "por que hit@3 e MRR?":** "hit@3 = a página certa está entre as 3 primeiras (o analista olha poucas). MRR = quão **no topo** ela vem, em média. Juntos dizem 'achei' **e** 'achei cedo'."
 
 ---
 
 # 8 · O que me surpreendeu
 
-> _(a preencher — LLM não-determinístico a temp 0; fraqueza do Nubank virou força; LLM faz conta bem com contexto)_
+**1. O LLM não é determinístico — nem a temperatura 0.** A mesma pergunta deu *responde → recusa →
+responde* em 3 tentativas. Isso **confirmou** a arquitetura: confinar o não-determinismo ao texto
+livre e manter roteador (regra), conta (SQL) e citação (código) **determinísticos**.
+
+**2. O LLM faz conta BEM — quando recebe o contexto certo.** Testei e **refutei meu próprio
+pressuposto** de que ele erraria a aritmética. Escolhi SQL mesmo assim — não por incapacidade do LLM,
+mas por **auditabilidade** (re-executo e confiro o número).
+
+**3. Uma "fraqueza" virou feature.** O Nubank reporta em IFRS (incomparável com os bancos Cosif em
+guidance). Em vez de mascarar, isso virou a **recusa R2** — honestidade orgânica que o case valoriza.
+
+**4. Uma auditoria adversarial do meu próprio código** achou que a comparação entre bancos
+**ignorava os anos** da pergunta (dois recortes davam a mesma resposta). Corrigi e provei com dados
+reais. **Duvidar do próprio código** achou o que os testes não pegavam.
+
+> 🎤 **Fale:** "Quatro surpresas. Primeiro: o LLM **não é determinístico nem a zero grau** — a mesma pergunta mudou de resposta três vezes; isso me **convenceu** a deixar número e roteamento determinísticos. Segundo: eu **achava** que ele erraria contas, testei, e ele **acerta** com o contexto certo — então minha escolha por SQL é por **auditabilidade**, não por achar o modelo burro. Terceiro: a fraqueza do Nubank virou a recusa R2. Quarto: rodei uma **auditoria adversarial do meu próprio código** e ela achou um bug que os testes não pegavam — a comparação entre bancos ignorava o ano da pergunta. Corrigi."
+>
+> 💡 **Lógica:** mostra **honestidade intelectual** — você mudou de ideia com evidência (item 2) e duvidou do próprio trabalho (item 4). É o que separa "fiz funcionar" de "entendo o que fiz".
+>
+> 🛡️ **Se perguntarem "se o LLM faz conta, por que SQL?":** "Auditabilidade e reprodutibilidade. Um número de mercado eu quero poder **re-executar e conferir**, não depender de uma geração que pode variar. O LLM acerta a conta; eu só não quero *depender* disso."
 
 ---
 
@@ -188,4 +265,20 @@ Beny Frid · Legacy Capital · junho/2026
 
 # 11 · Fecho
 
-> _(a preencher — o que eu faria com mais tempo + 1 linha de impacto)_
+**Com mais tempo, eu faria (em ordem de impacto):**
+1. **Chunking ciente de tabela** — pra ler o número *declarado* na célula do release (hoje vai pelo SQL).
+2. **Recalibrar o gate** com um gold maior, incl. gíria/paráfrase — fecha a over-recusa do caso difícil.
+3. **Expansão de query** pra gíria (*"calote"* → *"inadimplência"*) — o limite mais visível do retrieval.
+4. **Benchmark do HNSW in-place** (DuckDB VSS) — medir o ponto em que a força-bruta deixa de bastar.
+
+**O que entrego hoje:** uma **fundação de retrieval confiável** — número **exato** (SQL), fonte
+**sempre citada** (por código) e recusa **honesta com motivo** — provada a fundo por eval e pronta
+pra crescer por manifesto.
+
+> *"Separei texto de número — por isso o número está certo e o sistema recusa em vez de inventar."*
+
+> 🎤 **Fale:** "Com mais tempo, minha lista é priorizada: ler tabela no texto, recalibrar o gate pra gíria, expansão de query, e medir o HNSW. Mas o que entrego hoje é o que importa numa fundação de research: o número é exato porque vem de SQL, a fonte é sempre citada porque é anexada por código, e quando não sei, recuso com o motivo. Provei por eval e desenhei como cresce. Obrigado — e bora pras perguntas."
+>
+> 💡 **Lógica:** feche pela **tese** (a frase-âncora) e por um roadmap **priorizado** — mostra que você sabe o que falta e em que ordem. Convide perguntas com confiança.
+>
+> 🛡️ **Se perguntarem "qual o item nº 1?":** "Chunking de tabela — destrava ler o número declarado direto do release, hoje o único lugar onde dependo do SQL pra contornar."
