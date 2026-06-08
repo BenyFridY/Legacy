@@ -82,6 +82,16 @@ pede explicitamente "fraquezas reveladas" e "como escalaria de centenas para dez
     cartão** (Nubank **+3,8 p.p.** → 14,9%; Itaú **−4,1 p.p.** → 21,0%). Recusa honesta se < 2 bancos têm
     série computável. Suíte total **150 verde**.
 
+12. **Janela de trimestres selecionável na ingestão dos números** (`store.trimestres_intervalo`,
+    `scripts/ingerir_numeros.py` e `scripts/atualizar_base.py` com `--de/--ate/--dry-run`,
+    `tests/test_store.py`). A janela do IF.data era **fixa no código** (`PERIODOS`); o comando que "liga
+    a base" agora aceita a **janela por trimestre** — `--de 2024T1 --ate 2025T4` expande para os períodos
+    `YYYYMM` de fechamento (T1=03 … T4=12), idempotente (só puxa o ausente). `--dry-run` **prevê** o que
+    puxaria sem baixar nem abrir o DB — seguro para demonstrar ao vivo. A expansão do intervalo é uma
+    função **pura e testada** (intervalo completo, cruza ano, `t` minúsculo, intervalo invertido e formato
+    inválido viram erro). O texto continua vindo do **manifesto** (descoberta curada, não crawl por data —
+    sites de RI dão 403 a robô; ver lacunas). Suíte total **156 verde**.
+
 ## Descoberta que virou decisão de projeto
 
 **O LLM não é determinístico nem a temperatura 0.** A mesma pergunta *"lucro líquido recorrente"*

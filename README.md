@@ -234,11 +234,13 @@ copy .env.example .env          :: opcional: LLM_PROVIDER=groq_free + GROQ_API_K
 :: no Windows, prefixe os scripts pesados com estas 3 variáveis (carrega torch sem conflito de OpenMP):
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 
-python -m pytest -q                      :: 150 testes — sem rede, sem torch, sem chave (fakes)
+python -m pytest -q                      :: 156 testes — sem rede, sem torch, sem chave (fakes)
 python -m legacy_rag.eval.runner         :: matriz de recusa-por-escopo (sem modelo)
 python scripts\atualizar_base.py         :: UM comando: liga a base (numeros + texto, idempotente) + valida periodos
+python scripts\atualizar_base.py --de 2024T1 --ate 2025T4          :: escolhe a JANELA de trimestres dos numeros
+python scripts\atualizar_base.py --de 2024T1 --ate 2025T4 --dry-run :: so PREVE (nao baixa, nao grava)
 ::  ^ (chama os dois abaixo; rode-os direto se quiser so um lado)
-python scripts\ingerir_numeros.py        :: alimenta carteira_pf + cadastro (Bacen IF.data)
+python scripts\ingerir_numeros.py        :: alimenta carteira_pf + cadastro (Bacen IF.data; aceita --de/--ate)
 python scripts\ingerir_corpus.py         :: alimenta a base de TEXTO pelo manifesto (11 docs, 5 fontes)
 python scripts\eval_retrieval_real.py    :: hit@k / MRR reais (ciente de período)
 python scripts\calibrar_gate.py          :: calibra o limiar do gate (over-recusa × vazamento → joelho)
@@ -248,7 +250,7 @@ python scripts\perguntar.py "..."        :: pergunta LIVRE: mostra a rota + resp
 python scripts\ui_demo.py                :: UI de demo local (http://localhost:8000) — extra p/ apresentação
 ```
 
-Os **150 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **156 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -283,7 +285,7 @@ docs/
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
 scripts/               ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 23 arquivos · 150 testes
+tests/                 23 arquivos · 156 testes
 ```
 
 ---

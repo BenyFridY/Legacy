@@ -6,6 +6,8 @@ O market share é calculado em SQL — determinístico e auditável por re-execu
 """
 from __future__ import annotations
 
+import re
+
 import duckdb
 
 from legacy_rag.config import DUCKDB_PATH
@@ -55,6 +57,37 @@ def carregar_periodo(con: duckdb.DuckDBPyConnection, ano_mes: int) -> int:
 def carregar_periodos(con: duckdb.DuckDBPyConnection, anos_meses: list[int]) -> dict[int, int]:
     """Ingere vários períodos. Retorna {ano_mes: nº de linhas}."""
     return {am: carregar_periodo(con, am) for am in anos_meses}
+
+
+_RE_TRIMESTRE = re.compile(r"^\s*(\d{4})[Tt]([1-4])\s*$")
+
+
+def _parse_trimestre(s: str) -> tuple[int, int]:
+    """'2024T1' -> (2024, 1). Levanta ValueError em formato inválido."""
+    m = _RE_TRIMESTRE.match(s)
+    if not m:
+        raise ValueError(f"trimestre invalido: {s!r} (use AAAATn, ex.: 2024T1)")
+    return int(m.group(1)), int(m.group(2))
+
+
+def trimestres_intervalo(de: str, ate: str) -> list[int]:
+    """Expande um intervalo de trimestres em períodos YYYYMM (mês de FECHAMENTO do trimestre).
+
+    Ex.: trimestres_intervalo("2024T1", "2025T4") ->
+         [202403, 202406, 202409, 202412, 202503, 202506, 202509, 202512].
+    Mapeamento T->mês: T1=03, T2=06, T3=09, T4=12 (o IF.data do Bacen é trimestral).
+    Levanta ValueError se o formato for inválido ou se 'de' vier depois de 'ate'.
+    """
+    a0, q0 = _parse_trimestre(de)
+    a1, q1 = _parse_trimestre(ate)
+    ini, fim = a0 * 4 + (q0 - 1), a1 * 4 + (q1 - 1)   # índice linear de trimestres
+    if ini > fim:
+        raise ValueError(f"intervalo invertido: {de!r} vem depois de {ate!r}")
+    periodos = []
+    for n in range(ini, fim + 1):
+        ano, q = divmod(n, 4)
+        periodos.append(ano * 100 + (q + 1) * 3)      # q=0->mês 3 (T1) ... q=3->mês 12 (T4)
+    return periodos
 
 
 def market_share_serie(con: duckdb.DuckDBPyConnection, cod_inst: str, modalidade: str) -> list[tuple[int, float]]:
