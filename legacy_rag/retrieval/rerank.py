@@ -72,6 +72,7 @@ def rerankar(query: str, resultados: list[Resultado], reranker: Reranker,
     if not resultados:
         return []
     notas = reranker.pontuar(query, [r.texto for r in resultados])
+    notas = [s if math.isfinite(s) else 0.0 for s in notas]   # NaN/inf -> piso (não quebra pstdev/sort)
     pares = list(zip(resultados, notas))
     if len(notas) > 1 and statistics.pstdev(notas) >= limiar_discrimina:
         pares.sort(key=lambda par: par[1], reverse=True)     # reranker discrimina -> sua ordem

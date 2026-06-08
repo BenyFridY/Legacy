@@ -1,6 +1,6 @@
 """Eval focado: a "v2 do gate de futuro" (ADR-0005) — responder DATA futura documentada sem alucinar.
 
-10 sondagens de DATA exercitando, ponta a ponta (router + aterramento + gate), a separação:
+11 sondagens de DATA exercitando, ponta a ponta (router + aterramento + gate), a separação:
   - VALOR de métrica em ano futuro            -> RECUSA cedo (R1 refinado)
   - DATA/evento futuro DOCUMENTADO num trecho -> RESPONDE (trava de aterramento deixa passar)
   - VALOR futuro NÃO documentado              -> RECUSA (aterramento barra: nenhum trecho tem o ano)

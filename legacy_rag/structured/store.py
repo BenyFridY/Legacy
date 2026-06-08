@@ -90,23 +90,31 @@ def trimestres_intervalo(de: str, ate: str) -> list[int]:
     return periodos
 
 
-def market_share_serie(con: duckdb.DuckDBPyConnection, cod_inst: str, modalidade: str) -> list[tuple[int, float]]:
+def market_share_serie(con: duckdb.DuckDBPyConnection, cod_inst: str, modalidade: str,
+                       am_ini: int | None = None, am_fim: int | None = None) -> list[tuple[int, float]]:
     """Série [(ano_mes, share)] de UM CodInst (CNPJ) numa modalidade. share = saldo ÷ sistema, em SQL.
 
+    `am_ini`/`am_fim` (YYYYMM) recortam a JANELA: o filtro entra no numerador E no denominador
+    (sistema), para o share seguir = saldo/sistema do MESMO período. Sem janela -> série inteira.
     Atenção: por CNPJ cru, pode subestimar um banco que reporta em vários CNPJs — use
     market_share_conglomerado_serie para o share por banco (conglomerado).
     """
-    q = """
+    tem_janela = am_ini is not None and am_fim is not None
+    j_sis = "AND ano_mes BETWEEN ? AND ?" if tem_janela else ""
+    j_c = "AND c.ano_mes BETWEEN ? AND ?" if tem_janela else ""
+    q = f"""
         WITH sistema AS (
             SELECT ano_mes, SUM(saldo) AS total
-            FROM carteira_pf WHERE modalidade = ? GROUP BY ano_mes
+            FROM carteira_pf WHERE modalidade = ? {j_sis} GROUP BY ano_mes
         )
         SELECT c.ano_mes, c.saldo / s.total AS share
         FROM carteira_pf c JOIN sistema s USING (ano_mes)
-        WHERE c.modalidade = ? AND c.cod_inst = ?
+        WHERE c.modalidade = ? AND c.cod_inst = ? {j_c}
         ORDER BY c.ano_mes;
     """
-    rows = con.execute(q, [modalidade, modalidade, cod_inst]).fetchall()
+    params = [modalidade, *([am_ini, am_fim] if tem_janela else []),
+              modalidade, cod_inst, *([am_ini, am_fim] if tem_janela else [])]
+    rows = con.execute(q, params).fetchall()
     return [(int(am), float(sh)) for am, sh in rows]
 
 
@@ -124,16 +132,22 @@ def carregar_cadastro(con: duckdb.DuckDBPyConnection, ano_mes: int) -> int:
 
 
 def market_share_conglomerado_serie(con: duckdb.DuckDBPyConnection, cod_prudencial: str,
-                                    modalidade: str) -> list[tuple[int, float]]:
+                                    modalidade: str, am_ini: int | None = None,
+                                    am_fim: int | None = None) -> list[tuple[int, float]]:
     """Série [(ano_mes, share)] de um BANCO (conglomerado prudencial) numa modalidade.
 
     Soma o saldo de TODOS os CNPJs do conglomerado (join carteira_pf x cadastro) e divide pelo
     sistema, por período. É o share "por banco" correto (não subestima quem usa vários CNPJs).
+    `am_ini`/`am_fim` (YYYYMM) recortam a JANELA — aplicada ao numerador (conglomerado) E ao
+    denominador (sistema), para o share seguir = saldo/sistema do MESMO período. Sem janela -> tudo.
     """
-    q = """
+    tem_janela = am_ini is not None and am_fim is not None
+    j_sis = "AND ano_mes BETWEEN ? AND ?" if tem_janela else ""
+    j_cong = "AND c.ano_mes BETWEEN ? AND ?" if tem_janela else ""
+    q = f"""
         WITH sistema AS (
             SELECT ano_mes, SUM(saldo) AS total
-            FROM carteira_pf WHERE modalidade = ? GROUP BY ano_mes
+            FROM carteira_pf WHERE modalidade = ? {j_sis} GROUP BY ano_mes
         ),
         cong AS (
             -- LEFT JOIN + COALESCE: até 2024 o cod_inst (financeiro) mapeia para o prudencial via
@@ -141,14 +155,16 @@ def market_share_conglomerado_serie(con: duckdb.DuckDBPyConnection, cod_prudenci
             SELECT c.ano_mes, SUM(c.saldo) AS saldo
             FROM carteira_pf c
             LEFT JOIN cadastro cad ON c.cod_inst = cad.cod_inst AND c.ano_mes = cad.ano_mes
-            WHERE c.modalidade = ? AND COALESCE(cad.cod_prudencial, c.cod_inst) = ?
+            WHERE c.modalidade = ? AND COALESCE(cad.cod_prudencial, c.cod_inst) = ? {j_cong}
             GROUP BY c.ano_mes
         )
         SELECT cong.ano_mes, cong.saldo / s.total AS share
         FROM cong JOIN sistema s USING (ano_mes)
         ORDER BY cong.ano_mes;
     """
-    rows = con.execute(q, [modalidade, modalidade, cod_prudencial]).fetchall()
+    params = [modalidade, *([am_ini, am_fim] if tem_janela else []),
+              modalidade, cod_prudencial, *([am_ini, am_fim] if tem_janela else [])]
+    rows = con.execute(q, params).fetchall()
     return [(int(am), float(sh)) for am, sh in rows]
 
 

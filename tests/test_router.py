@@ -104,3 +104,28 @@ def test_bradesco_verbatim_nao_recusa():
     """Contraprova de R3: Bradesco TEM verbatim oficial -> pedir a frase literal dele NÃO recusa."""
     r = rotear("Cite a frase literal do CEO do Bradesco sobre consignado na teleconferência.")
     assert not r.deve_recusar
+
+
+def test_r2_nao_dispara_em_comparacao_intra_ifrs():
+    """Over-refusal fechado (#95): comparar o guidance do Nubank (IFRS) entre anos NÃO é cross-base —
+    não há banco Cosif na pergunta -> R2 não pode disparar (e a mensagem 'IFRS x Cosif' seria falsa)."""
+    r = rotear("Compare o guidance de custo de crédito do Nubank em 2025 com 2026")
+    assert not r.deve_recusar
+
+
+def test_r2_so_dispara_com_os_dois_lados_de_base():
+    """R2 legítimo: Nubank (IFRS) x Itaú (Cosif) -> recusa cross-base (os dois lados reais presentes)."""
+    r = rotear("Compare o guidance de custo de crédito do Nubank com o do Itaú.")
+    assert r.deve_recusar and r.motivo_recusa.startswith("R2")
+
+
+def test_share_declarado_de_dois_bancos_nao_vira_comparativo():
+    """#248: market share que os CEOs DECLARARAM é fato de TEXTO -> doc_unico, não o comparativo SQL."""
+    r = rotear("Qual market share de consignado o CEO do Bradesco e o do Itaú declararam na teleconferência?")
+    assert r.categoria != "comparativo"
+
+
+def test_share_computado_de_dois_bancos_vira_comparativo():
+    """Contraprova: share COMPUTADO de 2 bancos (sem 'declarou') -> comparativo (cross-bank SQL)."""
+    r = rotear("Compare o market share de consignado do BB com o do Itaú, segundo o IF.data.")
+    assert r.categoria == "comparativo"

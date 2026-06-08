@@ -174,3 +174,108 @@ def test_multi_fonte_llm_nao_reconcilia_mostra_evidencias(deps):
         "~14,2% que o CEO declarou?", deps)
     assert not r.recusou and "declarado x computado" in r.texto
     assert len(r.citacoes) == 2
+
+
+def test_multi_fonte_ano_futuro_sem_ancora_recusa(deps):
+    """Brecha fechada (#61/ADR-0005): pergunta multi_fonte com ANO FUTURO e metrica='outra' (R1 não
+    dispara) e nenhum trecho documentando o ano -> a trava de aterramento recusa (não infere o futuro)."""
+    r = responder("A estratégia que o CEO do Bradesco declarou para 2028 se confirmou no IF.data?", deps)
+    assert r.recusou and "2028" in (r.motivo or "")
+
+
+# ---------------------------------------------------------------- cross-ano / cross-banco (ADR-0005)
+
+@pytest.fixture
+def deps_multiano():
+    """Base com 3 anos (2023/2024/2025) e 3 bancos em consignado, p/ exercitar recorte por janela e
+    comparação cross-bank com líder que MUDA conforme o ano. Total = 1000/período (share = saldo/1000)."""
+    con = conectar(":memory:")
+    garantir_schema(con)                            # cria 'chunks' (vazia: estes testes são de números)
+    CONS = "Empréstimo com Consignação em Folha"
+    #            período  BB    Bradesco  Itau   resto   (shares ->)
+    # 202312:          .10      .30      .20    .40
+    # 202412:          .30      .25      .15    .30
+    # 202512:          .20      .40      .25    .15
+    linhas = [
+        ("PRUD_BB", 202312, CONS, 100.0), ("PRUD_BRAD", 202312, CONS, 300.0),
+        ("PRUD_ITAU", 202312, CONS, 200.0), ("PRUD_OUT", 202312, CONS, 400.0),
+        ("PRUD_BB", 202412, CONS, 300.0), ("PRUD_BRAD", 202412, CONS, 250.0),
+        ("PRUD_ITAU", 202412, CONS, 150.0), ("PRUD_OUT", 202412, CONS, 300.0),
+        ("PRUD_BB", 202512, CONS, 200.0), ("PRUD_BRAD", 202512, CONS, 400.0),
+        ("PRUD_ITAU", 202512, CONS, 250.0), ("PRUD_OUT", 202512, CONS, 150.0),
+    ]
+    con.executemany("INSERT INTO carteira_pf VALUES (?, ?, ?, ?)", linhas)  # cod_inst = prudencial (fallback)
+    return Dependencias(
+        con=con, encoder=FakeEncoder(), reranker=FakeReranker(), llm=FakeLLM(),
+        mapa_prudencial={"BB": "PRUD_BB", "Bradesco": "PRUD_BRAD", "Itau": "PRUD_ITAU"})
+
+
+def test_comparativo_cross_ano_muda_o_lider(deps_multiano):
+    """O CORAÇÃO da correção: anos diferentes -> respostas DIFERENTES (antes os anos eram decorativos).
+    2023->2024: BB +20 vs Bradesco -5 -> BB. 2024->2025: BB -10 vs Bradesco +15 -> Bradesco (líder MUDA)."""
+    d = deps_multiano
+    r1 = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação em consignado de 2023 a 2024?", d)
+    r2 = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação em consignado de 2024 a 2025?", d)
+    assert not r1.recusou and not r2.recusou
+    assert "2023-12 a 2024-12" in r1.texto and r1.texto.split("participação:")[-1].strip().startswith("BB")
+    assert "2024-12 a 2025-12" in r2.texto and r2.texto.split("participação:")[-1].strip().startswith("Bradesco")
+    assert r1.texto != r2.texto                                # anos diferentes => respostas diferentes
+
+
+def test_comparativo_quantifica_quanto_a_mais(deps_multiano):
+    """'quanto um banco ganhou MAIS que outro': o gap em p.p. é explícito (BB +20 vs Bradesco -5 = 25 p.p.)."""
+    r = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação em consignado de 2023 a 2024?", deps_multiano)
+    assert "+25.0 p.p. a mais que Bradesco" in r.texto
+
+
+def test_computada_cross_ano_recorta_a_janela(deps_multiano):
+    """O caminho de números (1 banco) também respeita a janela: 2023->2024 sobe (10->30), 2024->2025 cai (30->20)."""
+    d = deps_multiano
+    r_sobe = responder("Como evoluiu o market share do Banco do Brasil em consignado de 2023 a 2024?", d)
+    r_cai = responder("Como evoluiu o market share do Banco do Brasil em consignado de 2024 a 2025?", d)
+    assert "10.0%" in r_sobe.texto and "30.0%" in r_sobe.texto and "alta" in r_sobe.texto
+    assert "30.0%" in r_cai.texto and "20.0%" in r_cai.texto and "queda" in r_cai.texto
+    assert r_sobe.texto != r_cai.texto
+
+
+def test_comparativo_empate_nao_elege_lider(deps_multiano):
+    """Empate (#146): na janela inteira BB +10 e Bradesco +10 -> diz 'equivalente', não inventa líder."""
+    r = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação em consignado?", deps_multiano)
+    assert not r.recusou and "equivalente" in r.texto.lower() and "ganhou mais" not in r.texto
+
+
+def test_comparativo_tres_bancos_rankeia(deps_multiano):
+    """3+ bancos (#282): 2024->2025 -> Bradesco +15 > Itau +10 > BB -10, ranqueado e com líder correto."""
+    r = responder("Compare o market share de consignado entre Banco do Brasil, Bradesco e Itaú "
+                  "de 2024 a 2025, segundo o IF.data.", deps_multiano)
+    assert not r.recusou
+    for nome in ("BB", "Bradesco", "Itau"):
+        assert nome in r.texto
+    assert r.texto.index("Bradesco") < r.texto.index("Itau") < r.texto.index("BB")   # ordenado por variação
+    assert r.texto.split("participação:")[-1].strip().startswith("Bradesco")
+
+
+def test_comparativo_recusa_sem_trimestre_comum():
+    """Janelas defasadas (#2/#7): BB só em 2024, Bradesco só em 2025 -> sem trimestre comum -> recusa
+    honesta (não compara maçã x laranja nem rotula a janela de um para o outro)."""
+    con = conectar(":memory:")
+    garantir_schema(con)
+    CONS = "Empréstimo com Consignação em Folha"
+    con.executemany("INSERT INTO carteira_pf VALUES (?, ?, ?, ?)", [
+        ("PRUD_BB", 202412, CONS, 300.0), ("PRUD_OUT", 202412, CONS, 700.0),
+        ("PRUD_BRAD", 202512, CONS, 400.0), ("PRUD_OUT", 202512, CONS, 600.0),
+    ])
+    deps = Dependencias(con=con, encoder=FakeEncoder(), reranker=FakeReranker(), llm=FakeLLM(),
+                        mapa_prudencial={"BB": "PRUD_BB", "Bradesco": "PRUD_BRAD"})
+    r = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação em consignado?", deps)
+    assert r.recusou and "comum" in (r.motivo or "")
+
+
+def test_multi_fonte_so_computado_nao_ecoa_numero_da_pergunta(deps_multiano):
+    """#180: multi_fonte com share mas SEM trecho declarado na base -> ramo 'só computado' devolve a
+    série citada SEM LLM, sem ecoar o '99%' que veio na pergunta (não apresenta número não-citado)."""
+    r = responder("O market share de consignado do BB confirma os 99% que o CEO declarou?", deps_multiano)
+    assert not r.recusou
+    assert "99%" not in r.texto                                # não ecoou o número da pergunta
+    assert len(r.citacoes) == 1 and "IF.data" in r.citacoes[0]
+    assert "computado do IF.data" in r.texto                   # cabeçalho honesto do ramo só-computado

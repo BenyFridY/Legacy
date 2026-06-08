@@ -92,6 +92,31 @@ pede explicitamente "fraquezas reveladas" e "como escalaria de centenas para dez
     inválido viram erro). O texto continua vindo do **manifesto** (descoberta curada, não crawl por data —
     sites de RI dão 403 a robô; ver lacunas). Suíte total **156 verde**.
 
+13. **Caminho de números ciente de janela + comparativo robusto + correções de uma auditoria adversarial**
+    (`store.market_share_*serie` com `am_ini/am_fim`, `pipeline._janela_da_rota`/`_caminho_comparativo`,
+    `router._gate_escopo`/`_classificar_caminho`, `tests/test_pipeline.py` + `test_conglomerado.py` +
+    `test_router.py`). Uma **segunda auditoria** (6 dimensões × verificação adversarial de cada achado;
+    20 confirmados) revelou que o caminho de **números ignorava `rota.anos`/`rota.periodos`**: *"quem
+    ganhou mais de 2023→2024"* e *"…de 2024→2025"* davam a **mesma** resposta (a série SQL nunca era
+    recortada). Corrigido de raiz:
+    - **Recorte por janela em SQL.** As funções de série aceitam `am_ini/am_fim` e o filtro entra no
+      numerador **e no denominador** (sistema) — share segue `saldo/sistema` do mesmo período. A pergunta
+      dita a janela (`_janela_da_rota`: trimestre explícito manda; senão o ano vira o ano inteiro).
+      **Medido com dados reais:** BB×Bradesco *2023→2024* → BB **+0,7 p.p. a mais**; *2024→2025* → os dois
+      caem e o Bradesco **perde menos** (+0,4 p.p. à frente) — **respostas diferentes**, antes idênticas.
+    - **Comparativo alinhado pelo trimestre COMUM** (interseção), não pelos extremos próprios de cada banco
+      (era maçã × laranja com séries de comprimentos diferentes); **quantifica o gap** (*"+X p.p. a mais que"*);
+      trata **empate** (*"variação equivalente"*, sem eleger líder arbitrário) e **recusa** quando não há
+      trimestre comum. Caso de 1 ponto comum → compara **níveis**.
+    - **R2 só dispara cross-base de verdade:** exige **≥1 banco IFRS E ≥1 Cosif**. Antes, *"compare o guidance
+      do Nubank em 2025 com 2026"* (intra-IFRS, temporal) era **over-recusado** com a mensagem falsa "IFRS ×
+      Cosif" — over-recusa é justamente o que o case penaliza.
+    - **Trava de ano futuro também no `multi_fonte`** (antes só no texto): fecha a brecha em que `metrica='outra'`
+      (escapa do R1) chegava ao LLM com ano futuro + evidência de outro período.
+    - **Comparativo respeita `declarado`** (share que o CEO *declarou* é fato de TEXTO → não vira cálculo SQL);
+      `_caminho_multi` **não usa o LLM no ramo "só computado"** (evita ecoar um número vindo da pergunta);
+      reranker **saneia NaN/inf** antes de `pstdev`/sort. Suíte total **171 verde**.
+
 ## Descoberta que virou decisão de projeto
 
 **O LLM não é determinístico nem a temperatura 0.** A mesma pergunta *"lucro líquido recorrente"*
@@ -112,7 +137,21 @@ peça menos crítica da nota. É também o "o que me surpreendeu" da apresentaç
 - **Dedup por hash de conteúdo:** a idempotência é por `(banco, período, tipo_doc)`; falta dedup por
   **hash** para reingestão em escala (mesmo arquivo, URL diferente).
 - **RAG sobre tabelas:** número numa célula perde cabeçalho/unidade ao chunkar (ex.: o share declarado do
-  B3). O fix real é **chunking ciente de tabela**; hoje o `multi_fonte` cai para evidência citada lado a lado.
+  B3); pior, em tabela longa que quebra em 2+ fichas, a ficha de continuação fica **sem a linha de cabeçalho
+  de colunas** (o overlap só carrega a última linha de dado). O fix real é **chunking ciente de tabela**
+  (re-prefixar o cabeçalho); hoje o `multi_fonte` cai para evidência citada lado a lado.
+- **Interação fallback-do-reranker × gate:** quando o cross-encoder achata as notas (~0,50) e o fallback
+  recupera só a **ordem** do RRF, as **notas** seguem achatadas e o gate (≥0,60) pode **over-recusar** uma
+  pergunta respondível-porém-difícil (gíria/paráfrase). O fix honesto é ampliar `gate_gold.yaml` com casos
+  "difícil-mas-respondível" e **recalibrar** — não feito (mexer no 0,60 às vésperas arrisca vazamento).
+- **Filtro de período no texto só com 1 trimestre:** com 2+ trimestres na pergunta o pré-filtro é
+  abandonado (`len==1`); o caminho de números já passou a recortar por janela, mas o lado de texto ainda
+  não usa `periodo IN (...)`. Não afeta o eval (nenhuma pergunta dispara), mas é uma lacuna nomeada.
+- **Assimetria BM25 × denso:** o denso embeda o `.indexavel` (com cabeçalho banco/período/tipo); o BM25
+  tokeniza só o texto cru. Mitigado pelo pré-filtro de metadados; alinhar os dois ramos é o fix.
+- **Detecção de ano sem guarda no roteador:** `\b(20\d{2})\b` pode capturar o ano dentro de uma máscara de
+  CNPJ (`/2026-`); contrived (exige CNPJ + métrica na pergunta) e o modo de falha é conservador (recusa,
+  não inventa), mas a assimetria com `pipeline._documenta_ano` está nomeada.
 - **Valores pendentes de re-execução:** o **delta** do fallback do reranker no hit@k/MRR e o **joelho** do
   gate são medidos pelos scripts reais (documentados em `docs/resultados-eval.md` quando rodados).
 

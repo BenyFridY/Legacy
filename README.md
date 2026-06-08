@@ -123,7 +123,9 @@ fora-da-base passarem** — agora a *"receita de bolo"* é barrada **pelo gate**
 categorias resolvidas ao vivo: *lucro Itaú 4T25* **R$ 12,3 bi** (pág. 8); *consignado Itaú 4T25*
 **R$ 75,3 bi** (pág. 21); *market share BB consignado* **19,9% → 19,2%** (série trimestral 3T23→4T25,
 IF.data, SQL — e o caminho é **genérico**: *Nubank em cartão* **11,1% → 14,9%**, qualquer banco ×
-modalidade, e **compara 2+ bancos** (cross-bank — ex.: *Nubank +3,8 p.p. × Itaú -4,1 p.p. em cartão*));
+modalidade, e **compara 2+ bancos por janela escolhida** (cross-bank **ciente de período**, alinhado
+pelo trimestre comum e com o gap **quantificado** — ex.: *de 2023→2024 o BB ganhou **+0,7 p.p. a mais**
+que o Bradesco; de 2024→2025 ambos caíram e o Bradesco **perdeu menos**, +0,4 p.p. à frente*));
 recusas **R1** (futuro 2027) e **R2** (Nubank IFRS × Itaú Cosif).
 
 **5) Caso B3 ao vivo — DECLARADO × COMPUTADO (caminho `multi_fonte`).** O sistema cruza o que o
@@ -234,7 +236,7 @@ copy .env.example .env          :: opcional: LLM_PROVIDER=groq_free + GROQ_API_K
 :: no Windows, prefixe os scripts pesados com estas 3 variáveis (carrega torch sem conflito de OpenMP):
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 
-python -m pytest -q                      :: 156 testes — sem rede, sem torch, sem chave (fakes)
+python -m pytest -q                      :: 171 testes — sem rede, sem torch, sem chave (fakes)
 python -m legacy_rag.eval.runner         :: matriz de recusa-por-escopo (sem modelo)
 python scripts\atualizar_base.py         :: UM comando: liga a base (numeros + texto, idempotente) + valida periodos
 python scripts\atualizar_base.py --de 2024T1 --ate 2025T4          :: escolhe a JANELA de trimestres dos numeros
@@ -250,7 +252,7 @@ python scripts\perguntar.py "..."        :: pergunta LIVRE: mostra a rota + resp
 python scripts\ui_demo.py                :: UI de demo local (http://localhost:8000) — extra p/ apresentação
 ```
 
-Os **156 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **171 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -285,7 +287,7 @@ docs/
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
 scripts/               ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 23 arquivos · 156 testes
+tests/                 23 arquivos · 171 testes
 ```
 
 ---
@@ -312,17 +314,22 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   Bradesco falha (a busca prefere o release **formal** à fala conversacional), **mas** a de *inadimplência
   90d* (também transcrição) acerta no top-3 — depende do quão "verbatim" é o trecho. Fix: peso por
   `tipo_doc` quando a pergunta o pede ("na teleconferência").
-- **Número em tabela (RAG sobre tabela):** o share *declarado* do B3 (consignado 14,1%) vive numa **célula**;
-  ao chunkar perde cabeçalho/unidade. Por isso o número *computado* vai pelo **caminho SQL** (como o Bacen);
-  estender o parser de tabelas aos releases é o roadmap (ADR-0005).
 - **Gate calibrado num gold pequeno:** o limiar **0,60** veio de varrer um mini-gold (joelho com 0%
   over-recusa / 0% vazamento), mas `n=12`; produção pede um gold maior e idealmente por-modalidade.
 - **Fallback do reranker é heurístico:** caímos para a ordem do RRF quando o desvio-padrão das notas
   fica < 0,05. Esse limiar do "não-discrimina" foi escolhido por inspeção, não calibrado.
+- **Interação fallback × gate (over-recusa em gíria/paráfrase):** quando o cross-encoder achata as notas
+  (~0,50), o fallback recupera a **ordem** do RRF, mas as **notas** continuam achatadas; como o gate de
+  evidência exige ≥ 0,60, uma pergunta **respondível porém difícil** (gíria/paráfrase) pode ser recusada
+  mesmo com o trecho certo no topo. É a mesma família dos limites de gíria já declarados; o fix honesto é
+  ampliar o `gate_gold.yaml` com casos "difícil-mas-respondível" e **recalibrar** (não feito: mexer no
+  0,60 às vésperas arrisca vazamento). Achado da auditoria adversarial (ADR-0005).
 - **RAG sobre tabelas:** o número *declarado* do B3 (consignado **14,1%**) vive numa **célula de
-  tabela**; ao chunkar, perde cabeçalho/unidade e o LLM (corretamente) não o lê. Hoje o `multi_fonte`
-  cai para evidência citada lado a lado; o fix real é **chunking ciente de tabela**. É por isso que o
-  share *computado* vai pelo **caminho SQL**, não pelo texto.
+  tabela**; ao chunkar, perde cabeçalho/unidade e o LLM (corretamente) não o lê. Quando uma tabela densa
+  estoura o tamanho-alvo e quebra em 2+ fichas, as fichas de continuação ficam **sem a linha de cabeçalho
+  de colunas** (o overlap só carrega a última linha de dado) — a auditoria confirmou. Hoje o `multi_fonte`
+  cai para evidência citada lado a lado; o fix real é **chunking ciente de tabela** (re-prefixar o cabeçalho).
+  É por isso que o share *computado* vai pelo **caminho SQL**, não pelo texto.
 - **Lacunas do roteador (R4/R6):** distinguir *realizado* de *guidance* dentro de 2026 (R4) e métricas
   ainda não ingeridas (R6) caem hoje no Estágio 2 (gate), não numa regra dedicada.
 - **Dedup só por (banco, período, tipo_doc):** falta dedup por **hash de conteúdo** para reingestão em

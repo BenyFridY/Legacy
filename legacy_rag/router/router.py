@@ -153,10 +153,14 @@ def _gate_escopo(s: Slots) -> str | None:
         return (f"R1: valor de '{s.metrica}' em {max(s.anos)} está além da cobertura da base "
                 f"(realizado até 4T25, guidance até {ANO_COBERTURA_MAX}).")
 
-    # R2 — comparação entre bases contábeis incompatíveis (CONJUNÇÃO, nunca só o nome).
+    # R2 — comparação entre bases contábeis incompatíveis (CONJUNÇÃO, nunca só o nome). Exige os DOIS
+    # lados reais: >=1 banco IFRS E >=1 banco Cosif. Sem o lado Cosif, "Nubank 2025 vs 2026" é uma
+    # comparação INTRA-IFRS (temporal) respondível — recusá-la seria over-refusal e a mensagem
+    # "IFRS x Cosif" seria falsa (não há Cosif na pergunta). Ver ADR-0005.
     ifrs = [b for b in s.bancos if ENTIDADES[b]["base_contabil"] == "ifrs"]
-    if s.comparacao and ifrs and s.metrica in _METRICAS_RELEASE_COSIF:
-        return (f"R2: comparação entre bases contábeis incompatíveis (IFRS {ifrs} x Cosif) numa "
+    cosif = [b for b in s.bancos if ENTIDADES[b]["base_contabil"] == "cosif"]
+    if s.comparacao and ifrs and cosif and s.metrica in _METRICAS_RELEASE_COSIF:
+        return (f"R2: comparação entre bases contábeis incompatíveis (IFRS {ifrs} x Cosif {cosif}) numa "
                 f"métrica de release/Cosif ('{s.metrica}'). Sem base comum -> incomparável.")
 
     # R3 — citação verbatim de entidade sem transcrição oficial na base.
@@ -175,8 +179,10 @@ def _gate_escopo(s: Slots) -> str | None:
 # --------------------------------------------------------------------------
 
 def _classificar_caminho(s: Slots) -> str:
-    # comparativo: market share de 2+ bancos -> compara as séries (cross-bank), tudo em SQL.
-    if s.metrica == "market_share" and len(s.bancos) >= 2:
+    # comparativo: market share COMPUTADO de 2+ bancos -> compara as séries (cross-bank), tudo em SQL.
+    # `not declarado` é o mesmo desempate da Q3 (computada): share que o CEO DECLAROU é fato de TEXTO,
+    # não cálculo SQL — então share declarado por 2 bancos cai no texto (doc_unico), não no comparativo.
+    if s.metrica == "market_share" and len(s.bancos) >= 2 and not s.declarado:
         return "comparativo"
     # multi_fonte: cruza o DECLARADO (texto) com o COMPUTADO/realizado (número).
     if s.confronto and (s.declarado or s.cita_ifdata):

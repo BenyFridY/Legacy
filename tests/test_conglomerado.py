@@ -48,3 +48,20 @@ def test_ranking_nomeia_pelo_maior_membro(con):
     assert rk[0][0] == "CONG_B" and rk[0][2] == pytest.approx(0.65)        # B lidera com 0.65
     assert rk[1][0] == "CONG_A" and rk[1][2] == pytest.approx(0.35)
     assert rk[1][1] == "Banco A Principal"                                  # nome = maior membro (300 > 50)
+
+
+def test_serie_respeita_a_janela_pedida(con):
+    """am_ini/am_fim recortam a série a UM período — base da seleção por ano na pergunta (ADR-0005)."""
+    serie = market_share_conglomerado_serie(con, "CONG_A", "consignado", am_ini=202412, am_fim=202412)
+    assert serie == [(202412, pytest.approx(0.35))]                         # só o ponto da janela
+
+
+def test_serie_janela_fora_da_base_retorna_vazia(con):
+    """Janela sem dado -> série vazia (o caminho de números então recusa, não devolve outra janela)."""
+    assert market_share_conglomerado_serie(con, "CONG_A", "consignado", am_ini=202101, am_fim=202112) == []
+
+
+def test_serie_sem_janela_mantem_comportamento_antigo(con):
+    """Sem am_ini/am_fim -> série inteira (não regrediu o caminho sem recorte)."""
+    serie = market_share_conglomerado_serie(con, "CONG_A", "consignado")
+    assert serie == [(202403, pytest.approx(0.25)), (202412, pytest.approx(0.35))]

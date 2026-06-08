@@ -142,6 +142,30 @@ def _caminho_texto(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
 # Caminho dos NÚMEROS (computada): market share em SQL, determinístico e auditável.
 # --------------------------------------------------------------------------
 
+_TRIM_MES = {"1": 3, "2": 6, "3": 9, "4": 12}   # trimestre -> mês de fechamento (IF.data é trimestral)
+
+
+def _periodo_para_am(periodo: str) -> int | None:
+    """'4T25' -> 202512 ; '3T25' -> 202509. Devolve None se não for token de trimestre."""
+    m = re.fullmatch(r"([1-4])T(\d{2})", periodo)
+    return (2000 + int(m.group(2))) * 100 + _TRIM_MES[m.group(1)] if m else None
+
+
+def _janela_da_rota(rota: Rota) -> tuple[int | None, int | None]:
+    """Janela (am_ini, am_fim) em YYYYMM p/ RECORTAR a série no caminho de números, vinda da pergunta.
+
+    Precedência: trimestre explícito ('4T25') manda; senão ano(s) ('2024' -> ano inteiro 202401-202412;
+    '2023 a 2025' -> 202301-202512); senão sem recorte (série inteira). É o que faz "...de 2023 a 2024"
+    e "...de 2024 a 2025" darem respostas DIFERENTES (antes os anos eram decorativos). Ver ADR-0005.
+    """
+    ams = [a for a in (_periodo_para_am(p) for p in rota.periodos) if a is not None]
+    if ams:
+        return (min(ams), max(ams))
+    if rota.anos:
+        return (min(rota.anos) * 100 + 1, max(rota.anos) * 100 + 12)
+    return (None, None)
+
+
 def _rotulo(modalidade: str) -> str:
     """Apelido legível da modalidade p/ exibição (o nome técnico do Bacen vira 'consignado')."""
     return ROTULOS_MODALIDADE.get(modalidade, modalidade)
@@ -162,10 +186,11 @@ def _formatar_serie(banco: str, modalidade: str, serie: list[tuple[int, float]])
             f"Variação ({janela}): {ini:.1f}% -> {fim:.1f}% ({tend}).")
 
 
-def _computar_serie(rota: Rota, deps: Dependencias):
+def _computar_serie(rota: Rota, deps: Dependencias, am_ini: int | None = None, am_fim: int | None = None):
     """Devolve (banco, série) ou None se não dá p/ computar (sem banco único / sem conglomerado / sem dado).
 
     Usa o share por CONGLOMERADO prudencial (soma os CNPJs do banco) — o share "por banco" correto.
+    `am_ini`/`am_fim` recortam a janela (vinda de _janela_da_rota); sem janela, série inteira.
     """
     if len(rota.bancos) != 1:
         return None
@@ -173,15 +198,17 @@ def _computar_serie(rota: Rota, deps: Dependencias):
     prud = deps.mapa_prudencial.get(banco)
     if not prud:
         return None
-    serie = market_share_conglomerado_serie(deps.con, prud, rota.modalidade)
+    serie = market_share_conglomerado_serie(deps.con, prud, rota.modalidade, am_ini, am_fim)
     return (banco, serie) if serie else None
 
 
 def _caminho_computado(rota: Rota, deps: Dependencias) -> Resposta:
-    computado = _computar_serie(rota, deps)
+    am_ini, am_fim = _janela_da_rota(rota)                     # recorta pela janela pedida na pergunta
+    computado = _computar_serie(rota, deps, am_ini, am_fim)
     if computado is None:
         return Resposta(texto="Não disponível na base.", recusou=True,
-                        motivo="market share não computável (banco único? conglomerado mapeado? série na base?).")
+                        motivo="market share não computável (banco único? conglomerado mapeado? "
+                               "série na base na janela pedida?).")
     banco, serie = computado
     return Resposta(texto=_formatar_serie(banco, rota.modalidade, serie),
                     citacoes=[_citacao_ifdata(rota.modalidade)])
@@ -191,36 +218,63 @@ def _caminho_computado(rota: Rota, deps: Dependencias) -> Resposta:
 # Caminho COMPARATIVO (cross-bank): compara o market share de 2+ bancos, tudo em SQL.
 # --------------------------------------------------------------------------
 
-def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
-    """Computa a série de market share de CADA banco da pergunta (SQL) e compara a variação no período.
+_TOL_EMPATE_PP = 0.05   # diferença de variação abaixo disto (p.p.) = empate (não elege líder arbitrário)
 
-    Generaliza o caminho de números p/ N bancos — remove a recusa antiga de comparação cross-bank.
-    Recusa honesta se menos de 2 bancos tiverem série computável (conglomerado mapeado + dado na base).
+
+def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
+    """Compara o market share de 2+ bancos (SQL), alinhando-os pela MESMA janela de período.
+
+    Correções (ADR-0005): (1) recorta pela janela pedida na pergunta (_janela_da_rota) — "...de 2023 a
+    2024" e "...de 2024 a 2025" deixam de dar a mesma resposta; (2) mede a variação de todos sobre os
+    trimestres COMUNS (interseção), não sobre os extremos próprios de cada um (antes era maçã x laranja);
+    (3) QUANTIFICA o quanto o líder ganhou A MAIS (p.p.) e trata EMPATE sem eleger líder arbitrário.
+    Recusa honesta se < 2 bancos computáveis, ou se não houver trimestre comum a todos.
     """
+    am_ini, am_fim = _janela_da_rota(rota)
     series = []
     for banco in rota.bancos:
         prud = deps.mapa_prudencial.get(banco)
         if not prud:
             continue
-        s = market_share_conglomerado_serie(deps.con, prud, rota.modalidade)
+        s = market_share_conglomerado_serie(deps.con, prud, rota.modalidade, am_ini, am_fim)
         if s:
-            series.append((banco, s))
+            series.append((banco, dict(s)))                   # {ano_mes: share}
     if len(series) < 2:
         return Resposta(texto="Não disponível na base.", recusou=True,
                         motivo="comparação cross-bank exige série de ao menos 2 bancos "
-                               "(conglomerado mapeado? série na base?).")
-    detalhes = [(banco, s[-1][1] * 100 - s[0][1] * 100, s[0][1] * 100, s[-1][1] * 100)
-                for banco, s in series]                       # (banco, delta_pp, ini, fim)
-    detalhes.sort(key=lambda d: d[1], reverse=True)           # maior variação primeiro
-    lider = detalhes[0][0]
-    verbo = "ganhou mais" if detalhes[0][1] > 0 else "perdeu menos"
-    s0 = series[0][1]                                          # todos os bancos cobrem os mesmos trimestres
-    am0, amN = s0[0][0], s0[-1][0]
+                               "(conglomerado mapeado? série na base na janela pedida?).")
+    comuns = sorted(set.intersection(*[set(d) for _, d in series]))   # trimestres comuns a TODOS
+    if not comuns:
+        return Resposta(texto="Não disponível na base.", recusou=True,
+                        motivo="os bancos não têm nenhum trimestre em comum na janela pedida -> incomparável.")
+    am0, amN = comuns[0], comuns[-1]
+    cit = [_citacao_ifdata(rota.modalidade)]
+
+    if am0 == amN:                                            # uma única foto comum -> compara NÍVEIS
+        janela = f"{am0 // 100}-{am0 % 100:02d}"
+        niveis = sorted(((b, d[am0] * 100) for b, d in series), key=lambda x: x[1], reverse=True)
+        corpo = "; ".join(f"{b}: {v:.1f}%" for b, v in niveis)
+        gap = niveis[0][1] - niveis[1][1]
+        veredito = (f"Maior participação em {janela}: {niveis[0][0]} (+{gap:.1f} p.p. acima de {niveis[1][0]})."
+                    if gap >= _TOL_EMPATE_PP else f"Empate técnico entre {niveis[0][0]} e {niveis[1][0]}.")
+        resumo = (f"Market share em {_rotulo(rota.modalidade)} ({janela}, Bacen IF.data, calc. em SQL) — "
+                  f"{corpo}. {veredito}")
+        return Resposta(texto=resumo, citacoes=cit)
+
+    # janela com >=2 trimestres comuns -> compara a VARIAÇÃO sobre os MESMOS extremos (am0 -> amN)
     janela = f"{am0 // 100}-{am0 % 100:02d} a {amN // 100}-{amN % 100:02d}"
-    corpo = "; ".join(f"{b}: {ini:.1f}% -> {fim:.1f}% ({d:+.1f} p.p.)" for b, d, ini, fim in detalhes)
-    resumo = (f"Market share em {_rotulo(rota.modalidade)} ({janela}, Bacen IF.data, calc. em SQL) — {corpo}. "
-              f"Quem {verbo} participação no período: {lider}.")
-    return Resposta(texto=resumo, citacoes=[_citacao_ifdata(rota.modalidade)])
+    detalhes = sorted(((b, d[amN] * 100 - d[am0] * 100, d[am0] * 100, d[amN] * 100) for b, d in series),
+                      key=lambda x: x[1], reverse=True)        # (banco, delta_pp, ini, fim), maior variação 1º
+    corpo = "; ".join(f"{b}: {ini:.1f}% -> {fim:.1f}% ({dl:+.1f} p.p.)" for b, dl, ini, fim in detalhes)
+    (lider, d_lider, _, _), (segundo, d_seg, _, _) = detalhes[0], detalhes[1]
+    if abs(d_lider - d_seg) < _TOL_EMPATE_PP:
+        veredito = f"Variação equivalente no período entre {lider} e {segundo} (diferença < {_TOL_EMPATE_PP:.2f} p.p.)."
+    else:
+        verbo = "ganhou mais" if d_lider > 0 else "perdeu menos"
+        veredito = f"Quem {verbo} participação: {lider} ({d_lider - d_seg:+.1f} p.p. a mais que {segundo})."
+    resumo = (f"Market share em {_rotulo(rota.modalidade)} ({janela}, Bacen IF.data, calc. em SQL) — "
+              f"{corpo}. {veredito}")
+    return Resposta(texto=resumo, citacoes=cit)
 
 
 # --------------------------------------------------------------------------
@@ -234,6 +288,12 @@ def _curto(texto: str, n: int = 320) -> str:
 
 def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
     resultados = _buscar_texto(pergunta, rota, deps, k=deps.k_multi)
+    # Trava de ANO FUTURO também aqui (não só no texto): se a pergunta cita ano além da cobertura e
+    # nenhum trecho relevante o documenta, recusa em vez de deixar o LLM inferir um valor futuro a
+    # partir de evidência de outro período (a brecha era metrica='outra', que escapa do R1). Ver ADR-0005.
+    motivo = _aterrar_ano_futuro(rota, resultados, deps.limiar)
+    if motivo is not None:
+        return Resposta(texto="Não disponível na base.", recusou=True, motivo=motivo)
     # Só os trechos que PASSAM o gate de evidência entram no confronto. Sem esse filtro, as ~10 páginas
     # recuperadas (incl. parecer de auditoria, nota de hedge, IFRS) viram um paredão que afoga o sinal e
     # faz o LLM desistir -> caía no "despejo" de tudo. Filtrar deixa o contexto enxuto, citável e o LLM
@@ -242,7 +302,9 @@ def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
     tem_texto = len(relevantes) > 0
     # O caminho SQL só sabe computar MARKET SHARE. Numa pergunta de custo de crédito/guidance (B1),
     # anexar a série de share de consignado seria evidência ENGANOSA -> só computa quando a métrica é share.
-    computado = _computar_serie(rota, deps) if rota.metrica == "market_share" else None
+    # Alinha pela MESMA janela de período do lado declarado (ex.: declarado no 4T25 -> computa no 4T25).
+    am_ini, am_fim = _janela_da_rota(rota)
+    computado = _computar_serie(rota, deps, am_ini, am_fim) if rota.metrica == "market_share" else None
 
     if not tem_texto and computado is None:                 # nem declarado nem computado -> recusa
         return Resposta(texto="Não disponível na base.", recusou=True,
@@ -270,6 +332,12 @@ def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
     contexto = "\n\n".join(f"[{tag}] ({cit})\n{txt}" for tag, cit, txt in partes)   # full p/ o LLM
     evidencias = Resposta(texto=cabecalho + "\n" + "\n\n".join(           # truncado p/ não virar paredão
         f"[{tag}] ({cit})\n{_curto(txt)}" for tag, cit, txt in partes), citacoes=citacoes)
+    # Só COMPUTADO (nenhum trecho declarado passou o gate): o número do IF.data já é determinístico e
+    # citado — devolvemos a evidência direto, SEM o LLM. A INSTRUCAO_MULTI pede "cite o lado declarado",
+    # mas aqui o único número declarado visível estaria na PERGUNTA -> o LLM poderia ecoá-lo como fato.
+    # Pular o LLM neste ramo elimina esse risco de eco/injeção. Ver ADR-0005.
+    if computado is not None and not tem_texto:
+        return evidencias
     # Sem LLM (fallback determinístico): devolve as evidências (já citadas) lado a lado.
     if deps.llm is None:
         return evidencias
