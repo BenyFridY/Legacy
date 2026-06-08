@@ -1,0 +1,60 @@
+# Mini-gold para CALIBRAR o gate de evidência (Estágio 2) — ver legacy_rag/eval/calibracao_gate.py.
+#
+# Metade RESPONDÍVEL pela base (fato presente nos releases ingeridos) e metade FORA-DA-BASE
+# (plausível mas ausente). Todas caem no CAMINHO DE TEXTO (doc_unico) de propósito — é lá que o
+# gate atua. As fora-da-base NÃO disparam recusa do roteador (não têm ano futuro, nem cruzamento
+# IFRS×Cosif, nem pedido verbatim): assim quem PRECISA recusá-las é o GATE, que é o que calibramos.
+#
+# Schema: id, question, esperado (answer|refuse), note
+casos:
+  # ---------- RESPONDÍVEIS (evidência forte deve existir -> nota alta) ----------
+  - id: itau-consignado
+    question: "qual o saldo da carteira de credito consignado do Itau no 4T25"
+    esperado: answer
+    note: "Itau 4T25, pag. 7/21 (R$ 75,3 bi) — termo presente."
+  - id: itau-basileia
+    question: "qual foi o indice de Basileia do Itau no 4T25"
+    esperado: answer
+    note: "Itau 4T25, pag. 5/23 (15,2%) — verbatim no doc."
+  - id: itau-margem-clientes
+    question: "qual a margem financeira com clientes do Itau"
+    esperado: answer
+    note: "Itau 4T25, pag. 8/12 — linha dedicada."
+  - id: itau-inadimplencia
+    question: "qual o indice de inadimplencia acima de 90 dias do Itau"
+    esperado: answer
+    note: "Itau 4T25, pag. 5/14 (NPL 90)."
+  - id: itau-resultado-recorrente
+    question: "qual foi o Resultado Recorrente Gerencial do Itau no 4T25"
+    esperado: answer
+    note: "Itau 4T25, pag. 7/8 (R$ 12,3 bi)."
+  - id: bradesco-share-consignado
+    question: "qual o market share de consignado que o Bradesco reporta no balanco"
+    esperado: answer
+    note: "Bradesco 4T25, tabela de share (pag. ~41)."
+
+  # ---------- FORA-DA-BASE (devem ser RECUSADAS pelo gate -> nota baixa) ----------
+  - id: fora-receita-bolo
+    question: "qual a receita de um bolo de cenoura com cobertura de chocolate"
+    esperado: refuse
+    note: "Totalmente fora de escopo (culinaria)."
+  - id: fora-copa-2022
+    question: "quem ganhou a copa do mundo de futebol de 2022"
+    esperado: refuse
+    note: "Conhecimento geral, fora da base."
+  - id: fora-petrobras
+    question: "qual foi a producao de petroleo da Petrobras no ano passado"
+    esperado: refuse
+    note: "Outra industria; nao ingerida."
+  - id: fora-tempo
+    question: "qual a previsao do tempo para amanha em Sao Paulo"
+    esperado: refuse
+    note: "Fora de dominio."
+  - id: fora-bitcoin
+    question: "qual o preco do bitcoin hoje"
+    esperado: refuse
+    note: "Fora de dominio; e dado vivo, nao esta na base."
+  - id: fora-populacao
+    question: "qual a populacao da China atualmente"
+    esperado: refuse
+    note: "Conhecimento geral, fora da base."

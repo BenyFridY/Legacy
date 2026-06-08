@@ -10,5 +10,6 @@ Cada ADR captura: o **contexto** (por que a decisão apareceu), a **decisão**, 
 | [0002](0002-fio-condutor-caso-b-consignado.md) | Fio condutor: Caso B (consignado; Bradesco+BB+Itaú; Nubank não-respondível) | ✅ Aceita |
 | [0003](0003-stack-open-free.md) | Stack 100% open/free, com LLM atrás de interface trocável | ✅ Aceita |
 | [0004](0004-ingestao-larga-prova-focada.md) | Ingestão larga, prova focada (correção pós-releitura do enunciado) | ✅ Aceita |
+| [0005](0005-robustez-escala-calibracao.md) | Robustez, escala e calibração: manifesto + fallback do reranker + calibração do gate + juiz independente | ✅ Aceita |
 
 > Convenção de status: `Proposta` → `Aceita` → (`Substituída por NNNN` / `Revogada`).

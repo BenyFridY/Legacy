@@ -11,8 +11,8 @@ O que este runner AINDA NÃO mede (espera os modelos reais + gold de chunk_id):
     gold de quais chunks são relevantes, fixado na ingestão.
 
 Ou seja: este é o primeiro NÚMERO REAL do eval — a regra inegociável "recuse quando
-não está na base", na parte que o roteador resolve sozinho. n=11 é pequeno: o número
-é uma sanidade forte, não uma estatística de população (reportamos o n junto).
+não está na base", na parte que o roteador resolve sozinho. O n é pequeno (uma dúzia de
+perguntas): o número é uma sanidade forte, não uma estatística de população (reportamos o n junto).
 """
 from __future__ import annotations
 
@@ -129,7 +129,7 @@ def formatar_relatorio(r: ResultadoEscopo) -> str:
     L.append(f"  Acuracia de comportamento  {r.acertos}/{r.total}")
     L.append("")
     L.append(f"Distribuicao de rotas: {r.distribuicao_rotas}")
-    L.append("(n=11: sanidade forte, nao estatistica de populacao. Estagio 2 e retrieval")
+    L.append(f"(n={r.total}: sanidade forte, nao estatistica de populacao. Estagio 2 e retrieval")
     L.append(" esperam os modelos reais + gold de chunk_id fixado na ingestao.)")
     L.append("=" * 72)
     return "\n".join(L)

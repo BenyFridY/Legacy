@@ -12,23 +12,23 @@ from legacy_rag.eval.runner import (
 )
 
 
-def test_carrega_as_11_perguntas():
+def test_carrega_as_12_perguntas():
     perguntas = carregar_perguntas()
-    assert len(perguntas) == 11
+    assert len(perguntas) == 12
     assert all({"id", "question", "expected_behavior"} <= set(q) for q in perguntas)
 
 
 def test_matriz_de_recusa_perfeita_no_conjunto():
-    """O roteador acerta o comportamento (answer/refuse) das 11: 8 answer + 3 refuse."""
+    """O roteador acerta o comportamento (answer/refuse) das 12: 9 answer + 3 refuse."""
     r = avaliar_recusa_por_escopo(carregar_perguntas())
     c = r.contagem
     assert c.correct_refusals == 3      # os 3 non_answerable
     assert c.false_answers == 0         # nenhuma alucinação
-    assert c.correct_answers == 8       # os 8 respondíveis
+    assert c.correct_answers == 9       # os 9 respondíveis (8 + a nova B2 de tom)
     assert c.false_refusals == 0        # nenhuma over-recusa
     assert c.correct_refusal_rate == 1.0
     assert c.over_refusal_rate == 0.0
-    assert r.acertos == 11 and r.total == 11
+    assert r.acertos == 12 and r.total == 12
 
 
 def test_nenhuma_over_recusa_no_distrator_nubank_cartao():
@@ -43,4 +43,4 @@ def test_relatorio_tem_as_secoes_chave():
     texto = formatar_relatorio(r)
     assert "Matriz de confusao de recusa" in texto
     assert "Taxa de recusa correta" in texto
-    assert "n=11" in texto                 # honestidade estatística explícita
+    assert "n=12" in texto                 # honestidade estatística explícita (dinâmico = nº real)

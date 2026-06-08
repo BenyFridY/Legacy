@@ -258,7 +258,7 @@ Documentado com honestidade — é o que o case pede.
 | [0002](docs/decisions/0002-fio-condutor-caso-b-consignado.md) | Fio condutor **Caso B · consignado · BB+Bradesco+Itaú** (Nubank = não-respondível orgânico) |
 | [0003](docs/decisions/0003-stack-open-free.md) | Stack **100% open/free**; LLM atrás de interface trocável |
 | [0004](docs/decisions/0004-ingestao-larga-prova-focada.md) | **Ingestão larga, prova focada** |
-| 0005 | *(planejado)* Escala + lacunas do roteador + fallback do reranker + calibração do gate |
+| [0005](docs/decisions/0005-robustez-escala-calibracao.md) | **Robustez, escala e calibração**: manifesto + fallback do reranker + calibração do gate + juiz independente |
 
 ---
 

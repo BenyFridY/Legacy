@@ -1,0 +1,83 @@
+# Manifesto da base de TEXTO — a "base ligada" (criterio nº1 do case), reproduzivel.
+#
+# O ingeridor (scripts/ingerir_corpus.py) le este arquivo e abastece o DuckDB SOZINHO, sem upload
+# manual, idempotente por (banco, periodo, tipo_doc): rodar de novo PULA o que ja esta na base e so
+# baixa/embeda o que falta. Adicionar um documento = adicionar uma entrada aqui.
+#
+# Documentos HETEROGENEOS de proposito (release LONGO x comunicado CURTO; varios TIPOS: release,
+# comunicado, nota, transcricao; varios bancos e periodos) -> prova o criterio de heterogeneidade
+# (10%) e o caminho de escala. Cada URL e validada por download real antes de entrar aqui
+# (HTTP 200 + assinatura %PDF + camada de texto); fontes que dao 403 a cliente programatico
+# (paginas de RI) NAO entram — usamos o arquivo direto no CDN/dominio publico.
+
+documentos:
+  - banco: Itau
+    periodo: 4T25
+    tipo_doc: release
+    fonte: "Itau Unibanco - Analise Gerencial da Operacao 4T25 (CDN mziq); ~169 pp"
+    url: https://filemanager-cdn.mziq.com/published/42787847-4cf6-4461-94a5-40ed237dca33/fb7d9580-424d-47aa-924e-8cf202975d59_itau_unibanco_holding_s.a..pdf
+
+  - banco: Bradesco
+    periodo: 4T25
+    tipo_doc: release
+    fonte: "Bradesco - Relatorio de Analise Economica e Financeira (RAEF) 4T25 (CDN mziq); ~222 pp"
+    url: https://filemanager-cdn.mziq.com/published/80f2e993-0a30-421a-9470-a4d5c8ad5e9f/b21ae9be-8683-4e11-94c9-478a1eea4f9f_relatorio_de_analise_economica_e_financeira_4t25.pdf
+
+  # ---- documentos adicionados para HETEROGENEIDADE (5 fontes, 4 tipos, periodos variados,
+  # ----  longo x curto). Cada URL foi baixada e teve a camada de texto + capa conferidas.
+  # ---- O endpoint api.mziq.com/mzfilemanager/v2/d/<empresa>/<arquivo>?origin=N baixa SEM 403
+  # ---- (a pagina de RI e a forma .../download-file/ bloqueiam robos; o backend do mziq nao).
+
+  - banco: Itau
+    periodo: 3T25
+    tipo_doc: release
+    fonte: "Itau - Analise Gerencial da Operacao 3T25 (api.mziq); 153 pp [multi-periodo]"
+    url: https://api.mziq.com/mzfilemanager/v2/d/42787847-4cf6-4461-94a5-40ed237dca33/4224dc78-1031-403c-6a3d-2cc05b155486?origin=1
+
+  - banco: Itau
+    periodo: 1T26
+    tipo_doc: release
+    fonte: "Itau - Analise Gerencial da Operacao 1T26 (api.mziq); 153 pp [release mais recente]"
+    url: https://api.mziq.com/mzfilemanager/v2/d/42787847-4cf6-4461-94a5-40ed237dca33/f6407337-eafd-ee57-d6dc-1719caaaff71?origin=2
+
+  - banco: Bradesco
+    periodo: 3T25
+    tipo_doc: release
+    fonte: "Bradesco - RAEF 3T25 (api.mziq); 188 pp [multi-periodo]"
+    url: https://api.mziq.com/mzfilemanager/v2/d/80f2e993-0a30-421a-9470-a4d5c8ad5e9f/210e44a9-1a75-40f7-a6c7-69feef779d23?origin=2
+
+  - banco: Bradesco
+    periodo: 3T25
+    tipo_doc: transcricao
+    fonte: "Bradesco - Transcricao da videoconferencia de resultados 3T25 (api.mziq); 26 pp [TIPO: transcricao de teleconferencia]"
+    url: https://api.mziq.com/mzfilemanager/v2/d/80f2e993-0a30-421a-9470-a4d5c8ad5e9f/b2307fb6-e723-8796-75de-a849bfe03931?origin=1
+
+  - banco: BB
+    periodo: 4T25
+    tipo_doc: release
+    fonte: "Banco do Brasil - Analise do Desempenho 4T25 (api.mziq); 312 pp [BANCO novo; documento LONGO]"
+    url: https://api.mziq.com/mzfilemanager/v2/d/5760dff3-15e1-4962-9e81-322a0b3d0bbd/0c488fdf-d384-201d-b5f8-37a795f1ac43?origin=2
+
+  - banco: BB
+    periodo: 3T25
+    tipo_doc: sumario
+    fonte: "Banco do Brasil - Sumario do Resultado (9M25) (api.mziq); 4 pp [documento CURTO; TIPO: sumario]"
+    url: https://api.mziq.com/mzfilemanager/v2/d/5760dff3-15e1-4962-9e81-322a0b3d0bbd/7f3dfbac-fffb-275a-1574-ffcc13941ba6?origin=1
+
+  - banco: Santander
+    periodo: 4T25
+    tipo_doc: release
+    fonte: "Santander Brasil - Informe de Resultados 4T25 BRGAAP (CDN mziq); 25 pp [BANCO novo]"
+    url: https://filemanager-cdn.mziq.com/published/a2595886-9fbb-4339-8a38-71d6ce7c7d36/ef01cb91-8a35-4fe3-a844-8c99633a9fd1_release_de_resultados_4t25.pdf
+
+  - banco: Bacen
+    periodo: 2026-04
+    tipo_doc: nota
+    fonte: "Banco Central - Nota para a Imprensa: Estatisticas Monetarias e de Credito (abr/2026); 5 pp [documento CURTO; fonte publica do BC em TEXTO]"
+    url: https://www.bcb.gov.br/content/estatisticas/hist_estatisticasmonetariascredito/202604_Texto_de_estatisticas_monetarias_e_de_credito.pdf
+
+  - banco: Bacen
+    periodo: 2026-01
+    tipo_doc: nota
+    fonte: "Banco Central - Nota para a Imprensa: Estatisticas Monetarias e de Credito (jan/2026); 6 pp [documento CURTO]"
+    url: https://www.bcb.gov.br/content/estatisticas/hist_estatisticasmonetariascredito/202601_Texto_de_estatisticas_monetarias_e_de_credito.pdf

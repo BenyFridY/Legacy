@@ -6,7 +6,54 @@ provamos `baixar` ao vivo na demo. Aqui isolamos a parte PURA — `extrair_pagin
 em Python, então é um PDF de verdade, válido, que o pypdf lê de fato).
 """
 
+import pytest
+import requests
+
+from legacy_rag.ingestion import releases
 from legacy_rag.ingestion.releases import extrair_paginas, extrair_texto
+
+
+class _Resp:
+    """Resposta HTTP falsa (status + bytes), com raise_for_status como o requests."""
+
+    def __init__(self, content=b"", status_code=200):
+        self.content = content
+        self.status_code = status_code
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.exceptions.HTTPError(response=self)
+
+
+def test_baixar_repete_em_falha_transitoria(monkeypatch):
+    """ConnectionError na 1ª, sucesso na 2ª -> retorna os bytes (provou o retry)."""
+    chamadas = {"n": 0}
+
+    def fake_get(url, headers=None, timeout=None):
+        chamadas["n"] += 1
+        if chamadas["n"] == 1:
+            raise requests.exceptions.ConnectionError("conexao caiu")
+        return _Resp(b"%PDF-1.4 ok", 200)
+
+    monkeypatch.setattr(releases.requests, "get", fake_get)
+    monkeypatch.setattr(releases.time, "sleep", lambda _s: None)   # não espera de verdade
+    assert releases.baixar("http://x/doc.pdf") == b"%PDF-1.4 ok"
+    assert chamadas["n"] == 2
+
+
+def test_baixar_nao_repete_em_4xx(monkeypatch):
+    """403/404 é PERMANENTE: levanta na hora, sem gastar tentativas (não adianta repetir)."""
+    chamadas = {"n": 0}
+
+    def fake_get(url, headers=None, timeout=None):
+        chamadas["n"] += 1
+        return _Resp(b"", 404)
+
+    monkeypatch.setattr(releases.requests, "get", fake_get)
+    monkeypatch.setattr(releases.time, "sleep", lambda _s: None)
+    with pytest.raises(requests.exceptions.HTTPError):
+        releases.baixar("http://x/nao-existe.pdf", tentativas=3)
+    assert chamadas["n"] == 1                                      # não repetiu no 4xx
 
 
 def _pdf(paginas: list[str]) -> bytes:

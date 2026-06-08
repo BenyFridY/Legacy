@@ -16,23 +16,41 @@ isso ela é a unidade que preservamos já na extração (o chunking, no próximo
 from __future__ import annotations
 
 import io
+import time
 
 import requests
 from pypdf import PdfReader
 
 # Mesmo User-Agent identificável que usamos no cliente do Bacen: educado e rastreável.
 _HEADERS = {"User-Agent": "LegacyCase/0.1 (research; beny.frid@hashdex.com)"}
+MAX_TENTATIVAS = 3
 
 
-def baixar(url: str, timeout: int = 120) -> bytes:
-    """Baixa os bytes crus de um PDF público (segue redirecionamento; erro HTTP vira exceção).
+def baixar(url: str, timeout: int = 120, tentativas: int = MAX_TENTATIVAS) -> bytes:
+    """Baixa os bytes crus de um PDF público, com retry/backoff em falha TRANSITÓRIA.
 
-    Não interpreta nada: a responsabilidade aqui é só "trazer o arquivo da rede". A separação
-    entre baixar (impuro) e extrair (puro) é o que deixa a extração testável sem internet.
+    Mesma política do cliente do Bacen (bacen._get_json): um PDF de ~6MB do CDN às vezes corta no
+    meio (ChunkedEncodingError) ou bate num 5xx momentâneo -> tenta de novo com backoff. Já um erro
+    4xx (403/404) é PERMANENTE -> propaga na hora, sem retry inútil. A separação baixar (impuro) x
+    extrair (puro) segue: a responsabilidade aqui é só "trazer o arquivo da rede".
     """
-    resp = requests.get(url, headers=_HEADERS, timeout=timeout)
-    resp.raise_for_status()
-    return resp.content
+    erro: Exception | None = None
+    for i in range(max(1, tentativas)):    # sempre ≥1 tentativa (evita 'raise None' se tentativas<=0)
+        try:
+            resp = requests.get(url, headers=_HEADERS, timeout=timeout)
+            resp.raise_for_status()        # levanta HTTPError em 4xx e 5xx
+            return resp.content
+        except requests.exceptions.HTTPError as e:
+            sc = getattr(e.response, "status_code", None)
+            if sc is not None and 400 <= sc < 500:
+                raise                       # 4xx = permanente (URL errada / bloqueio) -> não insiste
+            erro = e                        # 5xx = transitório -> vale tentar de novo
+            time.sleep(2.0 * (i + 1))
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout,
+                requests.exceptions.ChunkedEncodingError) as e:
+            erro = e                        # falha de rede -> backoff e retry
+            time.sleep(2.0 * (i + 1))
+    raise erro                              # esgotou as tentativas -> propaga o último erro
 
 
 def extrair_paginas(pdf_bytes: bytes) -> list[str]:

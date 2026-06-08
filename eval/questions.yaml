@@ -61,6 +61,21 @@ questions:
     tests: [retrieval, faithfulness]
     notes: "Testa recuperar uma afirmação DECLARADA na transcrição (o lado 'promete' do B3)."
 
+  - id: bradesco-tom-macro-3t25
+    category: single_doc
+    subcase: B2
+    question: "Qual o tom do Bradesco sobre a economia brasileira e o crédito na teleconferência de resultados do 3T25?"
+    expected_behavior: answer
+    gold_value: null
+    gold_value_status: pin_at_ingestion
+    gold_sources:
+      - bank: Bradesco
+        doc_type: transcricao
+        period: 3T25
+        note: "fala do management na videoconferência 3T25 — tom/postura qualitativa (não um número)"
+    tests: [retrieval, faithfulness]
+    notes: "B2 RESPONDÍVEL (o lado POSITIVO do B2): recuperar/sintetizar TOM qualitativo declarado, agora que a transcrição 3T25 do Bradesco está na base. Fecha a promessa do ADR-0004 de cobrir B2."
+
   # ---------- CATEGORIA: MULTI-FONTE / MULTI-PERÍODO ----------
   - id: bb-guidance-vs-realizado-2025
     category: multi_source
