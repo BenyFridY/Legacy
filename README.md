@@ -23,7 +23,7 @@ conta). Por isso o número é **exato e auditável**, e o sistema **recusa em ve
 
 | retrieval — hit@3 | recusa por escopo | fidelidade (juiz independente) | alucinação |
 |:---:|:---:|:---:|:---:|
-| **85%** realista · 77,3% completo · MRR **0,663** | **12/12** · over-recusa **0%** | **6/6** sustentadas | **0** |
+| **90%** realista · 81,8% completo · MRR **0,686** | **12/12** · over-recusa **0%** | **6/6** sustentadas | **0** |
 
 > **Corpus provado a fundo, não largo (escolha assumida):** 11 documentos reais — 5 fontes, 4 tipos,
 > de **312 pp a 4 pp**, multi-período — + Bacen IF.data (10 trimestres). Escalar p/ **500+** é
@@ -77,7 +77,7 @@ e [`docs/pesquisa/evidencias-verificadas.md`](docs/pesquisa/evidencias-verificad
 > *"Comece pelo eval."* Medimos antes de otimizar. Saídas **reproduzíveis** (com comandos) em
 > [`docs/resultados-eval.md`](docs/resultados-eval.md). Corpus de **texto** = **11 documentos** de
 > **5 fontes** (Itaú, Bradesco, BB, Santander, Bacen), **4 tipos** (release, transcrição, sumário,
-> nota), **longo × curto** (de 312 pp a 4 pp) e **multi-período** (3T25/4T25/1T26) — **3.845 fichas**,
+> nota), **longo × curto** (de 312 pp a 4 pp) e **multi-período** (3T25/4T25/1T26) — **3.650 fichas**,
 > alimentadas por um **manifesto** (ver *Como a base é alimentada*); números = **Bacen IF.data,
 > 10 trimestres (3T23–4T25)**.
 
@@ -88,14 +88,14 @@ trimestre, um filtro de metadados fixa o documento certo no corpus multi-períod
 
 | conjunto | hit@1 | hit@3 | hit@5 | MRR |
 |---|---|---|---|---|
-| **sondagens realistas** (sem gíria/paráfrase) | — | **85%** | — | — |
-| **22 sondagens** (inclui 2 limite + transcrição/nota) | 54,5% | 77,3% | 81,8% | **0,663** |
+| **sondagens realistas** (sem gíria/paráfrase) | — | **90%** | — | — |
+| **22 sondagens** (inclui 2 limite + transcrição/nota) | 54,5% | 81,8% | 86,4% | **0,686** |
 
 **Limites honestos** (não escondidos): a gíria *"calote"* e a paráfrase *"descontado direto da folha"*
-falham de propósito; uma **tabela densa** (saldo de consignado do Bradesco 3T25) não ranqueia (em produção
-**recusaria**); e a transcrição de *política de crédito* perde para o release formal — **embora** a de
-*inadimplência 90d* (também transcrição) acerte em **rank 1** (ver *Fraquezas*). Com o **filtro de período**
-(remove a competição 4T25/3T25/1T26), **7 das 8** sondagens realistas do Itaú ficam em **rank 1**.
+falham de propósito; a transcrição de *política de crédito* perde para o release formal (**embora** a de
+*inadimplência 90d* acerte no top-3); e o *consignado do Santander* aparece só no hit@5 (ver *Fraquezas*).
+Com o **filtro de período** (remove a competição 4T25/3T25/1T26), **7 das 8** sondagens realistas do Itaú
+ficam em **rank 1** — incl. o RRG de 1T26 e 3T25 (mesmo banco, trimestres quase idênticos).
 
 **2) Recusa por escopo — Estágio 1 (roteador determinístico, sem modelo).** 12 perguntas, 3
 categorias de comportamento + 1 distrator anti-over-recusa:
@@ -215,7 +215,7 @@ Critério nº 1 do case. **Sem upload manual** — o sistema busca na fonte e in
   existente). Resultado: série de consignado **contínua e sem salto** de 3T23 a 4T25.
 
 > A base de **texto** tem **11 documentos** (Itaú 4T25/3T25/1T26, Bradesco 4T25/3T25 + transcrição,
-> BB 4T25 + sumário, Santander 4T25, 2 notas do Bacen; **3.845 fichas**) e a de **números**,
+> BB 4T25 + sumário, Santander 4T25, 2 notas do Bacen; **3.650 fichas**) e a de **números**,
 > **10 trimestres (3T23–4T25)**. Crescer para 500+ é **acrescentar linhas ao manifesto**; o que falta
 > para essa escala (dedup por **hash de conteúdo**, índice **HNSW**, embedding incremental) está em
 > *Fraquezas e escala*.
@@ -236,6 +236,8 @@ set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 
 python -m pytest -q                      :: 150 testes — sem rede, sem torch, sem chave (fakes)
 python -m legacy_rag.eval.runner         :: matriz de recusa-por-escopo (sem modelo)
+python scripts\atualizar_base.py         :: UM comando: liga a base (numeros + texto, idempotente) + valida periodos
+::  ^ (chama os dois abaixo; rode-os direto se quiser so um lado)
 python scripts\ingerir_numeros.py        :: alimenta carteira_pf + cadastro (Bacen IF.data)
 python scripts\ingerir_corpus.py         :: alimenta a base de TEXTO pelo manifesto (11 docs, 5 fontes)
 python scripts\eval_retrieval_real.py    :: hit@k / MRR reais (ciente de período)
@@ -295,7 +297,7 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   — provam retrieval heterogêneo, eval e o B3, mas ainda longe dos 500+. Crescer é **acrescentar linhas
   ao manifesto** (`corpus/manifesto.yaml`); o gargalo de escala é índice + dedup (abaixo), não o pipeline.
 - **Busca exata, sem índice aproximado:** vetorial é **cosseno brute-force** e o BM25 é reconstruído
-  em memória por consulta — **exato e instantâneo abaixo de ~100k fichas** (temos 3.845; nesse regime,
+  em memória por consulta — **exato e instantâneo abaixo de ~100k fichas** (temos 3.650; nesse regime,
   força bruta *vence* o índice aproximado, que pode errar o vizinho mais próximo). Acima disso, a migração
   é **in-place no próprio DuckDB**: a extensão **VSS** liga um índice **HNSW** (lib `usearch`) no **mesmo
   arquivo**, com um `CREATE INDEX` — **sem trocar de sistema nem mover dados** para um vector DB externo.
@@ -306,9 +308,11 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   Fix futuro: inferir o trimestre "mais recente" como default, ou desambiguar com o usuário.
 - **Transcrição é irregular (não some):** a sondagem de *política de crédito* na teleconferência do
   Bradesco falha (a busca prefere o release **formal** à fala conversacional), **mas** a de *inadimplência
-  90d* (também transcrição) acerta em **rank 1** — depende do quão "verbatim" é o trecho. E o saldo de
-  consignado em **tabela densa** (Bradesco 3T25) não ranqueia (recusaria no gate). Fixes: peso por
-  `tipo_doc` quando a pergunta o pede ("na teleconferência") e **chunking ciente de tabela**.
+  90d* (também transcrição) acerta no top-3 — depende do quão "verbatim" é o trecho. Fix: peso por
+  `tipo_doc` quando a pergunta o pede ("na teleconferência").
+- **Número em tabela (RAG sobre tabela):** o share *declarado* do B3 (consignado 14,1%) vive numa **célula**;
+  ao chunkar perde cabeçalho/unidade. Por isso o número *computado* vai pelo **caminho SQL** (como o Bacen);
+  estender o parser de tabelas aos releases é o roadmap (ADR-0005).
 - **Gate calibrado num gold pequeno:** o limiar **0,60** veio de varrer um mini-gold (joelho com 0%
   over-recusa / 0% vazamento), mas `n=12`; produção pede um gold maior e idealmente por-modalidade.
 - **Fallback do reranker é heurístico:** caímos para a ordem do RRF quando o desvio-padrão das notas

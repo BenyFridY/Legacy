@@ -152,9 +152,9 @@ sondagens:
     periodo: "3T25"
     tipo_doc: release
     question: "qual o saldo da carteira de credito consignado do Bradesco no 3T25"
-    gold_paginas: [11, 12, 15]
+    gold_paginas: [12, 14]
     dificuldade: media
-    note: "Credito Pessoal Consignado R$ 62.987 mi: tabelas de carteira (p.11, p.15) e originacao (p.12)."
+    note: "Credito Consignado R$ 101.850 mi (3T25): tabela de carteira (p.12) e analise + market share (p.14). [gold re-curado apos corrigir a URL do doc, que antes servia o 4T19]"
 
   - id: bradesco-inadimplencia-transcricao-3t25
     banco: Bradesco

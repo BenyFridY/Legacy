@@ -109,7 +109,7 @@ Beny Frid · Legacy Capital · junho/2026
 **Zoom no caminho de texto — um funil de "barato/impreciso" → "caro/preciso":**
 
 ```
-3.845 fichas → embedding (top 50) + BM25 (top 50) → RRF (funde por posição)
+3.650 fichas → embedding (top 50) + BM25 (top 50) → RRF (funde por posição)
             → reranker relê os ~10 finalistas juntos → top 5 → GATE 0,60
 ```
 
@@ -180,7 +180,7 @@ Beny Frid · Legacy Capital · junho/2026
 
 **O que não escala sozinho (honesto):** a curadoria do *gold* do eval e cada fonte nova (= um conector). 
 
-> 🎤 **Fale:** "Crescer o corpus é **acrescentar linha ao manifesto** — o pipeline não muda. O que muda são os índices: hoje uso força-bruta porque é exata e instantânea nas 3.845 fichas; passando de ~100 mil, **não migro de banco** — ligo um índice **HNSW no próprio DuckDB** com a extensão VSS, um `CREATE INDEX`. Dedup vira por hash de conteúdo e o embedding vira incremental. Tudo projetado; não medi benchmark — não quis afirmar o que não testei."
+> 🎤 **Fale:** "Crescer o corpus é **acrescentar linha ao manifesto** — o pipeline não muda. O que muda são os índices: hoje uso força-bruta porque é exata e instantânea nas 3.650 fichas; passando de ~100 mil, **não migro de banco** — ligo um índice **HNSW no próprio DuckDB** com a extensão VSS, um `CREATE INDEX`. Dedup vira por hash de conteúdo e o embedding vira incremental. Tudo projetado; não medi benchmark — não quis afirmar o que não testei."
 >
 > 🛡️ **Se perguntarem "e os 500+ do enunciado?":** "O case pede 500+ e crescendo. Provei a fundo com 11 documentos heterogêneos porque o critério nº 1 é **qualidade de retrieval**, não volume; o caminho de volume está desenhado e cabe no mesmo store. Preferi um problema **provado** a um número **alegado**."
 

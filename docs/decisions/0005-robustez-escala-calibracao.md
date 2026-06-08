@@ -95,7 +95,7 @@ peça menos crítica da nota. É também o "o que me surpreendeu" da apresentaç
 - **Roteador R4/R6:** distinguir *realizado* de *guidance* dentro de 2026 (R4) e métricas ainda não
   ingeridas (R6) caem hoje no **Estágio 2** (gate de evidência), não numa regra dedicada.
 - **Índice aproximado:** a busca vetorial é **cosseno brute-force** e o BM25 é reconstruído por consulta.
-  Exato e instantâneo abaixo de ~100k fichas (temos 3.845). Acima disso, **upgrade in-place no próprio
+  Exato e instantâneo abaixo de ~100k fichas (temos 3.650). Acima disso, **upgrade in-place no próprio
   DuckDB**: a extensão **VSS** adiciona um índice **HNSW** (backed pela lib `usearch`) — **mesmo store, um
   `CREATE INDEX`**, sem migrar para um vector DB externo (Pinecone/Weaviate) nem fazer o dado sair da
   máquina; + **FTS persistido** para o BM25. Projetado, sem benchmark.

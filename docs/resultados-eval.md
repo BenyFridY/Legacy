@@ -3,7 +3,7 @@
 > Este arquivo guarda a **saída real** dos avaliadores, para os números citados no
 > [README](../README.md) terem **lastro reproduzível** — não "confie em mim".
 > Corpus de **texto** = **11 documentos** (Itaú 4T25/3T25/1T26, Bradesco 4T25/3T25 + transcrição,
-> BB 4T25 + sumário, Santander 4T25, 2 notas do Bacen; **3.845 fichas**) alimentado pelo
+> BB 4T25 + sumário, Santander 4T25, 2 notas do Bacen; **3.650 fichas**) alimentado pelo
 > `corpus/manifesto.yaml`; números = Bacen IF.data (10 trimestres) em `data/legacy.duckdb`.
 >
 > Execução registrada em **2026-06-07**. Prefixe os comandos no Windows com
@@ -94,8 +94,8 @@ sondagens: 22
   bradesco-transcricao-politica-cred  media      .   .   .  0.00
   bacen-nota-credito                  media      .  ok  ok  0.50
   bradesco-lucro-recorrente-4t25      media      .  ok  ok  0.50
-  bradesco-consignado-3t25            media      .   .   .  0.00
-  bradesco-inadimplencia-transcr-3t25 media     ok  ok  ok  1.00
+  bradesco-consignado-3t25            media     ok  ok  ok  1.00
+  bradesco-inadimplencia-transcr-3t25 media      .  ok  ok  0.50
   itau-resultado-1t26                 media     ok  ok  ok  1.00
   itau-resultado-3t25                 media     ok  ok  ok  1.00
   santander-consignado-4t25           media      .   .  ok  0.25
@@ -104,25 +104,25 @@ sondagens: 22
   bacen-inadimplencia-2026-01         media     ok  ok  ok  1.00
 ----------------------------------------------------------------
   hit@1:  54.5%
-  hit@3:  77.3%
-  hit@5:  81.8%
-  MRR  : 0.663
+  hit@3:  81.8%
+  hit@5:  86.4%
+  MRR  : 0.686
 ================================================================
-  Leitura: hit@3 nas sondagens realistas (sem giria/parafrase): 85%
+  Leitura: hit@3 nas sondagens realistas (sem giria/parafrase): 90%
 ```
 
 **Leitura honesta:** o eval mede a **mesma busca da produção** (pré-filtro banco+período, funde 10,
 rerank → 5). **Ampliamos o gold de 13 → 22 sondagens** para equilibrar os bancos (antes ~8 eram do Itaú)
-e cobrir mais tipos/períodos — o hit@3 **subiu** (76,9% → 77,3%) num conjunto maior, e o MRR foi a
-**0,663**. Com o **filtro de período**, **7 das 8** sondagens realistas do Itaú ficam em **rank 1** —
-incluindo o **RRG de 1T26 e de 3T25**, que testam a desambiguação entre trimestres quase idênticos do
-mesmo banco. Nas **realistas**, **hit@3 = 85%**. Os **limites honestos** que puxam o agregado:
-(1) gíria/paráfrase falham de propósito (o cross-encoder formal não liga "calote"→inadimplência; a
-paráfrase perifrástica nem o denso liga); (2) **tabela densa** — o saldo de consignado do Bradesco 3T25
-vive numa tabela de crédito grande e não ranqueia (top score < 0,60: em produção o sistema **recusaria**);
-(3) **transcrição conversacional** — a fala sobre *política de crédito* do Bradesco perde para o release
-formal, **embora** a fala sobre *inadimplência 90d* (também transcrição) acerte em **rank 1**. Nada disso
-é escondido — é o que o eval existe para revelar.
+e cobrir mais tipos/períodos. **Esse eval pegou um bug de dados:** o doc rotulado "Bradesco 3T25 release"
+era, na verdade, o **4T19** (URL errada no manifesto) — corrigimos a URL e re-ingerimos o 3T25 real. Com
+isso o hit@3 **subiu** (76,9% → **81,8%**) num conjunto maior **e correto**, e o MRR foi a **0,686**. Com o
+**filtro de período**, **7 das 8** sondagens realistas do Itaú ficam em **rank 1** — incluindo o **RRG de
+1T26 e de 3T25** (desambiguação entre trimestres quase idênticos). Nas **realistas**, **hit@3 = 90%**. Os
+**limites honestos** que sobram: (1) gíria/paráfrase falham de propósito; (2) **transcrição conversacional**
+— a fala sobre *política de crédito* do Bradesco perde para o release formal (mas a de *inadimplência 90d*,
+também transcrição, acerta no top-3); (3) **Santander consignado** aparece só no hit@5 (a retração fica
+enterrada na análise de carteira). A fraqueza de **número-em-tabela** segue real no **Caso B3** (o share
+declarado de 14,1% vive numa célula), e é por isso que o número computado vai pelo **SQL**.
 
 ---
 

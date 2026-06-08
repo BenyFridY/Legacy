@@ -43,8 +43,8 @@ documentos:
   - banco: Bradesco
     periodo: 3T25
     tipo_doc: release
-    fonte: "Bradesco - RAEF 3T25 (api.mziq); 188 pp [multi-periodo]"
-    url: https://api.mziq.com/mzfilemanager/v2/d/80f2e993-0a30-421a-9470-a4d5c8ad5e9f/210e44a9-1a75-40f7-a6c7-69feef779d23?origin=2
+    fonte: "Bradesco - RAEF 3T25 (api.mziq); 158 pp [multi-periodo] (URL corrigida: a anterior servia o RAEF 4T19 — erro pego pelo eval de retrieval)"
+    url: https://api.mziq.com/mzfilemanager/v2/d/80f2e993-0a30-421a-9470-a4d5c8ad5e9f/5fd441ca-a1f1-b1a6-c448-8092047bbddd?origin=1
 
   - banco: Bradesco
     periodo: 3T25
