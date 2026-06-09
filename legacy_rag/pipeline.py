@@ -186,6 +186,8 @@ def _citacao_ifdata(modalidade: str) -> str:
 
 def _formatar_serie(banco: str, modalidade: str, serie: list[tuple[int, float]]) -> str:
     pontos = ", ".join(f"{am // 100}-{am % 100:02d}: {sh * 100:.1f}%" for am, sh in serie)
+    if len(serie) == 1:   # foto única (ex.: "share no 4T25") -> sem a frase de Variação, que compararia
+        return f"Market share de {banco} em {_rotulo(modalidade)}: {pontos}."   # o ponto com ele mesmo
     ini, fim = serie[0][1] * 100, serie[-1][1] * 100
     am0, amN = serie[0][0], serie[-1][0]                       # nomeia o intervalo REAL coberto
     janela = f"{am0 // 100}-{am0 % 100:02d} a {amN // 100}-{amN % 100:02d}"
@@ -283,7 +285,8 @@ def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
         veredito = f"Quem {verbo} participação: {lider} ({d_lider - d_seg:+.1f} p.p. a mais que {segundo})."
     resumo = (f"Market share em {_rotulo(rota.modalidade)} ({janela}, Bacen IF.data, calc. em SQL) — "
               f"{corpo}. {veredito}")
-    return Resposta(texto=resumo, citacoes=cit)
+    return Resposta(texto=nota + resumo, citacoes=cit)   # nota TAMBÉM aqui (3ª auditoria: só o ramo
+                                                         # de 1 foto avisava; este é o ramo mais comum)
 
 
 # --------------------------------------------------------------------------
@@ -337,6 +340,10 @@ def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
         cabecalho = "Evidências (declarado; sem série computável do IF.data para esta métrica):"
     else:
         cabecalho = "Evidências (computado do IF.data; sem trecho declarado relevante na base):"
+    # A nota de modalidade presumida só faz sentido quando o lado COMPUTADO entrou (é ele que usa a
+    # modalidade); 3ª auditoria: o multi_fonte nunca avisava — quebrava a garantia (B) do ADR-0005 item 14.
+    nota = _nota_modalidade(rota) if computado is not None else ""
+    cabecalho = nota + cabecalho
 
     contexto = "\n\n".join(f"[{tag}] ({cit})\n{txt}" for tag, cit, txt in partes)   # full p/ o LLM
     evidencias = Resposta(texto=cabecalho + "\n" + "\n\n".join(           # truncado p/ não virar paredão
@@ -361,4 +368,4 @@ def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
     # evidências citadas lado a lado p/ o analista comparar. Honesto (não inventa) e útil. Ver ADR-0005.
     if SENTINELA_NAO_ENCONTRADO in saida.upper():
         return evidencias
-    return Resposta(texto=saida, citacoes=citacoes)
+    return Resposta(texto=nota + saida, citacoes=citacoes)   # a presunção sobrevive à redação do LLM

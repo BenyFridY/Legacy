@@ -195,3 +195,45 @@ def test_sinonimo_de_modalidade_amplia_recall():
     """Sinônimo coloquial ('carro') resolve p/ Veículos em vez de cair no default consignado."""
     r = rotear("Qual o market share do BB em financiamento de carro, segundo o IF.data?")
     assert r.modalidade_explicita is True and "Veículos" in r.modalidade and not r.deve_recusar
+
+
+def test_carro_chefe_e_idiomatismo_nao_veiculos():
+    """3ª auditoria: 'produto carro-chefe' casava 'carro' -> Veículos como EXPLÍCITA (número errado
+    com cara de certeza, sem aviso). O idiomatismo é removido antes da detecção -> presume + avisa."""
+    r = rotear("Qual o market share do produto carro-chefe do BB, segundo o IF.data?")
+    assert r.modalidade_explicita is False and "Consigna" in r.modalidade
+
+
+# (5) -------------------------------------- aliases com fronteira de palavra (tickers)
+
+def test_ticker_nao_detecta_banco_por_substring():
+    """3ª auditoria: 'BBDC4' contém 'bb' -> detectava BB+Bradesco e virava comparação não pedida."""
+    r = rotear("Qual o market share do BBDC4 em consignado, segundo o IF.data?")
+    assert r.bancos == ["Bradesco"] and r.categoria == "computada"
+
+
+def test_tickers_continuam_casando_isolados():
+    assert rotear("Qual o market share do BBAS3 em consignado, segundo o IF.data?").bancos == ["BB"]
+    assert rotear("Qual o market share do ITUB4 em consignado, segundo o IF.data?").bancos == ["Itau"]
+    assert "BB" in rotear("Qual o market share do BB em consignado, segundo o IF.data?").bancos
+
+
+def test_itau_bba_nao_vira_banco_do_brasil():
+    """'Itaú BBA' (braço de atacado) não pode acionar o alias 'bb' do Banco do Brasil."""
+    r = rotear("O que o Itau BBA declarou sobre consignado no release do 4T25?")
+    assert r.bancos == ["Itau"]
+
+
+# (6) -------------------------------------- fronteira do R7 (por desenho, não por acidente)
+
+def test_r7_numero_sem_ifdata_segue_para_o_texto():
+    """Fronteira documentada: 'saldo de cheque especial' SEM citar IF.data/share não é pedido de
+    cálculo — o release pode trazer o saldo do sub-produto -> caminho de TEXTO + gate decide."""
+    r = rotear("Qual o saldo de cheque especial do Itau no 4T25?")
+    assert not r.deve_recusar and r.categoria == "doc_unico"
+
+
+def test_r7_numero_de_subproduto_com_bacen_recusa():
+    """Contraprova: o MESMO sub-produto com a fonte Bacen citada -> R7 (não computável no IF.data)."""
+    r = rotear("Qual o saldo de cheque especial do Itau no 4T25, segundo o Bacen?")
+    assert r.deve_recusar and r.motivo_recusa.startswith("R7")

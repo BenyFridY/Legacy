@@ -36,7 +36,8 @@ documentadas para a ingestão larga (ADR-0004), deixadas honestas em vez de fing
       publicado deveria recusar) — hoje cai no gate de evidência (Estágio 2).
   R5  entidade ingerida fora do núcleo de prova (Santander, Nubank em Cosif) -> responder, não
       recusar pelo nome (já tratado: ENTIDADES inclui os dois com base_contabil="cosif").
-  R6  métrica não-ingerida (ROE, Basileia, NPL) -> cai no gate de evidência (Estágio 2).
+  R6  métrica não-ingerida (ROE, NPL) -> cai no gate de evidência (Estágio 2). (Basileia NÃO é exemplo:
+      está verbatim no release do Itaú e o gate responde — gold `itau-basileia`, calibrar_gate.)
 A recusa-por-evidência (Estágio 2) depende do reranker real e é avaliada só com os modelos plugados.
 """
 from __future__ import annotations
@@ -86,9 +87,12 @@ class Slots:
 
 
 def _detectar_bancos(t: str) -> list[str]:
+    """Alias casa com FRONTEIRA DE PALAVRA, não substring: 'bb' dentro de 'BBDC4'/'Itaú BBA' detectava
+    Banco do Brasil espúrio — a pergunta virava comparação de 2 bancos que ninguém pediu, e R3 recusava
+    o verbatim do Bradesco citando o BB (3ª auditoria; ticker é o jeito natural de perguntar em equities)."""
     achados = []
     for chave, info in ENTIDADES.items():
-        if any(a in t for a in info["aliases"]):
+        if any(re.search(rf"\b{re.escape(a)}\b", t) for a in info["aliases"]):
             achados.append(chave)
     return achados
 
@@ -118,7 +122,8 @@ def _detectar_modalidade(t: str) -> tuple[str, bool]:
     """Produto do Bacen citado na pergunta (cartão, veículos, ...) e SE foi nomeado explicitamente.
     Sem match -> (MODALIDADE_FOCO, False): assumimos consignado (foco do caso), mas o `False` deixa o
     pipeline AVISAR que assumiu (mata o 'default silencioso'). O motor de cálculo é genérico."""
-    for canonico, palavras in MODALIDADES:
+    t = re.sub(r"carro[\s-]chefe", "", t)   # idiomatismo ("produto carro-chefe") não é pedido de Veículos;
+    for canonico, palavras in MODALIDADES:  # sem isto, 'carro' casava e SUPRIMIA o aviso de presunção
         if any(p in t for p in palavras):
             return canonico, True
     return MODALIDADE_FOCO, False

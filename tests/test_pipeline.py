@@ -144,6 +144,28 @@ def test_computada_nao_avisa_quando_modalidade_explicita(deps):
     assert not r.recusou and "assumi" not in r.texto
 
 
+def test_comparativo_multi_trimestre_avisa_modalidade_presumida(deps):
+    """3ª auditoria: o aviso 'assumi consignado' saía SÓ no ramo de 1 foto do comparativo; o ramo
+    principal (2+ trimestres, o da demo cross-ano) o descartava — default silencioso de volta."""
+    r = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação?", deps)
+    assert not r.recusou and "assumi consignado" in r.texto
+
+
+def test_multi_fonte_computado_avisa_modalidade_presumida(deps):
+    """3ª auditoria: o multi_fonte nunca aplicava a nota — sempre que o lado COMPUTADO entra com
+    modalidade presumida, a resposta avisa (garantia B do ADR-0005 item 14, sem exceção)."""
+    r = responder("O market share do Banco do Brasil subiu, segundo o IF.data?", deps)
+    assert not r.recusou and "assumi consignado" in r.texto
+
+
+def test_serie_de_um_ponto_nao_imprime_variacao(deps):
+    """3ª auditoria: 'share no 4T24' (janela de 1 trimestre) imprimia 'Variação (X a X): (estável)' —
+    comparação do ponto com ele mesmo, com cara de bug ao vivo."""
+    r = responder("Como evoluiu o market share do BB em consignado no 4T24?", deps)
+    assert not r.recusou and "25.0%" in r.texto
+    assert "Variação" not in r.texto and "estável" not in r.texto
+
+
 def test_r7_recusa_subproduto_no_pipeline(deps):
     """R7 ponta a ponta: número de um sub-recorte fora do IF.data (consignado INSS) recusa, não computa."""
     r = responder("Qual o market share de consignado INSS do Banco do Brasil, segundo o IF.data?", deps)

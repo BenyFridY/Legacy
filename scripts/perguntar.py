@@ -24,7 +24,8 @@ BATERIA = [
     ("FORA DE ESCOPO — receita de comida", "Qual a receita de um bolo de cenoura com cobertura de chocolate?"),
     ("FORA DE ESCOPO — conhecimento geral", "Quem ganhou a Copa do Mundo de futebol de 2022?"),
     ("FORA DE ESCOPO — outra indústria", "Qual foi a produção de petróleo da Petrobras em 2024?"),
-    ("DENTRO — métrica não ingerida (deve recusar pelo gate)", "Qual foi o índice de Basileia do Itaú no 4T25?"),
+    ("DENTRO — generaliza além do eval (deve responder: 15,2% está verbatim no doc)",
+     "Qual foi o índice de Basileia do Itaú no 4T25?"),
     ("DENTRO — sanidade (deve responder)", "Qual foi o lucro líquido recorrente do Itaú no 4T25?"),
 ]
 
