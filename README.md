@@ -214,6 +214,9 @@ Critério nº 1 do case. **Sem upload manual** — o sistema busca na fonte e in
   carteira PF por modalidade vem em `Relatório=11`; o **cadastro** mapeia cada instituição →
   **conglomerado prudencial**, e o market share é agregado **por conglomerado** (soma os vários CNPJs
   de um mesmo banco) — divisão `carteira_banco / Σ sistema` feita **em SQL**, idempotente por período.
+  **IF.data (trimestral), não SCR.data (mensal), de propósito:** o confronto declarado×computado é
+  trimestral por natureza (releases/calls são trimestrais) — granularidade mensal não adicionaria nada
+  ao Caso B e triplicaria a ingestão; o SCR é o upgrade natural se o uso pedir série mensal.
 - **Lida com a quebra do IF.data em 2025** (Res. 4.966/IFRS9): a carteira por modalidade **migrou de
   `TipoInstituicao=2` (≤2024) para `TipoInstituicao=1` (≥2025)** — e nesse nível o código já é o
   conglomerado prudencial. O cliente **escolhe o nível pelo período**, **pagina** as respostas grandes

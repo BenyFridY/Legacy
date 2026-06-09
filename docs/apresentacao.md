@@ -170,6 +170,8 @@ Medido: **over-recusa 0%**.
 > 🛡️ **Se a demo falhar (sem internet/modelo):** "Sem chave de LLM o sistema ainda **roteia, recupera, computa o número e cita** — só não redige o texto livre. A parte crítica não depende do LLM." (tenha um print/saída salvo como backup)
 > 🛡️ **Se perguntarem "isso é mocado?":** "Não — é o backend real. Roteador é regra, número é SQL sobre o Bacen, citação é anexada por código. Posso mostrar o teste, ou rodem a pergunta que quiserem."
 > 🛡️ **Se o multi-fonte não "narrar" um veredito:** "É desenho: o LLM só redige quando reconcilia com segurança; senão o sistema mostra declarado × computado **citados lado a lado** — não inventa nem recusa. A leitura (14,1% × 13,8%, ~0,3 p.p.) é imediata."
+> 🛡️ **Se perguntarem "por que IF.data e não SCR.data (mensal)?":** "Escolha deliberada: o confronto declarado×computado é **trimestral por natureza** — release e call são trimestrais. Mensal não adicionaria nada ao Caso B e triplicaria a ingestão. O SCR é o upgrade natural se o uso pedir série mensal — mesma API Olinda, mesmo store."
+> 🛡️ **Se pedirem o tom macro ENTRE ANOS (B2 do enunciado, ex.: 2023→2025):** "O corpus tem release/transcrição por trimestre e a pergunta vai pro caminho de texto; com 2+ períodos o pré-filtro de período é abandonado (fraqueza nomeada no README) — o retrieval semântico ainda recupera, mas sem garantia de cobertura de todos os trimestres. A trajetória completa pede mais transcrições ingeridas: no manifesto, é **1 linha por documento**."
 
 ---
 
