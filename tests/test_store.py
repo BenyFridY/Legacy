@@ -3,7 +3,17 @@
 import duckdb
 import pytest
 
-from legacy_rag.structured.store import SCHEMA, market_share_serie, trimestres_intervalo
+from legacy_rag.structured.store import SCHEMA, conectar, market_share_serie, trimestres_intervalo
+
+
+def test_conectar_cria_pasta_pai_em_clone_fresco(tmp_path):
+    """3ª auditoria (bootstrap): data/ é gitignored e TODOS os scripts passam o path explícito —
+    conectar() precisa criar a pasta-pai ela mesma, senão o clone do avaliador morre em IOException."""
+    db = tmp_path / "data_nova" / "sub" / "base.duckdb"   # pasta-pai NÃO existe (como num clone)
+    con = conectar(str(db))
+    con.execute("SELECT 1")
+    con.close()
+    assert db.exists()
 
 
 def _con_com_dados():

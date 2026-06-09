@@ -7,6 +7,7 @@ O market share é calculado em SQL — determinístico e auditável por re-execu
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import duckdb
 
@@ -34,8 +35,11 @@ CREATE TABLE IF NOT EXISTS cadastro (
 def conectar(path=None) -> duckdb.DuckDBPyConnection:
     """Abre (ou cria) a base DuckDB e garante o schema. path=':memory:' para testes."""
     if path is None:
-        DUCKDB_PATH.parent.mkdir(parents=True, exist_ok=True)  # cria data/ (gitignored)
         path = str(DUCKDB_PATH)
+    if path != ":memory:":
+        # cria a pasta-pai (data/ é gitignored) p/ QUALQUER chamador — os scripts reais passam o path
+        # explícito e caíam em IOException num clone fresco (3ª auditoria: o mkdir era código morto).
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(path)
     con.execute(SCHEMA)
     return con

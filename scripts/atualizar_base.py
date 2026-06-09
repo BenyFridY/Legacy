@@ -111,7 +111,10 @@ def main() -> None:
     if args.dry_run:
         print("  [dry-run] pulada (abriria o DB).")
     else:
-        validar_periodos()
+        try:
+            validar_periodos()
+        except Exception as e:   # DB ausente/tabela chunks inexistente (passo que falhou acima) -> nao
+            print(f"  ! validacao pulada ({type(e).__name__}: {e})")  # contradiz o "nao aborta" com traceback
     print("\n>>> Base atualizada." if not args.dry_run else "\n>>> Dry-run concluido (nada foi alterado).")
 
 
