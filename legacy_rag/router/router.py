@@ -13,6 +13,10 @@ Duas decisões, NESTA ordem:
        R3  pedido de citação VERBATIM ("frase literal") de entidade sem transcrição oficial na
            base. Ancorado no flag `tem_verbatim` por-entidade (não na palavra "Itaú"); e só
            dispara em "frase literal/verbatim", não em "o que declarou" (paráfrase é respondível).
+       R7  pedido do NÚMERO/share de um SUB-RECORTE fora da granularidade do IF.data (consignado
+           INSS, cheque especial, SFH...). O Bacen (carteira PF) só separa em 7 modalidades; computar
+           a modalidade-pai disfarçada de sub-produto responderia a pergunta ERRADA -> recusa honesta
+           (aponta a pai via SQL ou o release via texto). NÃO dispara em pergunta DECLARADA (texto).
 
   2) CAMINHO (se estiver no escopo):
        doc_unico   um fato em um único documento (release/MD&A).
@@ -41,7 +45,10 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 
-from legacy_rag.config import ANO_COBERTURA_MAX, ENTIDADES, MODALIDADE_FOCO, MODALIDADES
+from legacy_rag.config import (
+    ANO_COBERTURA_MAX, ENTIDADES, MODALIDADE_FOCO, MODALIDADES,
+    MODALIDADES_IFDATA_TXT, SUBPRODUTOS_FORA_IFDATA,
+)
 
 CATEGORIAS = ("doc_unico", "computada", "comparativo", "multi_fonte", "nao_respondivel")
 
@@ -68,6 +75,8 @@ class Slots:
     periodos: list[str] = field(default_factory=list)  # trimestres citados ("4t25" -> "4T25"), p/ filtro de metadados
     metrica: str = "outra"                              # rótulo grosso p/ transparência/log
     modalidade: str = MODALIDADE_FOCO                   # produto do Bacen citado (cartão, veículos...); default consignado
+    modalidade_explicita: bool = False                  # a pergunta NOMEOU o produto? (senão, assumimos consignado -> transparência)
+    subproduto_fora: str | None = None                  # sub-recorte fora da granularidade do IF.data (R7), se citado
     cita_ifdata: bool = False                           # "segundo o IF.data", "Bacen"
     declarado: bool = False                             # "declarou", "CEO", "guidance", "estratégia"
     confronto: bool = False                             # "confirmou", "subiu", "vs" — promete-vs-entrega
@@ -99,13 +108,24 @@ def _detectar_periodos(t: str) -> list[str]:
     return list(vistos)
 
 
-def _detectar_modalidade(t: str) -> str:
-    """Produto do Bacen citado na pergunta (cartão, veículos, ...). Default: MODALIDADE_FOCO (consignado).
-    O motor de cálculo é genérico (qualquer banco x qualquer modalidade); aqui escolhemos qual."""
+def _detectar_modalidade(t: str) -> tuple[str, bool]:
+    """Produto do Bacen citado na pergunta (cartão, veículos, ...) e SE foi nomeado explicitamente.
+    Sem match -> (MODALIDADE_FOCO, False): assumimos consignado (foco do caso), mas o `False` deixa o
+    pipeline AVISAR que assumiu (mata o 'default silencioso'). O motor de cálculo é genérico."""
     for canonico, palavras in MODALIDADES:
         if any(p in t for p in palavras):
-            return canonico
-    return MODALIDADE_FOCO
+            return canonico, True
+    return MODALIDADE_FOCO, False
+
+
+def _subproduto_fora_cobertura(t: str) -> str | None:
+    """Sub-recorte que o release detalha mas o IF.data NÃO separa (consignado INSS, cheque especial,
+    SFH...). Devolve o termo citado, ou None. Usado pelo gate (R7) p/ recusar o NÚMERO com honestidade
+    em vez de computar a modalidade-pai disfarçada de sub-produto."""
+    for termo in SUBPRODUTOS_FORA_IFDATA:
+        if termo in t:
+            return termo
+    return None
 
 
 def extrair_slots(pergunta: str) -> Slots:
@@ -121,12 +141,16 @@ def extrair_slots(pergunta: str) -> Slots:
     else:
         metrica = "outra"
 
+    modalidade, modalidade_explicita = _detectar_modalidade(t)
+
     return Slots(
         bancos=_detectar_bancos(t),
         anos=_detectar_anos(t),
         periodos=_detectar_periodos(t),
         metrica=metrica,
-        modalidade=_detectar_modalidade(t),
+        modalidade=modalidade,
+        modalidade_explicita=modalidade_explicita,
+        subproduto_fora=_subproduto_fora_cobertura(t),
         cita_ifdata=bool(re.search(r"if[\s.]?data|bacen", t)),
         declarado=bool(re.search(r"declar|disse|afirm|coment|\bceo\b|telecon|\bcall\b|guidance|estrateg|prometeu", t)),
         confronto=bool(re.search(r"confirm|bate com|\bvs\b|versus|subiu|caiu|aumentou|diminuiu|se confirmou", t)),
@@ -170,6 +194,16 @@ def _gate_escopo(s: Slots) -> str | None:
             return (f"R3: pedido de citação verbatim de entidade sem transcrição oficial na base "
                     f"({sem_verbatim}). Citar literalmente o que não está na base = inventar.")
 
+    # R7 — sub-recorte de produto fora da granularidade do IF.data, num pedido de NÚMERO/share. O Bacen
+    # (carteira PF) só separa em 7 modalidades; "consignado INSS", "cheque especial", "SFH" etc. não são
+    # uma delas. Computar a modalidade-pai disfarçada de sub-produto seria responder a pergunta ERRADA;
+    # recusar com motivo é o honesto (aponta a modalidade-pai via SQL, ou o release via texto). NÃO
+    # dispara em pergunta DECLARADA (texto): o release pode citar o sub-produto. Ver ADR-0005.
+    if s.subproduto_fora and (s.cita_ifdata or s.metrica == "market_share") and not s.declarado:
+        return (f"R7: '{s.subproduto_fora}' é um sub-recorte fora da granularidade do IF.data "
+                f"(carteira PF separa em: {MODALIDADES_IFDATA_TXT}). O número por sub-produto não é "
+                f"computável; posso dar a modalidade-pai (SQL) ou o que o release declara (texto).")
+
     return None
 
 
@@ -207,6 +241,7 @@ class Rota:
     metrica: str                   # rótulo grosso da métrica
     periodos: list[str] = field(default_factory=list)  # trimestres ("4T25") p/ filtro de metadados
     modalidade: str = MODALIDADE_FOCO  # produto do Bacen p/ o caminho de números (default consignado)
+    modalidade_explicita: bool = False  # a pergunta nomeou o produto? (senão, o pipeline avisa que assumiu)
     motivo_recusa: str | None = None   # preenchido quando categoria == "nao_respondivel"
 
     @property
@@ -220,6 +255,8 @@ def rotear(pergunta: str) -> Rota:
     motivo = _gate_escopo(s)
     if motivo is not None:
         return Rota("nao_respondivel", s.bancos, s.anos, s.metrica,
-                    periodos=s.periodos, modalidade=s.modalidade, motivo_recusa=motivo)
+                    periodos=s.periodos, modalidade=s.modalidade,
+                    modalidade_explicita=s.modalidade_explicita, motivo_recusa=motivo)
     return Rota(_classificar_caminho(s), s.bancos, s.anos, s.metrica,
-                periodos=s.periodos, modalidade=s.modalidade)
+                periodos=s.periodos, modalidade=s.modalidade,
+                modalidade_explicita=s.modalidade_explicita)

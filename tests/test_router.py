@@ -129,3 +129,53 @@ def test_share_computado_de_dois_bancos_vira_comparativo():
     """Contraprova: share COMPUTADO de 2 bancos (sem 'declarou') -> comparativo (cross-bank SQL)."""
     r = rotear("Compare o market share de consignado do BB com o do Itaú, segundo o IF.data.")
     assert r.categoria == "comparativo"
+
+
+# (3) -------------------------------------- R7: sub-produto fora da granularidade do IF.data
+# O IF.data (carteira PF) só separa em 7 modalidades. Pedir o NÚMERO de um sub-recorte que só existe
+# no release (consignado INSS, cheque especial, SFH...) deve RECUSAR com motivo — não computar a
+# modalidade-pai disfarçada. Mas o sub-produto DECLARADO (texto) segue respondível.
+
+def test_r7_recusa_subproduto_no_caminho_de_numero():
+    """R7: número de 'consignado INSS' (sub-recorte do consignado) não é computável no IF.data."""
+    r = rotear("Qual o market share de consignado INSS do BB, segundo o IF.data?")
+    assert r.deve_recusar and r.motivo_recusa.startswith("R7")
+
+
+def test_r7_recusa_cheque_especial():
+    """R7: 'cheque especial' não é uma das 7 modalidades do IF.data -> recusa no caminho de número."""
+    r = rotear("Qual o market share do Bradesco em cheque especial?")
+    assert r.deve_recusar and r.motivo_recusa.startswith("R7")
+
+
+def test_r7_nao_dispara_em_pergunta_declarada():
+    """R7 só barra o NÚMERO: o sub-produto DECLARADO (texto) é respondível — o release pode citá-lo.
+    É a Q6 do eval ('consignado privado/CLT que o Itaú declarou') -> segue multi_fonte, não recusa."""
+    r = rotear("O Itaú declarou crescer em consignado privado (CLT). O market share dele em consignado "
+               "subiu nos trimestres seguintes, segundo o IF.data?")
+    assert not r.deve_recusar and r.categoria == "multi_fonte"
+
+
+def test_r7_nao_dispara_sem_subproduto():
+    """Contraprova: consignado puro É uma das 7 modalidades -> não é sub-produto, não recusa por R7."""
+    r = rotear("Qual o market share do BB em consignado, segundo o IF.data?")
+    assert not r.deve_recusar and r.categoria == "computada"
+
+
+# (4) -------------------------------------- modalidade explícita x presumida (transparência)
+# Sem produto na pergunta, assumimos consignado (foco do caso), mas marcamos explicita=False para o
+# pipeline AVISAR que presumiu — mata o "default silencioso".
+
+def test_modalidade_explicita_quando_nomeada():
+    assert rotear("market share do BB em cartao, segundo o IF.data").modalidade_explicita is True
+
+
+def test_modalidade_presumida_quando_ausente():
+    r = rotear("Qual o market share do BB, segundo o IF.data?")
+    assert r.modalidade_explicita is False and r.categoria == "computada"
+
+
+def test_sinonimo_de_modalidade_amplia_recall():
+    """Sinônimo coloquial ('carro') resolve p/ Veículos em vez de cair no default consignado."""
+    r = rotear("Qual o market share do BB em financiamento de carro, segundo o IF.data?")
+    assert r.modalidade_explicita is True and "Veículos" in r.modalidade and not r.deve_recusar

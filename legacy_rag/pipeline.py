@@ -171,6 +171,14 @@ def _rotulo(modalidade: str) -> str:
     return ROTULOS_MODALIDADE.get(modalidade, modalidade)
 
 
+def _nota_modalidade(rota: Rota) -> str:
+    """Aviso de transparência quando a pergunta NÃO nomeou o produto (assumimos consignado, o foco do
+    caso). Mata o 'default silencioso': o usuário vê que a modalidade foi presumida, não detectada."""
+    if rota.modalidade_explicita:
+        return ""
+    return f"(produto não especificado; assumi {_rotulo(rota.modalidade)}) "
+
+
 def _citacao_ifdata(modalidade: str) -> str:
     return (f"Bacen IF.data, modalidade={_rotulo(modalidade)} ({modalidade}), "
             f"market share = carteira / Σ sistema (calc. em SQL)")
@@ -210,7 +218,7 @@ def _caminho_computado(rota: Rota, deps: Dependencias) -> Resposta:
                         motivo="market share não computável (banco único? conglomerado mapeado? "
                                "série na base na janela pedida?).")
     banco, serie = computado
-    return Resposta(texto=_formatar_serie(banco, rota.modalidade, serie),
+    return Resposta(texto=_nota_modalidade(rota) + _formatar_serie(banco, rota.modalidade, serie),
                     citacoes=[_citacao_ifdata(rota.modalidade)])
 
 
@@ -249,6 +257,7 @@ def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
                         motivo="os bancos não têm nenhum trimestre em comum na janela pedida -> incomparável.")
     am0, amN = comuns[0], comuns[-1]
     cit = [_citacao_ifdata(rota.modalidade)]
+    nota = _nota_modalidade(rota)                             # avisa se a modalidade foi presumida
 
     if am0 == amN:                                            # uma única foto comum -> compara NÍVEIS
         janela = f"{am0 // 100}-{am0 % 100:02d}"
@@ -259,7 +268,7 @@ def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
                     if gap >= _TOL_EMPATE_PP else f"Empate técnico entre {niveis[0][0]} e {niveis[1][0]}.")
         resumo = (f"Market share em {_rotulo(rota.modalidade)} ({janela}, Bacen IF.data, calc. em SQL) — "
                   f"{corpo}. {veredito}")
-        return Resposta(texto=resumo, citacoes=cit)
+        return Resposta(texto=nota + resumo, citacoes=cit)
 
     # janela com >=2 trimestres comuns -> compara a VARIAÇÃO sobre os MESMOS extremos (am0 -> amN)
     janela = f"{am0 // 100}-{am0 % 100:02d} a {amN // 100}-{amN % 100:02d}"

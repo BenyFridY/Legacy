@@ -117,6 +117,26 @@ pede explicitamente "fraquezas reveladas" e "como escalaria de centenas para dez
       `_caminho_multi` **não usa o LLM no ramo "só computado"** (evita ecoar um número vindo da pergunta);
       reranker **saneia NaN/inf** antes de `pstdev`/sort. Suíte total **171 verde**.
 
+14. **Modalidade honesta — sinônimos + transparência + R7 (sub-produto fora do IF.data)**
+    (`config.MODALIDADES`/`SUBPRODUTOS_FORA_IFDATA`, `router._detectar_modalidade`/`_subproduto_fora_cobertura`/
+    R7, `pipeline._nota_modalidade`, `tests/test_router.py` + `test_pipeline.py`). A classificação de
+    modalidade era um dicionário de palavras-chave com **default silencioso**: produto não reconhecido
+    caía em consignado sem avisar, e um **sub-recorte** que o release detalha mas o IF.data não separa
+    (consignado INSS, cheque especial, SFH) era computado como a **modalidade-pai** — respondendo a
+    pergunta errada. Três camadas, todas determinísticas:
+    - **(A) Recall** — mais sinônimos coloquiais (`carro`→Veículos, `casa própria`→Habitação, `agro`…),
+      reduzindo o default espúrio.
+    - **(B) Transparência** — `_detectar_modalidade` passa a devolver *se a modalidade foi nomeada*;
+      quando **presumida** (consignado), a resposta **avisa** *"(produto não especificado; assumi
+      consignado)"*. Mata o default **silencioso** com zero falso-positivo.
+    - **(C) R7** — pedir o **número/share** de um sub-recorte fora dos 7 baldes do IF.data **recusa** com
+      motivo (aponta a modalidade-pai via SQL ou o release via texto), em vez de computar a pai
+      disfarçada. **Não** dispara em pergunta **declarada** (texto pode citar o sub-produto) — guarda
+      `not declarado`, que protege a Q6 do eval (*consignado privado/CLT que o Itaú declarou* → segue
+      multi_fonte). Achado transformado em melhoria a partir do ceticismo sobre o método de palavra-chave.
+    Suíte total **181 verde** (+10). Validado em **dados reais**: *"share do BB"* → avisa + série
+    consignada; *"consignado INSS"/"cheque especial"* → R7; *"financiamento de carro"* → Veículos.
+
 ## Descoberta que virou decisão de projeto
 
 **O LLM não é determinístico nem a temperatura 0.** A mesma pergunta *"lucro líquido recorrente"*

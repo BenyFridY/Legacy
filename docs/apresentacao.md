@@ -132,6 +132,8 @@ Beny Frid · Legacy Capital · junho/2026
 - **R2 · bases incompatíveis** — cruza **IFRS × Cosif** (ex.: Nubank × Itaú) numa métrica de release.
   É **conjunção de sinais** — nunca o nome do banco — e exige os **dois lados** reais presentes.
 - **R3 · verbatim ausente** — pede a *frase literal* de quem não tem transcrição oficial na base.
+- **R7 · sub-produto fora do Bacen** — pede o *número* de um recorte que o IF.data não separa
+  (*consignado INSS*, *cheque especial*, *SFH*). Recusa apontando a modalidade-pai (SQL) ou o release.
 
 **Estágio 2 — EVIDÊNCIA** (o gate, *depois* de buscar): mesmo no escopo, se a melhor nota do reranker
 fica **< 0,60** (calibrado), recusa em vez de redigir sobre evidência fraca.

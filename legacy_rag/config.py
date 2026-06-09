@@ -27,11 +27,29 @@ MODALIDADES = [
     ("Cartão de Crédito",                    ["cartao", "cartoes"]),
     ("Empréstimo sem Consignação em Folha",  ["sem consignacao", "credito pessoal", "emprestimo pessoal"]),
     ("Empréstimo com Consignação em Folha",  ["consignado", "consignacao"]),
-    ("Habitação",                            ["habitacao", "imobiliario", "habitacional"]),
-    ("Veículos",                             ["veiculo", "veiculos", "automovel", "automoveis"]),
-    ("Rural e Agroindustrial",               ["rural", "agroindustrial", "agronegocio", "agro"]),
+    ("Habitação",                            ["habitacao", "imobiliario", "habitacional",
+                                              "casa propria", "moradia", "minha casa minha vida"]),
+    ("Veículos",                             ["veiculo", "veiculos", "automovel", "automoveis",
+                                              "carro", "carros", "automotivo", "automotiva"]),
+    ("Rural e Agroindustrial",               ["rural", "agroindustrial", "agronegocio", "agro",
+                                              "agricultura", "agricola", "agropecuaria"]),
     ("Outros Créditos",                      ["outros creditos"]),
 ]
+
+# Sub-recortes que aparecem nos RELEASES dos bancos mas NÃO existem na granularidade do IF.data
+# (carteira PF, que só separa nos 7 baldes acima). Pedir o NÚMERO/share de um destes é fora de
+# cobertura -> recusa honesta (R7), apontando a modalidade-pai (SQL) ou o release (texto). As palavras
+# chegam SEM acento (o roteador normaliza). NÃO recusa quando a pergunta é DECLARADA (texto): o release
+# pode citar o sub-produto — ver _gate_escopo/R7. Curado conservador (alta precisão, baixo falso-positivo).
+SUBPRODUTOS_FORA_IFDATA = [
+    "inss", "siape", "consignado privado", "consignado publico",   # consignado por tipo de empregador
+    "cheque especial", "rotativo",                                  # sub-linhas de cartão/cheque
+    "capital de giro", "desconto de duplicata", "antecipacao de recebiveis",  # crédito PJ (nem é PF)
+    "fies", "estudantil", "consorcio", "leasing", "home equity", "crediario",
+]
+
+# Texto legível dos 7 baldes do IF.data, para a mensagem de recusa R7.
+MODALIDADES_IFDATA_TXT = "cartão, consignado, crédito pessoal, habitação, veículos, rural e outros"
 
 ROTULOS_MODALIDADE = {        # nome técnico do Bacen -> apelido legível p/ exibição
     "Empréstimo com Consignação em Folha": "consignado",

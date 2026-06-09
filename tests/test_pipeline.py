@@ -131,6 +131,25 @@ def test_computada_detecta_modalidade_da_pergunta_cartao(deps):
     assert "Cartão de Crédito" in r.citacoes[0]
 
 
+def test_computada_avisa_quando_modalidade_presumida(deps):
+    """Transparência: pergunta SEM produto -> assume consignado, mas AVISA (mata o default silencioso)."""
+    r = responder("Qual o market share do Banco do Brasil, segundo o IF.data?", deps)
+    assert not r.recusou
+    assert "assumi consignado" in r.texto and "20.0%" in r.texto
+
+
+def test_computada_nao_avisa_quando_modalidade_explicita(deps):
+    """Contraprova: 'consignado' nomeado na pergunta -> sem aviso de presunção."""
+    r = responder("Como evoluiu o market share do BB em consignado?", deps)
+    assert not r.recusou and "assumi" not in r.texto
+
+
+def test_r7_recusa_subproduto_no_pipeline(deps):
+    """R7 ponta a ponta: número de um sub-recorte fora do IF.data (consignado INSS) recusa, não computa."""
+    r = responder("Qual o market share de consignado INSS do Banco do Brasil, segundo o IF.data?", deps)
+    assert r.recusou and r.motivo.startswith("R7")
+
+
 def test_comparativo_cross_bank_quem_ganhou_mais(deps):
     """Cross-bank: compara a série de 2 bancos (SQL) e diz quem ganhou mais share.
     BB 20->25% (+5 p.p.) vs Bradesco 14->14,2% (+0,2 p.p.) -> BB ganhou mais."""
