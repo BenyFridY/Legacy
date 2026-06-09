@@ -375,3 +375,34 @@ def test_janela_aberta_corre_ate_o_fim_da_base(deps):
     r = responder("Como evoluiu o market share do BB em consignado desde o 1T24?", deps)
     assert not r.recusou
     assert "20.0%" in r.texto and "25.0%" in r.texto               # 202403 E 202412 (não parou no 1T24)
+
+
+# ------------------------------------------ 5ª bateria adversarial
+
+def test_ranking_nomeia_as_duas_pontas_na_foto(deps):
+    """'Qual banco tem o MENOR share?' — o veredito nomeia maior E menor (antes só coroava o maior)."""
+    r = responder("Qual banco tem o menor market share em consignado no 4T24?", deps)
+    assert not r.recusou
+    assert "menor:" in r.texto and "Bradesco (14.2%)" in r.texto   # BB 25% maior; Bradesco 14,2% menor
+
+
+def test_ranking_variacao_nomeia_a_outra_ponta(deps_multiano):
+    """'Quem PERDEU mais?' — além do líder de ganho, a resposta nomeia a outra ponta com o delta dela."""
+    r = responder("Quem perdeu mais participação em consignado de 2024 a 2025, entre o Banco do Brasil "
+                  "e o Bradesco?", deps_multiano)
+    assert not r.recusou
+    assert "na outra ponta, BB (-10.0 p.p.)" in r.texto            # BB -10 é quem mais perdeu
+
+
+def test_ranking_lista_quem_ficou_sem_serie(deps):
+    """Sem corte silencioso: no ranking de todos, banco sem série na janela é NOMEADO como fora."""
+    r = responder("Qual banco teve o maior market share em consignado no 4T24?", deps)
+    assert not r.recusou and "sem série na janela:" in r.texto     # Itau/Santander/Nubank sem consignado
+
+
+def test_multi_fonte_parafrase_sem_a_palavra_share_computa(deps):
+    """5ª bateria: 'o que o CEO falou de consignado bate com o Bacen?' não traz 'share' — ainda assim
+    o lado COMPUTADO entra (modalidade explícita + métrica neutra), rotulado como share."""
+    r = responder("O que o CEO do Bradesco falou de consignado bate com o Bacen?", deps)
+    assert not r.recusou
+    assert any("IF.data" in c for c in r.citacoes)                 # o lado computado entrou

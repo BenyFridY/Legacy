@@ -277,16 +277,21 @@ def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
     am0, amN = comuns[0], comuns[-1]
     cit = [_citacao_ifdata(rota.modalidade)]
     nota = _nota_modalidade(rota)                             # avisa se a modalidade foi presumida
+    # Sem corte silencioso: banco pedido (ou do ranking) que ficou de fora por falta de série é NOMEADO.
+    fora = [b for b in rota.bancos if b not in {nome for nome, _ in series}]
+    nota_fora = f" (sem série na janela: {', '.join(fora)})" if fora else ""
 
     if am0 == amN:                                            # uma única foto comum -> compara NÍVEIS
         janela = f"{am0 // 100}-{am0 % 100:02d}"
         niveis = sorted(((b, d[am0] * 100) for b, d in series), key=lambda x: x[1], reverse=True)
         corpo = "; ".join(f"{b}: {v:.1f}%" for b, v in niveis)
         gap = niveis[0][1] - niveis[1][1]
-        veredito = (f"Maior participação em {janela}: {niveis[0][0]} (+{gap:.1f} p.p. acima de {niveis[1][0]})."
+        # O veredito nomeia AS DUAS PONTAS ("qual o MENOR share?" lia um veredito só do maior — 5ª bateria).
+        veredito = (f"Maior participação em {janela}: {niveis[0][0]} (+{gap:.1f} p.p. acima de "
+                    f"{niveis[1][0]}); menor: {niveis[-1][0]} ({niveis[-1][1]:.1f}%)."
                     if gap >= _TOL_EMPATE_PP else f"Empate técnico entre {niveis[0][0]} e {niveis[1][0]}.")
         resumo = (f"Market share em {_rotulo(rota.modalidade)} ({janela}, Bacen IF.data, calc. em SQL) — "
-                  f"{corpo}. {veredito}")
+                  f"{corpo}. {veredito}{nota_fora}")
         return Resposta(texto=nota + resumo, citacoes=cit)
 
     # janela com >=2 trimestres comuns -> compara a VARIAÇÃO sobre os MESMOS extremos (am0 -> amN)
@@ -295,13 +300,16 @@ def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
                       key=lambda x: x[1], reverse=True)        # (banco, delta_pp, ini, fim), maior variação 1º
     corpo = "; ".join(f"{b}: {ini:.1f}% -> {fim:.1f}% ({dl:+.1f} p.p.)" for b, dl, ini, fim in detalhes)
     (lider, d_lider, _, _), (segundo, d_seg, _, _) = detalhes[0], detalhes[1]
+    ultimo, d_ult = detalhes[-1][0], detalhes[-1][1]
     if abs(d_lider - d_seg) < _TOL_EMPATE_PP:
         veredito = f"Variação equivalente no período entre {lider} e {segundo} (diferença < {_TOL_EMPATE_PP:.2f} p.p.)."
     else:
+        # As duas pontas: "quem PERDEU mais?" lia um veredito que só coroava o ganhador (5ª bateria).
         verbo = "ganhou mais" if d_lider > 0 else "perdeu menos"
-        veredito = f"Quem {verbo} participação: {lider} ({d_lider - d_seg:+.1f} p.p. a mais que {segundo})."
+        veredito = (f"Quem {verbo} participação: {lider} ({d_lider - d_seg:+.1f} p.p. a mais que {segundo}); "
+                    f"na outra ponta, {ultimo} ({d_ult:+.1f} p.p.).")
     resumo = (f"Market share em {_rotulo(rota.modalidade)} ({janela}, Bacen IF.data, calc. em SQL) — "
-              f"{corpo}. {veredito}")
+              f"{corpo}. {veredito}{nota_fora}")
     return Resposta(texto=nota + resumo, citacoes=cit)   # nota TAMBÉM aqui (3ª auditoria: só o ramo
                                                          # de 1 foto avisava; este é o ramo mais comum)
 
@@ -330,10 +338,14 @@ def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
     relevantes = [r for r in resultados if r.score >= deps.limiar]
     tem_texto = len(relevantes) > 0
     # O caminho SQL só sabe computar MARKET SHARE. Numa pergunta de custo de crédito/guidance (B1),
-    # anexar a série de share de consignado seria evidência ENGANOSA -> só computa quando a métrica é share.
+    # anexar a série de share de consignado seria evidência ENGANOSA -> nunca computa nessas métricas.
+    # Computa quando a métrica É share, OU quando a pergunta nomeou a MODALIDADE sem nomear métrica
+    # ("o que o CEO falou de consignado bate com o Bacen?" — 5ª bateria: a paráfrase natural do
+    # carro-chefe não traz a palavra 'share'; a série entra ROTULADA como share, citada como cálculo).
     # Alinha pela MESMA janela de período do lado declarado (ex.: declarado no 4T25 -> computa no 4T25).
     am_ini, am_fim = _janela_da_rota(rota)
-    computado = _computar_serie(rota, deps, am_ini, am_fim) if rota.metrica == "market_share" else None
+    computa = rota.metrica == "market_share" or (rota.metrica == "outra" and rota.modalidade_explicita)
+    computado = _computar_serie(rota, deps, am_ini, am_fim) if computa else None
 
     if not tem_texto and computado is None:                 # nem declarado nem computado -> recusa
         return Resposta(texto="Não disponível na base.", recusou=True,

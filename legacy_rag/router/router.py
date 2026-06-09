@@ -175,9 +175,11 @@ def extrair_slots(pergunta: str) -> Slots:
         modalidade=modalidade,
         modalidade_explicita=modalidade_explicita,
         subproduto_fora=_subproduto_fora_cobertura(t),
-        cita_ifdata=bool(re.search(r"if[\s.]?data|bacen", t)),
-        declarado=bool(re.search(r"declar|disse|afirm|coment|\bceo\b|telecon|\bcall\b|guidance|estrateg|prometeu", t)),
-        confronto=bool(re.search(r"confirm|bate com|\bvs\b|versus|subiu|caiu|aumentou|diminuiu|se confirmou", t)),
+        cita_ifdata=bool(re.search(r"if[\s.]?data|bacen|banco central", t)),
+        declarado=bool(re.search(
+            r"declar|disse|falou|citou|afirm|coment|\bceo\b|telecon|\bcall\b|guidance|estrateg|prometeu", t)),
+        confronto=bool(re.search(
+            r"confirm|bate com|\bvs\b|versus|subiu|caiu|aumentou|diminuiu|se confirmou|entreg|cumpriu", t)),
         serie=bool(re.search(r"evolu|trajet|ao longo|ultimos|trimestres seguintes|\bserie\b", t)),
         comparacao=bool(re.search(r"\bcompar|\bvs\b|versus|em relacao a", t)),
         pede_verbatim=bool(re.search(r"frase literal|verbatim|cite a frase|transcricao (literal|verbatim)", t)),

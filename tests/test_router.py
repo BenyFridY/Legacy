@@ -326,6 +326,18 @@ def test_r8_nao_dispara_no_fato_sobre_analistas():
     assert not r.deve_recusar
 
 
+def test_parafrase_natural_do_carro_chefe_roteia_multi_fonte():
+    """5ª bateria: 'falou'/'citou' não eram DECLARADO, 'entregou' não era CONFRONTO e 'banco central'
+    (por extenso) não ligava cita_ifdata — as paráfrases naturais do carro-chefe (promessa×entrega,
+    o TÍTULO do Caso B) morriam no texto. Os três léxicos agora cobrem."""
+    r = rotear("O que o CEO do Bradesco falou de consignado bate com o Bacen?")
+    assert r.categoria == "multi_fonte"
+    r2 = rotear("O 14,2% de consignado que o Bradesco citou se confirma nos dados do banco central?")
+    assert r2.categoria == "multi_fonte"
+    r3 = rotear("O Bradesco entregou o share de consignado que prometeu?")
+    assert r3.categoria == "multi_fonte"
+
+
 def test_janela_aberta_em_trimestres_seguintes():
     """B3 do enunciado: 'disse em 2023... subiu nos trimestres SEGUINTES?' — o ano citado é ponto
     de PARTIDA (janela aberta), não moldura; 'de 2023 a 2024' segue fechada."""
