@@ -34,21 +34,30 @@ conta). Por isso o número é **exato e auditável**, e o sistema **recusa em ve
 > O case diz, com razão, que **o backend é o que importa** (UI não é avaliada). O chat abaixo é só a
 > **janela** mais rápida pra ver as rotas num lugar só:
 
+```powershell
+# pré-requisito na 1ª vez (clone fresco): pip install -r requirements.txt ; python scripts\atualizar_base.py
+$env:KMP_DUPLICATE_LIB_OK="TRUE"; $env:PYTHONPATH="."; $env:PYTHONIOENCODING="utf-8"
+python scripts\ui_demo.py
+# -> abra http://localhost:8000
+```
+
+<details><summary>no <code>cmd</code> clássico</summary>
+
 ```bat
-:: pré-requisito na 1ª vez (clone fresco): pip install -r requirements.txt && python scripts\atualizar_base.py
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 python scripts\ui_demo.py
-:: -> abra http://localhost:8000
 ```
+</details>
 
 ![Chat de demo — Legacy · Research de Equities](assets/UI.png)
 
-**Cole estas cinco perguntas** — cada uma exercita um caminho diferente (o roteador ignora acento e maiúscula):
+**Cole estas seis perguntas** — cada uma exercita um caminho diferente (o roteador ignora acento e maiúscula):
 
 | pergunta | caminho | o que prova |
 |---|---|---|
 | *Qual foi o Resultado Recorrente Gerencial do Itaú no 4T25?* | **texto** | acha e cita **R$ 12,3 bi** (pág. 8) num corpus multi-período |
-| *Qual o market share do Nubank em cartão de crédito, segundo o IF.data?* | **número genérico** | série computada em SQL — **qualquer banco × modalidade**, não só consignado |
+| *Qual o market share do Nubank em cartão de crédito no 4T25?* | **número genérico** | computado em SQL — **qualquer banco × modalidade**, não só consignado (sem precisar dizer "IF.data") |
+| *Qual banco teve o maior market share em consignado no 4T25?* | **ranking** | sem banco nomeado → compara **todos os cobertos** e elege o líder com gap em p.p. |
 | *Entre o BB e o Bradesco, quem ganhou mais participação em consignado de 2023 a 2024?* | **comparativo** | cross-bank por **janela escolhida**, gap quantificado (*BB +0,7 p.p. a mais*) |
 | *O market share de consignado do Bradesco no balanço bate com o que computamos do Bacen?* | **multi-fonte** | **declarado** (texto) × **computado** (Bacen), lado a lado |
 | *Qual será o custo de crédito do Bradesco no 2º trimestre de 2027?* | **recusa** | fora da base (futuro) → diz o **motivo**, não inventa |
@@ -169,11 +178,13 @@ lado a lado** (não inventa, não recusa). Saídas completas em [`docs/resultado
 ```
 
 **Recusa em dois estágios, por responsabilidades separadas:**
-- **Estágio 1 — escopo** (roteador): pergunta fora da cobertura → recusa *antes* de buscar. Quatro
+- **Estágio 1 — escopo** (roteador): pergunta fora da cobertura → recusa *antes* de buscar. Cinco
   portões: **R1** (período no futuro além de 2026), **R2** (cruza bases contábeis incompatíveis —
   IFRS × Cosif — como **conjunção** de sinais, **nunca** pelo nome do banco), **R3** (pede frase
   *verbatim* que não existe na base), **R7** (pede o *número* de um sub-recorte que o IF.data não
-  separa — *consignado INSS*, *cheque especial* — e aponta a modalidade-pai ou o release).
+  separa — *consignado INSS*, *cheque especial* — e aponta a modalidade-pai ou o release), **R8**
+  (pede *recomendação* de investimento — "vale a pena comprar?" — a base documenta fatos; aconselhar
+  compra/venda não é papel do sistema, e a recusa diz o que ele *pode* mostrar).
 - **Estágio 2 — evidência** (gate): mesmo no escopo, se a melhor nota do reranker fica **abaixo do
   limiar** (**0,60**, calibrado — ver *Resultados*), recusa em vez de redigir sobre evidência fraca.
 
@@ -292,7 +303,7 @@ legacy_rag/
   index/               chunking (página=âncora) · embeddings (BGE-M3, interface trocável) · store de texto (DuckDB)
   retrieval/           vetorial (cosseno) · lexical (BM25) · híbrido (RRF) · rerank (cross-encoder)
   structured/          Bacen IF.data · market share por conglomerado (SQL) · store DuckDB
-  router/              roteador determinístico (escopo R1/R2/R3/R7 + caminho)
+  router/              roteador determinístico (escopo R1/R2/R3/R7/R8 + caminho)
   generation/          gate de evidência · geração com citação estrutural · LLMClient (Groq)
   pipeline.py          orquestrador: pergunta → resposta citada ou recusa explicada
   runtime.py           fábrica única das dependências reais (modelos + DuckDB + LLM) p/ CLI e UI de demo
@@ -352,6 +363,10 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   *número* de um sub-recorte fora dos 7 baldes do IF.data (*consignado INSS*, *cheque especial*, *SFH*) —
   aponta a modalidade-pai (SQL) ou o release (texto). **Limite residual:** um sinônimo fora da lista ainda
   cai no default — mas agora **avisado**, não silencioso (ver ADR-0005, item 14).
+- **O caminho de números só computa SHARE:** *"qual a **carteira** de consignado do Itaú segundo o
+  IF.data?"* liga o SQL e devolve a série de **share** — rotulada como share (transparente), mas é
+  resposta a uma pergunta vizinha. O dado bruto (R$ da carteira) está no DB; o fix é um segundo
+  formatador atrás da mesma janela. Achado da 4ª bateria adversarial.
 - **RAG sobre tabelas:** o número *declarado* do B3 (consignado **14,1%**) vive numa **célula de
   tabela**; ao chunkar, perde cabeçalho/unidade e o LLM (corretamente) não o lê. Quando uma tabela densa
   estoura o tamanho-alvo e quebra em 2+ fichas, as fichas de continuação ficam **sem a linha de cabeçalho

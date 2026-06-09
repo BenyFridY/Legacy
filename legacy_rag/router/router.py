@@ -17,6 +17,8 @@ Duas decisões, NESTA ordem:
            INSS, cheque especial, SFH...). O Bacen (carteira PF) só separa em 7 modalidades; computar
            a modalidade-pai disfarçada de sub-produto responderia a pergunta ERRADA -> recusa honesta
            (aponta a pai via SQL ou o release via texto). NÃO dispara em pergunta DECLARADA (texto).
+       R8  pedido de RECOMENDAÇÃO de investimento ("vale a pena comprar?") -> recusa: a base documenta
+           fatos (cotação histórica, consenso de analistas no release); aconselhar compra/venda não.
 
   2) CAMINHO (se estiver no escopo):
        doc_unico   um fato em um único documento (release/MD&A).
@@ -84,6 +86,9 @@ class Slots:
     serie: bool = False                                 # "evoluiu", "últimos N trimestres", "trajetória"
     comparacao: bool = False                            # "compare ... com", "versus"
     pede_verbatim: bool = False                         # "frase literal", "transcrição verbatim"
+    superlativo: bool = False                           # "qual banco...", "maior", "lidera" — pedido de ranking
+    janela_aberta: bool = False                         # "trimestres seguintes", "desde" — janela SEM fim fixo
+    pede_recomendacao: bool = False                     # "vale a pena comprar?" — conselho de investimento (R8)
 
 
 def _detectar_bancos(t: str) -> list[str]:
@@ -97,10 +102,11 @@ def _detectar_bancos(t: str) -> list[str]:
     return achados
 
 
-# Token de trimestre nas DUAS formas usuais de RI: "4T25" E "4T2025". A forma de 4 dígitos escapava
-# das duas regexes ("2T2027" não casava nem como trimestre nem como ano solto, pois '\b(20\d{2})\b' não
-# tem fronteira entre o 't' e o '2') -> pergunta de FUTURO passava sem R1 (3ª auditoria, anti-conservador).
-_TRIMESTRE_RE = r"\b([1-4])t(20\d{2}|\d{2})\b"
+# Token de trimestre nas formas usuais de RI: "4T25"/"4T2025" E o anglo fundido "4Q25"/"4Q2025"
+# (corrente em sell-side). A forma de 4 dígitos escapava das duas regexes ("2T2027" não casava nem como
+# trimestre nem como ano solto, pois '\b(20\d{2})\b' não tem fronteira entre o 't' e o '2') -> pergunta
+# de FUTURO passava sem R1 (3ª auditoria); "4Q27" repetia a MESMA brecha pela letra (4ª bateria) -> [tq].
+_TRIMESTRE_RE = r"\b([1-4])[tq](20\d{2}|\d{2})\b"
 
 
 def _detectar_anos(t: str) -> list[int]:
@@ -118,13 +124,20 @@ def _detectar_periodos(t: str) -> list[str]:
     return list(vistos)
 
 
+def _casa_palavra(p: str, t: str) -> bool:
+    """Keyword casa com FRONTEIRA DE PALAVRA (+ plural opcional), não substring — mesma regra dos
+    aliases de banco. Sem isto, 'magro' continha 'agro' (Rural EXPLÍCITA errada, e o aviso de presunção
+    era SUPRIMIDO — a falha que motivou o caso 'carro-chefe') e 'fiesta' continha 'fies' (R7 falso)."""
+    return re.search(rf"\b{re.escape(p)}s?\b", t) is not None
+
+
 def _detectar_modalidade(t: str) -> tuple[str, bool]:
     """Produto do Bacen citado na pergunta (cartão, veículos, ...) e SE foi nomeado explicitamente.
     Sem match -> (MODALIDADE_FOCO, False): assumimos consignado (foco do caso), mas o `False` deixa o
     pipeline AVISAR que assumiu (mata o 'default silencioso'). O motor de cálculo é genérico."""
     t = re.sub(r"carro[\s-]chefe", "", t)   # idiomatismo ("produto carro-chefe") não é pedido de Veículos;
     for canonico, palavras in MODALIDADES:  # sem isto, 'carro' casava e SUPRIMIA o aviso de presunção
-        if any(p in t for p in palavras):
+        if any(_casa_palavra(p, t) for p in palavras):
             return canonico, True
     return MODALIDADE_FOCO, False
 
@@ -134,7 +147,7 @@ def _subproduto_fora_cobertura(t: str) -> str | None:
     SFH...). Devolve o termo citado, ou None. Usado pelo gate (R7) p/ recusar o NÚMERO com honestidade
     em vez de computar a modalidade-pai disfarçada de sub-produto."""
     for termo in SUBPRODUTOS_FORA_IFDATA:
-        if termo in t:
+        if _casa_palavra(termo, t):
             return termo
     return None
 
@@ -168,6 +181,11 @@ def extrair_slots(pergunta: str) -> Slots:
         serie=bool(re.search(r"evolu|trajet|ao longo|ultimos|trimestres seguintes|\bserie\b", t)),
         comparacao=bool(re.search(r"\bcompar|\bvs\b|versus|em relacao a", t)),
         pede_verbatim=bool(re.search(r"frase literal|verbatim|cite a frase|transcricao (literal|verbatim)", t)),
+        superlativo=bool(re.search(r"qual (o )?banco|que banco|\bquem\b|\bmaior\b|\bmenor\b|\blidera?\b|\branking\b", t)),
+        janela_aberta=bool(re.search(r"seguintes|\bdesde\b|a partir de", t)),
+        pede_recomendacao=bool(re.search(
+            r"vale a pena (comprar|vender|investir)|dev(o|emos) (comprar|vender|investir)"
+            r"|compro ou vendo|hora de (comprar|vender)|me recomenda (comprar|vender)", t)),
     )
 
 
@@ -205,6 +223,15 @@ def _gate_escopo(s: Slots) -> str | None:
             return (f"R3: pedido de citação verbatim de entidade sem transcrição oficial na base "
                     f"({sem_verbatim}). Citar literalmente o que não está na base = inventar.")
 
+    # R8 — pedido de RECOMENDAÇÃO de investimento ("vale a pena comprar?"). A base documenta fatos
+    # (cotação histórica, consenso de analistas publicado no release); recomendar compra/venda é opinião
+    # fora do contrato do sistema — e numa gestora, a recusa explícita é a resposta certa. Regex estreito
+    # (busca o conselho, não o fato): "quantos analistas recomendam comprar?" segue p/ o texto.
+    if s.pede_recomendacao:
+        return ("R8: pedido de recomendação de investimento. O sistema reporta o que está na base "
+                "(cotação histórica e consenso de analistas constam nos releases) — não recomenda "
+                "compra ou venda.")
+
     # R7 — sub-recorte de produto fora da granularidade do IF.data, num pedido de NÚMERO/share. O Bacen
     # (carteira PF) só separa em 7 modalidades; "consignado INSS", "cheque especial", "SFH" etc. não são
     # uma delas. Computar a modalidade-pai disfarçada de sub-produto seria responder a pergunta ERRADA;
@@ -229,15 +256,22 @@ def _classificar_caminho(s: Slots) -> str:
     # comparativo: market share COMPUTADO de 2+ bancos -> compara as séries (cross-bank), tudo em SQL.
     # `not declarado` é o mesmo desempate da Q3 (computada): share que o CEO DECLAROU é fato de TEXTO,
     # não cálculo SQL — então share declarado por 2 bancos cai no texto (doc_unico), não no comparativo.
-    if s.metrica == "market_share" and len(s.bancos) >= 2 and not s.declarado:
+    # "Pede NÚMERO do IF.data": a palavra share/participação, OU a fonte citada com a MODALIDADE
+    # nomeada ("quem lidera em cartão segundo o IF.data?"). `cita_ifdata` sozinho NÃO basta — "o que
+    # o Bacen mudou na 4.966?" é pergunta de TEXTO sobre as notas; a palavra 'Bacen' não sequestra a rota.
+    pede_numero = s.metrica == "market_share" or (s.cita_ifdata and s.modalidade_explicita)
+    # RANKING ("qual banco lidera/tem o maior share?") é comparativo SEM banco nomeado: rotear()
+    # preenche com TODOS os bancos cobertos — o motor cross-bank já elege o líder (foto e variação).
+    if pede_numero and not s.declarado and (len(s.bancos) >= 2 or (not s.bancos and s.superlativo)):
         return "comparativo"
     # multi_fonte: cruza o DECLARADO (texto) com o COMPUTADO/realizado (número).
     if s.confronto and (s.declarado or s.cita_ifdata):
         return "multi_fonte"
-    # computada: número/série do IF.data. "market share + evoluiu/série" também é número puro
-    # (não temos market share confiável em texto). O `not declarado` desempata o caso Q3:
-    # "market share que o CEO DECLAROU" tem 'market share' mas é um fato de TEXTO -> doc_unico.
-    if (s.cita_ifdata or (s.metrica == "market_share" and s.serie)) and not s.declarado:
+    # computada: número do IF.data — share PONTUAL ou série. Market share não vive confiável em texto;
+    # a 4ª bateria provou que exigir "segundo o IF.data"/"evoluiu" mandava a pergunta MAIS NATURAL do
+    # caso ("qual o share do BB no agro em 2024?") pro texto -> recusa de algo computável. O `not
+    # declarado` desempata o caso Q3: share que o CEO DECLAROU é fato de TEXTO -> doc_unico.
+    if pede_numero and not s.declarado:
         return "computada"
     return "doc_unico"
 
@@ -255,6 +289,8 @@ class Rota:
     periodos: list[str] = field(default_factory=list)  # trimestres ("4T25") p/ filtro de metadados
     modalidade: str = MODALIDADE_FOCO  # produto do Bacen p/ o caminho de números (default consignado)
     modalidade_explicita: bool = False  # a pergunta nomeou o produto? (senão, o pipeline avisa que assumiu)
+    janela_aberta: bool = False        # "trimestres seguintes"/"desde" -> a janela de números NÃO fecha no
+                                       # ano citado (a pergunta do PDF: "disse em 2023... subiu DEPOIS?")
     motivo_recusa: str | None = None   # preenchido quando categoria == "nao_respondivel"
 
     @property
@@ -270,6 +306,10 @@ def rotear(pergunta: str) -> Rota:
         return Rota("nao_respondivel", s.bancos, s.anos, s.metrica,
                     periodos=s.periodos, modalidade=s.modalidade,
                     modalidade_explicita=s.modalidade_explicita, motivo_recusa=motivo)
-    return Rota(_classificar_caminho(s), s.bancos, s.anos, s.metrica,
+    categoria = _classificar_caminho(s)
+    bancos = s.bancos
+    if categoria == "comparativo" and not bancos:
+        bancos = list(ENTIDADES)   # ranking sem banco nomeado: compara TODOS os cobertos e elege o líder
+    return Rota(categoria, bancos, s.anos, s.metrica,
                 periodos=s.periodos, modalidade=s.modalidade,
-                modalidade_explicita=s.modalidade_explicita)
+                modalidade_explicita=s.modalidade_explicita, janela_aberta=s.janela_aberta)

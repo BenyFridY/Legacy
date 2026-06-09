@@ -342,3 +342,36 @@ def test_multi_fonte_so_computado_nao_ecoa_numero_da_pergunta(deps_multiano):
     assert "99%" not in r.texto                                # não ecoou o número da pergunta
     assert len(r.citacoes) == 1 and "IF.data" in r.citacoes[0]
     assert "computado do IF.data" in r.texto                   # cabeçalho honesto do ramo só-computado
+
+
+# ------------------------------------------ 4ª bateria adversarial (véspera da entrega)
+
+def test_computada_share_pontual_sem_citar_ifdata(deps):
+    """A pergunta mais natural do caso ('qual o share de X em Y no 4T24?') chega ao SQL e responde
+    a foto única — antes ia pro texto e era recusada (4ª bateria: gold_nubank_sql)."""
+    r = responder("Qual o market share do Nubank em cartão de crédito no 4T24?", deps)
+    assert not r.recusou
+    assert "55.0%" in r.texto and "IF.data" in r.citacoes[0]
+
+
+def test_ranking_qual_banco_lidera(deps):
+    """'Qual banco teve o maior share?' -> comparativo com TODOS os cobertos; quem não tem série na
+    janela sai da conta; o motor elege o líder com gap em p.p. (4ª bateria: gold_ranking)."""
+    r = responder("Qual banco teve o maior market share em consignado no 4T24?", deps)
+    assert not r.recusou
+    assert "Maior participação" in r.texto and "BB" in r.texto      # BB 25% > Bradesco 14.2%
+
+
+def test_computada_sem_banco_explica_o_que_fazer(deps):
+    """Share sem banco nomeado (e sem 'qual banco'): a recusa diz QUEM a base cobre e sugere o
+    ranking — não o genérico 'banco único? conglomerado mapeado?' (4ª bateria: trap_caixa)."""
+    r = responder("Qual o market share da Caixa Econômica Federal em consignado no 4T24?", deps)
+    assert r.recusou and "nenhum banco coberto" in r.motivo and "lidera" in r.motivo
+
+
+def test_janela_aberta_corre_ate_o_fim_da_base(deps):
+    """'desde o 1T24' = ponto de partida, não moldura: a série corre até o fim da base (B3 do
+    enunciado: 'disse em 2023... subiu nos trimestres seguintes?')."""
+    r = responder("Como evoluiu o market share do BB em consignado desde o 1T24?", deps)
+    assert not r.recusou
+    assert "20.0%" in r.texto and "25.0%" in r.texto               # 202403 E 202412 (não parou no 1T24)

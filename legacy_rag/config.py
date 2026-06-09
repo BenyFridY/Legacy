@@ -79,9 +79,10 @@ ENTIDADES = {
     "Itau":      {"nome": "Itaú Unibanco",         "base_contabil": "cosif", "tem_verbatim": False,
                   "cod_prudencial": "C0080099", "aliases": ["itau", "itaú", "itub4", "unibanco"]},
     "Santander": {"nome": "Santander Brasil",      "base_contabil": "cosif", "tem_verbatim": False,
-                  "cod_prudencial": "C0080185", "aliases": ["santander"]},
+                  "cod_prudencial": "C0080185", "aliases": ["santander", "sanb11"]},
     "Nubank":    {"nome": "Nu Holdings (Nubank)",  "base_contabil": "ifrs",  "tem_verbatim": False,
-                  "cod_prudencial": "C0084693", "aliases": ["nubank", "nu holdings", "nu pagamentos", "roxinho"]},
+                  "cod_prudencial": "C0084693", "aliases": ["nubank", "nu holdings", "nu pagamentos",
+                                                            "roxinho", "roxo34"]},
 }
 
 # Cobertura temporal da base (ADR-0004): realizado até 4T25; guidance publicado vai até 2026.

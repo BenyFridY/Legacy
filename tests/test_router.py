@@ -241,3 +241,95 @@ def test_r7_numero_de_subproduto_com_bacen_recusa():
     """Contraprova: o MESMO sub-produto com a fonte Bacen citada -> R7 (não computável no IF.data)."""
     r = rotear("Qual o saldo de cheque especial do Itau no 4T25, segundo o Bacen?")
     assert r.deve_recusar and r.motivo_recusa.startswith("R7")
+
+
+# (7) -------------------------------------- 4ª bateria adversarial (véspera da entrega)
+# A bateria contra o pipeline REAL provou que o roteador subentregava o caminho SQL: share PONTUAL
+# ("qual o share do BB no agro em 2024?") ia pro TEXTO e era recusado, "Bacen" sequestrava pergunta
+# regulatória pro SQL, e "qual banco lidera?" não tinha caminho. Estes testes fixam os consertos.
+
+def test_share_pontual_vai_para_o_sql_sem_citar_ifdata():
+    """A pergunta MAIS NATURAL do caso ('qual o share de X em Y no 4T25?') é pedido de NÚMERO:
+    computada, mesmo sem 'segundo o IF.data' — market share não vive confiável em texto."""
+    r = rotear("Qual o market share do Nubank em cartão de crédito no 4T25?")
+    assert r.categoria == "computada" and r.bancos == ["Nubank"]
+    r2 = rotear("Qual o market share do Banco do Brasil no agro em 2024?")
+    assert r2.categoria == "computada" and r2.bancos == ["BB"] and "Rural" in r2.modalidade
+
+
+def test_bacen_sozinho_nao_sequestra_pergunta_de_texto():
+    """'O que mudou com a Resolução 4.966 do Bacen?' é pergunta de TEXTO (notas na base): a palavra
+    'Bacen' sem modalidade nomeada não pode ligar o SQL — antes recusava algo respondível."""
+    r = rotear("O que mudou com a Resolução 4.966 do Bacen?")
+    assert r.categoria == "doc_unico" and not r.deve_recusar
+
+
+def test_bacen_com_modalidade_nomeada_segue_computavel():
+    """Contraprova: 'segundo o IF.data' + modalidade nomeada continua no caminho SQL."""
+    r = rotear("Qual a carteira de consignado do Itaú segundo o IF.data?")
+    assert r.categoria == "computada"
+
+
+def test_ranking_sem_banco_vira_comparativo_de_todos():
+    """'Qual banco lidera?' não nomeia banco — o comparativo cross-bank (que já elege líder com gap
+    em p.p.) recebe TODOS os cobertos. Antes: doc_unico -> recusa de algo computável."""
+    r = rotear("Qual banco teve o maior market share em consignado no 4T25?")
+    assert r.categoria == "comparativo" and len(r.bancos) == 5
+    r2 = rotear("Quem lidera em cartão de crédito segundo o IF.data?")
+    assert r2.categoria == "comparativo" and len(r2.bancos) == 5
+
+
+def test_trimestre_anglo_4q_equivale_a_4t():
+    """'4Q25' (sell-side) = '4T25': detecta ano e período filtrável; '4Q27' dispara R1 (a MESMA
+    brecha anti-conservadora do '2T2027', pela letra)."""
+    r = rotear("Qual o lucro do Itau no 4Q25?")
+    assert r.anos == [2025] and r.periodos == ["4T25"]
+    r2 = rotear("Qual o market share do Itau no 4Q27 segundo o IF.data?")
+    assert r2.deve_recusar and r2.motivo_recusa.startswith("R1")
+
+
+def test_modalidade_exige_fronteira_de_palavra():
+    """'magro' continha 'agro' -> Rural EXPLÍCITA errada + aviso de presunção SUPRIMIDO (a falha do
+    'carro-chefe', agora pela fronteira). Com \\b: presume consignado e avisa."""
+    r = rotear("Como evoluiu o resultado magro do BB segundo o IF.data?")
+    assert r.modalidade_explicita is False and "Consigna" in r.modalidade
+
+
+def test_subproduto_exige_fronteira_de_palavra():
+    """'fiesta' continha 'fies' -> R7 falso. Com \\b: segue pro texto (gate decide)."""
+    r = rotear("Qual o market share do Itau na linha fiesta?")
+    assert not r.deve_recusar
+
+
+def test_modalidade_plural_continua_casando():
+    """A fronteira aceita plural ('cartões' -> cartão): \\b com s? opcional não derruba recall."""
+    assert rotear("share do Itau em cartoes segundo o IF.data").modalidade == "Cartão de Crédito"
+
+
+def test_tickers_santander_e_nubank():
+    """Simetria com ITUB4/BBDC4/BBAS3 (3ª auditoria): SANB11 e ROXO34 também são o jeito natural
+    de perguntar em equities."""
+    assert rotear("Qual o market share do SANB11 em veículos no 4T25?").bancos == ["Santander"]
+    assert rotear("market share do ROXO34 em cartão no 4T25").bancos == ["Nubank"]
+
+
+def test_r8_recusa_pedido_de_recomendacao():
+    """'Vale a pena comprar?' é conselho de investimento, não fato da base -> R8 (numa gestora,
+    a recusa explícita É a resposta certa)."""
+    r = rotear("Qual a cotação de BBDC4 hoje? Vale a pena comprar?")
+    assert r.deve_recusar and r.motivo_recusa.startswith("R8")
+
+
+def test_r8_nao_dispara_no_fato_sobre_analistas():
+    """Contraprova: 'quantos analistas recomendam comprar?' é FATO publicado no release -> texto."""
+    r = rotear("Quantos analistas recomendam comprar BBDC4, segundo o release?")
+    assert not r.deve_recusar
+
+
+def test_janela_aberta_em_trimestres_seguintes():
+    """B3 do enunciado: 'disse em 2023... subiu nos trimestres SEGUINTES?' — o ano citado é ponto
+    de PARTIDA (janela aberta), não moldura; 'de 2023 a 2024' segue fechada."""
+    r = rotear("O Santander disse em 2023 que ia ganhar participação em cartões. O market share "
+               "dele em cartão de crédito subiu de fato nos trimestres seguintes?")
+    assert r.janela_aberta is True and r.categoria == "multi_fonte"
+    assert rotear("Como evoluiu o share do BB de 2023 a 2024, segundo o IF.data?").janela_aberta is False

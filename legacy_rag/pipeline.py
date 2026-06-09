@@ -157,12 +157,16 @@ def _janela_da_rota(rota: Rota) -> tuple[int | None, int | None]:
     Precedência: trimestre explícito ('4T25') manda; senão ano(s) ('2024' -> ano inteiro 202401-202412;
     '2023 a 2025' -> 202301-202512); senão sem recorte (série inteira). É o que faz "...de 2023 a 2024"
     e "...de 2024 a 2025" darem respostas DIFERENTES (antes os anos eram decorativos). Ver ADR-0005.
+
+    JANELA ABERTA ("disse em 2023... subiu nos trimestres SEGUINTES?" — a pergunta B3 do enunciado):
+    o período citado é o PONTO DE PARTIDA, não a moldura — am_fim=None deixa a série correr até o fim
+    da base. Sem isso, a resposta mostrava 3T23->4T23 para uma pergunta sobre o que veio DEPOIS de 2023.
     """
     ams = [a for a in (_periodo_para_am(p) for p in rota.periodos) if a is not None]
     if ams:
-        return (min(ams), max(ams))
+        return (min(ams), None if rota.janela_aberta else max(ams))
     if rota.anos:
-        return (min(rota.anos) * 100 + 1, max(rota.anos) * 100 + 12)
+        return (min(rota.anos) * 100 + 1, None if rota.janela_aberta else max(rota.anos) * 100 + 12)
     return (None, None)
 
 
@@ -212,13 +216,26 @@ def _computar_serie(rota: Rota, deps: Dependencias, am_ini: int | None = None, a
     return (banco, serie) if serie else None
 
 
+def _motivo_nao_computavel(rota: Rota, deps: Dependencias) -> str:
+    """Diz POR QUE o share não saiu — e o que perguntar no lugar (recusa que ensina, estilo R7).
+    A 4ª bateria mostrou o motivo genérico ('banco único? conglomerado mapeado?') na cara da banca."""
+    if not rota.bancos:
+        return ("nenhum banco coberto reconhecido na pergunta — a base computa share de Itaú, Bradesco, "
+                "Banco do Brasil, Santander e Nubank (nomeie um, ou pergunte 'qual banco lidera...').")
+    if len(rota.bancos) > 1:
+        return "mais de um banco num pedido de número único — nomeie um, ou peça a comparação entre eles."
+    if not deps.mapa_prudencial.get(rota.bancos[0]):
+        return f"{rota.bancos[0]} está sem conglomerado prudencial mapeado — share não computável."
+    return (f"série de {_rotulo(rota.modalidade)} vazia na janela pedida "
+            f"(a base cobre 3T23 a 4T25 — ajuste o período).")
+
+
 def _caminho_computado(rota: Rota, deps: Dependencias) -> Resposta:
     am_ini, am_fim = _janela_da_rota(rota)                     # recorta pela janela pedida na pergunta
     computado = _computar_serie(rota, deps, am_ini, am_fim)
     if computado is None:
         return Resposta(texto="Não disponível na base.", recusou=True,
-                        motivo="market share não computável (banco único? conglomerado mapeado? "
-                               "série na base na janela pedida?).")
+                        motivo=_motivo_nao_computavel(rota, deps))
     banco, serie = computado
     return Resposta(texto=_nota_modalidade(rota) + _formatar_serie(banco, rota.modalidade, serie),
                     citacoes=[_citacao_ifdata(rota.modalidade)])

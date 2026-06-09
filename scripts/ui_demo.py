@@ -32,6 +32,7 @@ EXEMPLOS = [
     "Qual foi o Resultado Recorrente Gerencial do Itau no 4T25?",         # doc_unico (texto) - robusto
     "Qual foi o indice de Basileia do Itau no 4T25?",                      # doc_unico - fora do eval (generaliza)
     "Como evoluiu o market share do Banco do Brasil em consignado nos ultimos trimestres?",  # computada (SQL)
+    "Qual banco teve o maior market share em consignado no 4T25?",          # ranking (comparativo de todos)
     "Entre o Banco do Brasil e o Bradesco, quem ganhou mais participacao em consignado de 2023 a 2024?",  # comparativo (cross-bank, janela)
     "O market share de consignado do Bradesco no balanco bate com o que computamos do Bacen IF.data?",  # multi_fonte
     "Qual a receita de um bolo de cenoura?",                               # recusa por evidencia (fora de escopo)
@@ -97,7 +98,7 @@ PAGINA = """<!doctype html>
  <p>Retrieval ao vivo &middot; roteador deterministico &middot; citacao por construcao &middot; recusa honesta</p></div>
 </header>
 <main>
- <div id="thread"><div class="vazio">Pergunte sobre os bancos - lucro, market share, guidance, custo de credito.<br>Toda resposta vem <b>citada</b>; se nao esta na base, o sistema <b>recusa</b>.</div></div>
+ <div id="thread"><div class="vazio">Pergunte sobre os bancos - lucro, market share, guidance, custo de credito.<br>Toda resposta vem <b>citada</b>; se nao esta na base, o sistema <b>recusa</b>.<br><small>Cada pergunta e independente (sem memoria de conversa) - faca a pergunta completa.</small></div></div>
  <div class="composer">
   <div class="chips" id="chips"></div>
   <div class="row">
@@ -187,12 +188,15 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     global DEPS
-    print(">>> Carregando modelos (uma vez)...")
+    print(">>> Carregando modelos (uma vez, ~1-2 min na primeira vez)...")
     DEPS = construir_deps()
     redator = type(DEPS.llm).__name__ if DEPS.llm else "NENHUM (sem chave -> mostra evidencia citada)"
     print(f">>> Redator: {redator}")
     print(f">>> UI de demo no ar: http://localhost:{PORTA}  (Ctrl+C para parar)")
-    HTTPServer(("127.0.0.1", PORTA), Handler).serve_forever()
+    try:
+        HTTPServer(("127.0.0.1", PORTA), Handler).serve_forever()
+    except KeyboardInterrupt:    # Ctrl+C e o jeito anunciado de parar: sair limpo, sem traceback na tela
+        print("\n>>> Demo encerrada.")
 
 
 if __name__ == "__main__":

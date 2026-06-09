@@ -134,11 +134,13 @@ Beny Frid · Legacy Capital · junho/2026
 - **R3 · verbatim ausente** — pede a *frase literal* de quem não tem transcrição oficial na base.
 - **R7 · sub-produto fora do Bacen** — pede o *número* de um recorte que o IF.data não separa
   (*consignado INSS*, *cheque especial*, *SFH*). Recusa apontando a modalidade-pai (SQL) ou o release.
+- **R8 · recomendação de investimento** — *"vale a pena comprar?"* → recusa: a base documenta **fatos**
+  (cotação histórica, consenso de analistas no release, tudo citável); aconselhar compra/venda, não.
 
 **Estágio 2 — EVIDÊNCIA** (o gate, *depois* de buscar): mesmo no escopo, se a melhor nota do reranker
 fica **< 0,60** (calibrado), recusa em vez de redigir sobre evidência fraca.
 
-**Toda recusa diz o MOTIVO** (R1/R2/R3 ou "evidência fraca") — auditável, nunca um "não sei" seco.
+**Toda recusa diz o MOTIVO** (R1/R2/R3/R7/R8 ou "evidência fraca") — auditável, nunca um "não sei" seco.
 Medido: **over-recusa 0%**.
 
 > 🎤 **Fale:** "Num sistema de research, recusar não é falha — é feature. Recuso em duas camadas. Primeiro **escopo**: antes de gastar busca, o roteador vê se a pergunta cabe na base — futuro, bases contábeis incompatíveis, ou citação literal que não existe. Depois **evidência**: mesmo dentro do escopo, se o melhor trecho não passa de uma nota mínima calibrada, recuso. E toda recusa vem com o **motivo**."
@@ -158,20 +160,24 @@ Medido: **over-recusa 0%**.
 | pergunta | rota | resultado |
 |---|---|---|
 | *Resultado Recorrente Gerencial do Itaú no 4T25?* | **texto** | **R$ 12,3 bi**, citado da **pág. 8** |
-| *Market share do Nubank em cartão, segundo o IF.data?* | **número** | série SQL — **qualquer banco × modalidade** |
+| *Market share do Nubank em cartão no 4T25?* | **número** | SQL — **qualquer banco × modalidade**, sem precisar dizer "IF.data" |
+| *Qual banco teve o maior share em consignado no 4T25?* | **ranking** | sem banco nomeado → compara **todos** e elege o líder com gap em p.p. |
 | *Entre BB e Bradesco, quem ganhou mais share de consignado de 2023 a 2024?* | **comparativo** | BB **+0,7 p.p. a mais** (cross-bank, **janela escolhida**) |
 | *O share do Bradesco no balanço bate com o que computamos do Bacen?* | **multi-fonte** | declarado **14,2%** (call) / **14,1%** (release) × computado **13,8%**, **lado a lado e citados** — a confirmação (~0,3 p.p.) se lê na hora |
 | *Custo de crédito do Bradesco no 2T2027?* | **recusa** | **R1** — futuro fora da base, diz o motivo |
 
 > 🎤 **Fale:** "Agora ao vivo. [abrir o chat] **Texto**: o lucro do Itaú — ele acha na página 8 e **cita**. **Número**: market share do Nubank em cartão, computado em SQL — e repara que funciona pra **qualquer banco e produto**, não só consignado. **Comparação entre bancos numa janela de anos**: quem ganhou mais share, com o **número exato** da diferença. O **coração do Caso B**, multi-fonte: cruzo o que o Bradesco **declarou** na call com o que **computei** do Bacen — os dois lados saem **citados, lado a lado**, e a confirmação (uns 0,3 p.p. de diferença) se lê na hora. Se o redator hesitar diante das tabelas, o sistema **não inventa nem recusa**: entrega a evidência citada. E a **recusa**: pergunto o futuro, ele recusa **com o motivo**."
 >
-> 💡 **Lógica:** aqui a tese vira concreta — cada pergunta é uma rota, e a banca vê o sistema **decidir e citar** em tempo real. Tenha as 5 perguntas **coladas** num bloco de notas pra não digitar errado ao vivo.
+> 💡 **Lógica:** aqui a tese vira concreta — cada pergunta é uma rota, e a banca vê o sistema **decidir e citar** em tempo real. Tenha as 6 perguntas **coladas** num bloco de notas pra não digitar errado ao vivo. **Ritual de demo:** abra a `ui_demo` com antecedência (a carga dos modelos leva ~1-2 min e o torch importa em silêncio antes do primeiro print); **não rode** `resolver_caso`/`perguntar` com o chat aberto (DuckDB é single-writer); cada pergunta é **independente** — sem follow-up curto ("e o Bradesco?"), refaça a pergunta completa.
 >
 > 🛡️ **Se a demo falhar (sem internet/modelo):** "Sem chave de LLM o sistema ainda **roteia, recupera, computa o número e cita** — só não redige o texto livre. A parte crítica não depende do LLM." (tenha um print/saída salvo como backup)
 > 🛡️ **Se perguntarem "isso é mocado?":** "Não — é o backend real. Roteador é regra, número é SQL sobre o Bacen, citação é anexada por código. Posso mostrar o teste, ou rodem a pergunta que quiserem."
 > 🛡️ **Se o multi-fonte não "narrar" um veredito:** "É desenho: o LLM só redige quando reconcilia com segurança; senão o sistema mostra declarado × computado **citados lado a lado** — não inventa nem recusa. A leitura (14,1% × 13,8%, ~0,3 p.p.) é imediata."
 > 🛡️ **Se perguntarem "por que IF.data e não SCR.data (mensal)?":** "Escolha deliberada: o confronto declarado×computado é **trimestral por natureza** — release e call são trimestrais. Mensal não adicionaria nada ao Caso B e triplicaria a ingestão. O SCR é o upgrade natural se o uso pedir série mensal — mesma API Olinda, mesmo store."
 > 🛡️ **Se pedirem o tom macro ENTRE ANOS (B2 do enunciado, ex.: 2023→2025):** "O corpus tem release/transcrição por trimestre e a pergunta vai pro caminho de texto; com 2+ períodos o pré-filtro de período é abandonado (fraqueza nomeada no README) — o retrieval semântico ainda recupera, mas sem garantia de cobertura de todos os trimestres. A trajetória completa pede mais transcrições ingeridas: no manifesto, é **1 linha por documento**."
+> 🛡️ **Se perguntarem "vale a pena comprar?" / cotação:** "Regra **R8**: pedido de recomendação de investimento → recusa explícita. A base documenta **fatos** — cotação histórica e até o consenso de analistas publicado no release, tudo citável — mas **aconselhar compra/venda não é papel do sistema**. Numa gestora, essa recusa É a resposta certa."
+> 🛡️ **Se perguntarem dado de TEMPO REAL ("Selic hoje"):** "A base é documental e **datada** — releases trimestrais e notas do Bacen com período. 'Hoje' não existe nela: o gate de evidência recusa, ou a resposta cita **o período do documento**. Tempo real é outra classe de fonte (API de mercado), que entraria pela mesma camada de ingestão."
+> 🛡️ **Se a banca digitar a pergunta B1 do PDF ao pé da letra (Bradesco 2023):** "Recusa honesta — a janela de **texto** ingerida para a prova é 3T25→1T26 (números: 3T23→4T25). A pergunta é respondível pelo **desenho** (guidance num doc, realizado noutro — é a Q5 do eval com BB 2025); cobrir 2023 é ingestão, 1 linha por documento no manifesto."
 
 ---
 

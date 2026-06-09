@@ -91,5 +91,9 @@ def criar_llm(provider: str | None = None) -> LLMClient | None:
     """
     provider = (provider or os.getenv("LLM_PROVIDER") or "claude_code").strip()
     if provider == "groq_free":
-        return GroqClient()
+        # Botões de DEMO (opcionais, .env): com o Groq PENDURADO (não caído), o pior caso padrão é
+        # 4 tentativas x 60s + backoff = minutos de spinner na frente da banca. GROQ_TIMEOUT_S=20 e
+        # GROQ_MAX_TENTATIVAS=2 cortam isso p/ ~45s; sem as variáveis, nada muda (defaults atuais).
+        return GroqClient(timeout=int(os.getenv("GROQ_TIMEOUT_S", "60")),
+                          max_tentativas=int(os.getenv("GROQ_MAX_TENTATIVAS", str(GROQ_MAX_TENTATIVAS))))
     return None
