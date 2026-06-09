@@ -160,15 +160,16 @@ Medido: **over-recusa 0%**.
 | *Resultado Recorrente Gerencial do Itaú no 4T25?* | **texto** | **R$ 12,3 bi**, citado da **pág. 8** |
 | *Market share do Nubank em cartão, segundo o IF.data?* | **número** | série SQL — **qualquer banco × modalidade** |
 | *Entre BB e Bradesco, quem ganhou mais share de consignado de 2023 a 2024?* | **comparativo** | BB **+0,7 p.p. a mais** (cross-bank, **janela escolhida**) |
-| *O share do Bradesco no balanço bate com o que computamos do Bacen?* | **multi-fonte** | declarado **14,2%** (call) / **14,1%** (release) × computado **13,8%** → **confirma** |
+| *O share do Bradesco no balanço bate com o que computamos do Bacen?* | **multi-fonte** | declarado **14,2%** (call) / **14,1%** (release) × computado **13,8%**, **lado a lado e citados** — a confirmação (~0,3 p.p.) se lê na hora |
 | *Custo de crédito do Bradesco no 2T2027?* | **recusa** | **R1** — futuro fora da base, diz o motivo |
 
-> 🎤 **Fale:** "Agora ao vivo. [abrir o chat] **Texto**: o lucro do Itaú — ele acha na página 8 e **cita**. **Número**: market share do Nubank em cartão, computado em SQL — e repara que funciona pra **qualquer banco e produto**, não só consignado. **Comparação entre bancos numa janela de anos**: quem ganhou mais share, com o **número exato** da diferença. O **coração do Caso B**, multi-fonte: cruzo o que o Bradesco **declarou** na call com o que **computei** do Bacen — e digo se bate. E a **recusa**: pergunto o futuro, ele recusa **com o motivo**."
+> 🎤 **Fale:** "Agora ao vivo. [abrir o chat] **Texto**: o lucro do Itaú — ele acha na página 8 e **cita**. **Número**: market share do Nubank em cartão, computado em SQL — e repara que funciona pra **qualquer banco e produto**, não só consignado. **Comparação entre bancos numa janela de anos**: quem ganhou mais share, com o **número exato** da diferença. O **coração do Caso B**, multi-fonte: cruzo o que o Bradesco **declarou** na call com o que **computei** do Bacen — os dois lados saem **citados, lado a lado**, e a confirmação (uns 0,3 p.p. de diferença) se lê na hora. Se o redator hesitar diante das tabelas, o sistema **não inventa nem recusa**: entrega a evidência citada. E a **recusa**: pergunto o futuro, ele recusa **com o motivo**."
 >
 > 💡 **Lógica:** aqui a tese vira concreta — cada pergunta é uma rota, e a banca vê o sistema **decidir e citar** em tempo real. Tenha as 5 perguntas **coladas** num bloco de notas pra não digitar errado ao vivo.
 >
 > 🛡️ **Se a demo falhar (sem internet/modelo):** "Sem chave de LLM o sistema ainda **roteia, recupera, computa o número e cita** — só não redige o texto livre. A parte crítica não depende do LLM." (tenha um print/saída salvo como backup)
 > 🛡️ **Se perguntarem "isso é mocado?":** "Não — é o backend real. Roteador é regra, número é SQL sobre o Bacen, citação é anexada por código. Posso mostrar o teste, ou rodem a pergunta que quiserem."
+> 🛡️ **Se o multi-fonte não "narrar" um veredito:** "É desenho: o LLM só redige quando reconcilia com segurança; senão o sistema mostra declarado × computado **citados lado a lado** — não inventa nem recusa. A leitura (14,1% × 13,8%, ~0,3 p.p.) é imediata."
 
 ---
 
@@ -184,7 +185,7 @@ Medido: **over-recusa 0%**.
 
 **Fidelidade** (faithfulness, juiz LLM **independente** — gpt-oss-120b ≠ gerador): **6/6** sustentadas
 
-**Gate** calibrado: **0,60** é o joelho medido (0% vazamento, 0% over-recusa). **171 testes** de fluxo (sem rede/modelo).
+**Gate** calibrado: **0,60** é o joelho medido (0% vazamento, 0% over-recusa). **196 testes** de fluxo (sem rede/modelo).
 
 > **O eval pegou um bug real:** um documento rotulado "Bradesco 3T25" era, na verdade, o release de
 > **4T19** (URL errada na fonte). O hit@3 caiu, investiguei, troquei a URL — e subiu **77% → 82%**.

@@ -172,7 +172,7 @@ def extrair_slots(pergunta: str) -> Slots:
 
 
 # --------------------------------------------------------------------------
-# Estágio 1 — gate de escopo (R1/R2/R3). Devolve o MOTIVO da recusa, ou None.
+# Estágio 1 — gate de escopo (R1/R2/R3/R7). Devolve o MOTIVO da recusa, ou None.
 # --------------------------------------------------------------------------
 
 _METRICAS_RELEASE_COSIF = {"guidance", "custo_credito"}  # só existem no release/Cosif
@@ -209,7 +209,9 @@ def _gate_escopo(s: Slots) -> str | None:
     # (carteira PF) só separa em 7 modalidades; "consignado INSS", "cheque especial", "SFH" etc. não são
     # uma delas. Computar a modalidade-pai disfarçada de sub-produto seria responder a pergunta ERRADA;
     # recusar com motivo é o honesto (aponta a modalidade-pai via SQL, ou o release via texto). NÃO
-    # dispara em pergunta DECLARADA (texto): o release pode citar o sub-produto. Ver ADR-0005.
+    # dispara em pergunta DECLARADA (texto): o release pode citar o sub-produto. FRONTEIRA por desenho:
+    # número de sub-produto SEM citar IF.data/share ("saldo de cheque especial do Itaú?") segue para o
+    # TEXTO — o release traz o saldo e o gate decide; R7 só protege o caminho COMPUTADO. Ver ADR-0005.
     if s.subproduto_fora and (s.cita_ifdata or s.metrica == "market_share") and not s.declarado:
         return (f"R7: '{s.subproduto_fora}' é um sub-recorte fora da granularidade do IF.data "
                 f"(carteira PF separa em: {MODALIDADES_IFDATA_TXT}). O número por sub-produto não é "

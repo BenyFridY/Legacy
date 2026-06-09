@@ -1,7 +1,7 @@
 """Testes do roteador determinístico (sem rede, sem modelo).
 
 Dois blocos:
-  (1) AS 11 PERGUNTAS DO EVAL — cada uma deve cair na categoria certa e no comportamento
+  (1) AS 12 PERGUNTAS DO EVAL — cada uma deve cair na categoria certa e no comportamento
       (answer/refuse) que o eval/questions.yaml espera.
   (2) CASOS-FRONTEIRA levantados pelos críticos adversariais — provam que as armadilhas
       (over-refusal do Nubank/Santander; verbatim x paráfrase; futuro sutil) estão tratadas.
@@ -12,9 +12,12 @@ import pytest
 from legacy_rag.router.router import rotear
 
 
-# (1) ---------------------------------------------------------------- as 11 do eval
+# (1) ---------------------------------------------------------------- as 12 do eval
 # (id, pergunta, categoria_esperada, deve_recusar)
-ONZE = [
+DOZE = [
+    ("bradesco-tom-macro-3t25",
+     "Qual o tom do Bradesco sobre a economia brasileira e o crédito na teleconferência de "
+     "resultados do 3T25?", "doc_unico", False),
     ("bb-custo-credito-realizado-2025",
      "Qual foi o custo do crédito realizado pelo Banco do Brasil em 2025?", "doc_unico", False),
     ("itau-guidance-custo-credito-2026",
@@ -46,8 +49,8 @@ ONZE = [
 ]
 
 
-@pytest.mark.parametrize("qid,pergunta,categoria,recusa", ONZE, ids=[q[0] for q in ONZE])
-def test_roteamento_das_11(qid, pergunta, categoria, recusa):
+@pytest.mark.parametrize("qid,pergunta,categoria,recusa", DOZE, ids=[q[0] for q in DOZE])
+def test_roteamento_das_12(qid, pergunta, categoria, recusa):
     r = rotear(pergunta)
     assert r.categoria == categoria, f"{qid}: esperava {categoria}, veio {r.categoria} ({r.motivo_recusa})"
     assert r.deve_recusar == recusa, f"{qid}: deve_recusar esperado {recusa}, veio {r.deve_recusar}"
@@ -136,9 +139,10 @@ def test_r2_so_dispara_com_os_dois_lados_de_base():
 
 
 def test_share_declarado_de_dois_bancos_nao_vira_comparativo():
-    """#248: market share que os CEOs DECLARARAM é fato de TEXTO -> doc_unico, não o comparativo SQL."""
+    """#248: market share que os CEOs DECLARARAM é fato de TEXTO -> doc_unico, não o comparativo SQL.
+    Assert FORTE (3ª auditoria): '!= comparativo' aceitava over-recusa ou rota computada como sucesso."""
     r = rotear("Qual market share de consignado o CEO do Bradesco e o do Itaú declararam na teleconferência?")
-    assert r.categoria != "comparativo"
+    assert r.categoria == "doc_unico" and not r.deve_recusar
 
 
 def test_share_computado_de_dois_bancos_vira_comparativo():

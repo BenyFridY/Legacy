@@ -32,21 +32,24 @@ conta). Por isso o número é **exato e auditável**, e o sistema **recusa em ve
 ### Ver funcionando em 30 segundos
 
 > O case diz, com razão, que **o backend é o que importa** (UI não é avaliada). O chat abaixo é só a
-> **janela** mais rápida pra ver os quatro caminhos num lugar só:
+> **janela** mais rápida pra ver as rotas num lugar só:
 
 ```bat
+:: pré-requisito na 1ª vez (clone fresco): pip install -r requirements.txt && python scripts\atualizar_base.py
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
-python scripts\ui_demo.py        :: abra http://localhost:8000
+python scripts\ui_demo.py
+:: -> abra http://localhost:8000
 ```
 
 ![Chat de demo — Legacy · Research de Equities](assets/UI.png)
 
-**Cole estas quatro perguntas** — cada uma exercita um caminho diferente (o roteador ignora acento e maiúscula):
+**Cole estas cinco perguntas** — cada uma exercita um caminho diferente (o roteador ignora acento e maiúscula):
 
 | pergunta | caminho | o que prova |
 |---|---|---|
 | *Qual foi o Resultado Recorrente Gerencial do Itaú no 4T25?* | **texto** | acha e cita **R$ 12,3 bi** (pág. 8) num corpus multi-período |
 | *Qual o market share do Nubank em cartão de crédito, segundo o IF.data?* | **número genérico** | série computada em SQL — **qualquer banco × modalidade**, não só consignado |
+| *Entre o BB e o Bradesco, quem ganhou mais participação em consignado de 2023 a 2024?* | **comparativo** | cross-bank por **janela escolhida**, gap quantificado (*BB +0,7 p.p. a mais*) |
 | *O market share de consignado do Bradesco no balanço bate com o que computamos do Bacen?* | **multi-fonte** | **declarado** (texto) × **computado** (Bacen), lado a lado |
 | *Qual será o custo de crédito do Bradesco no 2º trimestre de 2027?* | **recusa** | fora da base (futuro) → diz o **motivo**, não inventa |
 
@@ -150,26 +153,27 @@ lado a lado** (não inventa, não recusa). Saídas completas em [`docs/resultado
                     ┌────────▼─────────┐
                     │  ROTEADOR (regras)│  Estágio 1: escopo + caminho
                     └────────┬─────────┘
-        ┌─────────────┬──────┴───────┬──────────────────┐
-        ▼             ▼              ▼                  ▼
-  não_respondível  doc_unico      computada         multi_fonte
-   (recusa por    (texto:        (números:          (cruza
-    escopo,        híbrido+       market share        DECLARADO no
-    com motivo)    rerank +       em SQL,             texto  ×
-                   gate de        determinístico,     COMPUTADO no
-                   evidência →    auditável)          IF.data; LLM
-                   LLM redige)                        reconcilia)
-                        │
-                  Estágio 2: nota do reranker < limiar → recusa
-                        │
-                  citação ESTRUTURAL anexada por código (dedup)
+       ┌──────────────┬──────┴─────┬─────────────┬──────────────┐
+       ▼              ▼            ▼             ▼              ▼
+ não_respondível  doc_unico    computada    comparativo    multi_fonte
+  (recusa por    (texto:      (números:    (share de 2+   (cruza
+   escopo,        híbrido+     market       bancos, tudo   DECLARADO no
+   com motivo)    rerank +     share em     em SQL:        texto  ×
+                  gate de      SQL, deter-  janela comum,  COMPUTADO no
+                  evidência →  minístico,   gap em p.p.,   IF.data; LLM
+                  LLM redige)  auditável)   empate)        reconcilia)
+                      │
+                 Estágio 2: nota do reranker < limiar → recusa
+                      │
+                 citação ESTRUTURAL anexada por código (dedup)
 ```
 
 **Recusa em dois estágios, por responsabilidades separadas:**
-- **Estágio 1 — escopo** (roteador): pergunta fora da cobertura → recusa *antes* de buscar. Três
+- **Estágio 1 — escopo** (roteador): pergunta fora da cobertura → recusa *antes* de buscar. Quatro
   portões: **R1** (período no futuro além de 2026), **R2** (cruza bases contábeis incompatíveis —
   IFRS × Cosif — como **conjunção** de sinais, **nunca** pelo nome do banco), **R3** (pede frase
-  *verbatim* que não existe na base).
+  *verbatim* que não existe na base), **R7** (pede o *número* de um sub-recorte que o IF.data não
+  separa — *consignado INSS*, *cheque especial* — e aponta a modalidade-pai ou o release).
 - **Estágio 2 — evidência** (gate): mesmo no escopo, se a melhor nota do reranker fica **abaixo do
   limiar** (**0,60**, calibrado — ver *Resultados*), recusa em vez de redigir sobre evidência fraca.
 
@@ -231,28 +235,43 @@ Stack **100% open/free**, sem chave paga no caminho crítico — ver [ADR-0003](
 ```bat
 python -m venv .venv && .venv\Scripts\activate
 pip install -r requirements.txt
-copy .env.example .env          :: opcional: LLM_PROVIDER=groq_free + GROQ_API_KEY p/ a síntese
+:: opcional: LLM_PROVIDER=groq_free + GROQ_API_KEY no .env p/ a síntese
+copy .env.example .env
 
-:: no Windows, prefixe os scripts pesados com estas 3 variáveis (carrega torch sem conflito de OpenMP):
+:: no Windows, prefixe os scripts pesados com estas 3 variáveis (carrega torch sem conflito de OpenMP)
+:: (em PowerShell: $env:KMP_DUPLICATE_LIB_OK='TRUE'; $env:PYTHONPATH='.'; $env:PYTHONIOENCODING='utf-8')
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 
-python -m pytest -q                      :: 181 testes — sem rede, sem torch, sem chave (fakes)
-python -m legacy_rag.eval.runner         :: matriz de recusa-por-escopo (sem modelo)
-python scripts\atualizar_base.py         :: UM comando: liga a base (numeros + texto, idempotente) + valida periodos
-python scripts\atualizar_base.py --de 2024T1 --ate 2025T4          :: escolhe a JANELA de trimestres dos numeros
-python scripts\atualizar_base.py --de 2024T1 --ate 2025T4 --dry-run :: so PREVE (nao baixa, nao grava)
-::  ^ (chama os dois abaixo; rode-os direto se quiser so um lado)
-python scripts\ingerir_numeros.py        :: alimenta carteira_pf + cadastro (Bacen IF.data; aceita --de/--ate)
-python scripts\ingerir_corpus.py         :: alimenta a base de TEXTO pelo manifesto (11 docs, 5 fontes)
-python scripts\eval_retrieval_real.py    :: hit@k / MRR reais (ciente de período)
-python scripts\calibrar_gate.py          :: calibra o limiar do gate (over-recusa × vazamento → joelho)
-python scripts\eval_fidelidade_real.py   :: faithfulness com juiz INDEPENDENTE (Groq)
-python scripts\resolver_caso.py          :: resolve o Caso B ponta a ponta (LLM real, se .env tiver chave)
-python scripts\perguntar.py "..."        :: pergunta LIVRE: mostra a rota + resposta citada ou recusa
-python scripts\ui_demo.py                :: UI de demo local (http://localhost:8000) — extra p/ apresentação
+:: 196 testes — sem rede, sem torch, sem chave (fakes)
+python -m pytest -q
+:: matriz de recusa-por-escopo (sem modelo)
+python -m legacy_rag.eval.runner
+:: UM comando: liga a base (numeros + texto, idempotente) + valida periodos
+:: aceita --de 2024T1 --ate 2025T4 (janela de trimestres) e --dry-run (so PREVE: nao baixa, nao grava)
+python scripts\atualizar_base.py
+:: ^ chama os dois abaixo; rode-os direto se quiser so um lado
+:: ingestão por lado: números (carteira_pf + cadastro, Bacen IF.data; aceita --de/--ate)
+python scripts\ingerir_numeros.py
+:: ... e texto (base pelo manifesto: 11 docs, 5 fontes)
+python scripts\ingerir_corpus.py
+:: hit@k / MRR reais (ciente de período)
+python scripts\eval_retrieval_real.py
+:: calibra o limiar do gate (over-recusa × vazamento → joelho)
+python scripts\calibrar_gate.py
+:: faithfulness com juiz INDEPENDENTE (Groq)
+python scripts\eval_fidelidade_real.py
+:: resolve o Caso B ponta a ponta (LLM real, se .env tiver chave)
+python scripts\resolver_caso.py
+:: pergunta LIVRE: mostra a rota + resposta citada ou recusa
+python scripts\perguntar.py "..."
+:: UI de demo local (http://localhost:8000) — extra p/ apresentação
+python scripts\ui_demo.py
 ```
 
-Os **181 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+> ⚠️ **DuckDB é single-writer:** feche o chat (`ui_demo.py`) antes de rodar qualquer outro script —
+> dois processos no mesmo `data/legacy.duckdb` dão `IOException` (só `--dry-run` não abre o DB).
+
+Os **196 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -286,8 +305,8 @@ docs/
   conceitos/           5 docs didáticos (RAG, embeddings, BM25/híbrida, números/SQL, arquitetura do código)
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
-scripts/               ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 23 arquivos · 181 testes
+scripts/               atualizar_base · ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
+tests/                 23 arquivos · 196 testes
 ```
 
 ---
@@ -340,6 +359,22 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   ainda não ingeridas (R6) caem hoje no Estágio 2 (gate), não numa regra dedicada.
 - **Dedup só por (banco, período, tipo_doc):** falta dedup por **hash de conteúdo** para reingestão em
   escala (mesmo arquivo, URL diferente) — projetado, não construído.
+- **Janela mista ano+trimestre colapsa para o trimestre:** em *"de 2023 até o 4T25"* a precedência
+  "trimestre manda" descarta o 2023 — a resposta rotula a janela usada (mitiga), mas responde uma
+  pergunta mais estreita. Fix: combinar ano solto + trimestre na janela (3ª auditoria).
+- **Comparação textual cross-bank cai no texto sem pré-filtro:** *"compare o custo de crédito do BB
+  com o do Bradesco"* não é o comparativo SQL (que é só share computado) — vai pro doc_unico com
+  retrieval misto dos 2 bancos, sem garantia de cobertura dos dois lados. Decisão de desenho
+  (número comparável = SQL); o fix futuro é um ramo multi-doc por banco.
+- **Citação = contexto integral entregue ao LLM:** no doc_unico, as fontes listam todo o top-5 que o
+  LLM viu — o gate exige que a *melhor* nota passe 0,60, não todas (1-2 páginas marginais, 0,54-0,59,
+  podem aparecer). É transparência do grounding (o multi_fonte, com k=10, filtra por nota antes).
+- **Ingestão não-atômica:** `DELETE`+`executemany` sem transação — um crash no meio do INSERT deixa o
+  período parcial, e a reexecução o pula ("já presente"); o denominador do share sairia silenciosamente
+  menor. Não afeta a base atual (validada íntegra); fix: `BEGIN/COMMIT` na carga (3ª auditoria).
+- **Guardas de borda do SQL:** denominador zero viraria share `NaN` (implausível no IF.data real —
+  sistema na casa de centenas de bilhões); a paginação do Olinda para cedo se uma página *inteira* for
+  duplicada (anti-loop deliberado; respostas atuais têm ~2 páginas). Registrados, sem guarda dedicada.
 - **Faithfulness em n pequeno:** já com **juiz independente** (gpt-oss-120b ≠ gerador) e `n=6` em 4
   bancos (6/6); ainda assim é amostra pequena — produção pede `n` maior e mais bancos/períodos.
 

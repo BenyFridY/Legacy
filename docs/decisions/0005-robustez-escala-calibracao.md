@@ -137,6 +137,29 @@ pede explicitamente "fraquezas reveladas" e "como escalaria de centenas para dez
     Suíte total **181 verde** (+10). Validado em **dados reais**: *"share do BB"* → avisa + série
     consignada; *"consignado INSS"/"cheque especial"* → R7; *"financiamento de carro"* → Veículos.
 
+15. **3ª auditoria adversarial (44 agentes, 7 dimensões; 36 achados confirmados) → 3 levas de correção**
+    (`router`, `pipeline`, `store`, `ui_demo`, `answer`, testes). Os consertos, por grupo:
+    - **Demo:** token de trimestre aceita **ano de 4 dígitos** (*"2T2027"* escapava das DUAS regexes —
+      anos=[] desarmava R1 *e* a trava de aterramento: a pergunta-recusa do roteiro **não recusava**;
+      falha anti-conservadora na regra inegociável). *"4T2025"* agora também vira período `4T25`.
+      Badge CSS da rota `comparativo` (renderizava branco-sobre-branco). **Falha do redator** (rede,
+      429, chave) cai na MESMA degradação do "sem chave" — evidência citada — em vez de "Erro:" cru
+      (try/except nas 2 chamadas; o README já prometia isso).
+    - **Clone do avaliador:** `conectar()` cria a pasta-pai para **qualquer** path (o mkdir era código
+      morto: só rodava com path=None e todos os scripts passam o path explícito → IOException num
+      clone fresco); guarda na validação do `atualizar_base`; pré-requisito de ingestão no quickstart.
+    - **Q&A ao vivo:** aliases de banco casam com **fronteira de palavra** (*"BBDC4"* continha "bb" →
+      detectava BB+Bradesco e virava comparação não pedida; *"Itaú BBA"* idem); *"carro-chefe"* é
+      idiomatismo, não pedido de Veículos (casava "carro" como explícita e **suprimia o aviso** de
+      presunção); o aviso "assumi consignado" agora cobre **todos** os ramos (o replace_all do item 14
+      só pegara o return de 1 foto; o ramo principal do comparativo e o multi_fonte ficavam mudos);
+      série de **1 ponto** sem a frase "Variação (X a X): estável"; rótulo da Basileia no
+      `perguntar.py` corrigido (o gold calibrado espera RESPOSTA — 15,2% verbatim).
+    - **Consistência:** diagrama do README com as **5 rotas**; "Quatro portões" (R1/R2/R3/R7); slide
+      do eval com a contagem certa; slide 6 alinhado ao comportamento real do multi_fonte (evidência
+      lado a lado; o "confirma" é leitura, não saída); lista `DOZE` cobre as 12 do eval; assert fraco
+      reforçado; numpy declarado/pdfplumber comentado. Suíte total **196 verde** (+15).
+
 ## Descoberta que virou decisão de projeto
 
 **O LLM não é determinístico nem a temperatura 0.** A mesma pergunta *"lucro líquido recorrente"*
@@ -172,6 +195,19 @@ peça menos crítica da nota. É também o "o que me surpreendeu" da apresentaç
 - **Detecção de ano sem guarda no roteador:** `\b(20\d{2})\b` pode capturar o ano dentro de uma máscara de
   CNPJ (`/2026-`); contrived (exige CNPJ + métrica na pergunta) e o modo de falha é conservador (recusa,
   não inventa), mas a assimetria com `pipeline._documenta_ano` está nomeada.
+- **Janela mista ano+trimestre:** *"de 2023 até o 4T25"* colapsa para o trimestre (precedência
+  "trimestre manda" descarta o ano solto); a resposta rotula a janela usada, mas é mais estreita que a
+  pedida. Fix: combinar ano solto + trimestre em `_janela_da_rota` (3ª auditoria).
+- **Comparação textual cross-bank de métrica de release:** *"compare o custo de crédito do BB com o do
+  Bradesco"* cai no doc_unico sem pré-filtro por banco (o comparativo SQL é só share computado) — sem
+  garantia de cobertura dos dois lados. Decisão de desenho; fix futuro: ramo multi-doc por banco.
+- **Ingestão não-atômica:** `DELETE`+`executemany` sem transação (carteira, cadastro e chunks): crash no
+  meio do INSERT deixa período/doc **parcial**, e o skip de idempotência o congela. Base atual validada
+  íntegra; fix: `BEGIN/COMMIT` com rollback.
+- **Bordas do SQL e da paginação:** denominador zero → share `NaN` (implausível com IF.data real);
+  paginação do Olinda para cedo se uma página **inteira** vier duplicada (guarda anti-loop deliberada).
+- **DuckDB é single-writer:** chat aberto + qualquer script no mesmo `.duckdb` → `IOException` imediata
+  (nada corrompe). Regra de runbook no README: fechar o chat antes de rodar scripts (`--dry-run` é seguro).
 - **Valores pendentes de re-execução:** o **delta** do fallback do reranker no hit@k/MRR e o **joelho** do
   gate são medidos pelos scripts reais (documentados em `docs/resultados-eval.md` quando rodados).
 
