@@ -32,6 +32,7 @@ EXEMPLOS = [
     "Qual foi o Resultado Recorrente Gerencial do Itau no 4T25?",         # doc_unico (texto) - robusto
     "Qual foi o indice de Basileia do Itau no 4T25?",                      # doc_unico - fora do eval (generaliza)
     "Como evoluiu o market share do Banco do Brasil em consignado nos ultimos trimestres?",  # computada (SQL)
+    "Entre o Banco do Brasil e o Bradesco, quem ganhou mais participacao em consignado de 2023 a 2024?",  # comparativo (cross-bank, janela)
     "O market share de consignado do Bradesco no balanco bate com o que computamos do Bacen IF.data?",  # multi_fonte
     "Qual a receita de um bolo de cenoura?",                               # recusa por evidencia (fora de escopo)
     "Qual sera o custo de credito do Bradesco no 2o trimestre de 2027?",   # recusa por escopo (R1, roteador)
@@ -67,7 +68,7 @@ PAGINA = """<!doctype html>
        max-width:88%;box-shadow:0 4px 18px rgba(20,38,31,.08)}
  .badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700;color:#fff;
         letter-spacing:.5px;text-transform:uppercase}
- .doc_unico{background:#2563eb}.computada{background:#0d9488}.multi_fonte{background:#7c3aed}.nao_respondivel{background:#d97706}
+ .doc_unico{background:#2563eb}.computada{background:#0d9488}.comparativo{background:#0e7490}.multi_fonte{background:#7c3aed}.nao_respondivel{background:#d97706}
  .meta{font-size:12px;color:var(--suave);margin:11px 0 4px}
  .resp{white-space:pre-wrap;font-size:15px;line-height:1.55;margin-top:4px}
  .recusa{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:13px;color:#9a3412;font-size:14.5px}

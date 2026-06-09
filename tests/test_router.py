@@ -60,6 +60,22 @@ def test_motivo_de_recusa_e_explicavel():
     assert rotear("Cite a frase literal do CEO do Itaú no 4T25.").motivo_recusa.startswith("R3")
 
 
+def test_trimestre_com_ano_de_4_digitos_equivale_ao_de_2():
+    """'4T2025' (forma comum nos releases de RI) = '4T25': detecta o ANO e o PERÍODO filtrável.
+    Antes, '4t2025' escapava das duas regexes (3ª auditoria) e perdia ano + filtro de metadados."""
+    r = rotear("Qual o lucro do Itau no 4T2025?")
+    assert r.anos == [2025] and r.periodos == ["4T25"]
+
+
+def test_futuro_em_trimestre_de_4_digitos_recusa_r1():
+    """Anti-conservador fechado (3ª auditoria): '2T2027'/'4T2027' não casavam ano nenhum -> a pergunta
+    de FUTURO ia para o texto em vez de R1 (era a pergunta-recusa do roteiro da demo, como escrita)."""
+    r = rotear("Custo de crédito do Bradesco no 2T2027?")
+    assert r.deve_recusar and r.motivo_recusa.startswith("R1")
+    r2 = rotear("Qual será o market share de consignado do BB no 4T2027, segundo o IF.data?")
+    assert r2.deve_recusar and r2.motivo_recusa.startswith("R1")
+
+
 def test_extrai_periodo_de_trimestre_para_filtro():
     """O TRIMESTRE vira período filtrável ('4t25' -> '4T25') p/ fixar o doc num corpus multi-período;
     um ano-ASSUNTO solto (ex.: guidance 'para 2026') NÃO vira filtro de período."""

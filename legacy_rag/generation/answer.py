@@ -81,11 +81,17 @@ def responder_de_contexto(pergunta: str, resultados: list[Resultado], llm: LLMCl
     # dict.fromkeys -> dedup preservando a ordem (vários chunks da MESMA página viram 1 fonte).
     citacoes = list(dict.fromkeys(r.citacao for r in resultados))
 
+    contexto = "\n\n".join(f"[{i}] ({r.citacao})\n{r.texto}" for i, r in enumerate(resultados, 1))
     if llm is None:                                    # fallback determinístico: sem redator, mostra evidência
-        contexto = "\n\n".join(f"[{i}] ({r.citacao})\n{r.texto}" for i, r in enumerate(resultados, 1))
         return Resposta(texto="Trechos recuperados (sem redator LLM ativo):\n" + contexto, citacoes=citacoes)
 
-    saida = llm.completar(montar_prompt(pergunta, resultados)).strip()
+    try:
+        saida = llm.completar(montar_prompt(pergunta, resultados)).strip()
+    except Exception as e:   # redator caiu (rede, 429 esgotado, chave inválida) -> MESMA degradação honesta
+        # do "sem chave": evidência citada, sem texto livre. Um erro de requests não pode virar
+        # "Erro:" cru na demo nem derrubar o perguntar.py (3ª auditoria; o README promete isso).
+        return Resposta(texto=f"Trechos recuperados (redator LLM indisponível — {type(e).__name__}):\n"
+                              + contexto, citacoes=citacoes)
     if SENTINELA_NAO_ENCONTRADO in saida.upper():
         return Resposta(texto="Não disponível na base.", recusou=True,
                         motivo="O LLM não encontrou a resposta no contexto fornecido.")

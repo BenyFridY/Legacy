@@ -93,18 +93,24 @@ def _detectar_bancos(t: str) -> list[str]:
     return achados
 
 
+# Token de trimestre nas DUAS formas usuais de RI: "4T25" E "4T2025". A forma de 4 dígitos escapava
+# das duas regexes ("2T2027" não casava nem como trimestre nem como ano solto, pois '\b(20\d{2})\b' não
+# tem fronteira entre o 't' e o '2') -> pergunta de FUTURO passava sem R1 (3ª auditoria, anti-conservador).
+_TRIMESTRE_RE = r"\b([1-4])t(20\d{2}|\d{2})\b"
+
+
 def _detectar_anos(t: str) -> list[int]:
     anos = [int(a) for a in re.findall(r"\b(20\d{2})\b", t)]            # "2025", "2027"
-    for q, yy in re.findall(r"\b([1-4])t(\d{2})\b", t):                 # "4t25" -> 2025
-        anos.append(2000 + int(yy))
+    for q, yy in re.findall(_TRIMESTRE_RE, t):                          # "4t25"/"4t2025" -> 2025
+        anos.append(int(yy) if len(yy) == 4 else 2000 + int(yy))
     return sorted(set(anos))
 
 
 def _detectar_periodos(t: str) -> list[str]:
-    """Trimestres citados, no formato do DB ("4t25" -> "4T25"). Usado como FILTRO DE METADADOS
-    p/ fixar o documento certo num corpus multi-período. Só TOKEN DE TRIMESTRE (4T25) vira filtro —
+    """Trimestres citados, no formato do DB ("4t25" E "4t2025" -> "4T25"). Usado como FILTRO DE
+    METADADOS p/ fixar o documento certo num corpus multi-período. Só TOKEN DE TRIMESTRE vira filtro —
     um ano "solto" (ex.: 'guidance para 2026') é ASSUNTO, não o período do documento, e não filtra."""
-    vistos = dict.fromkeys(f"{q}T{yy}" for q, yy in re.findall(r"\b([1-4])t(\d{2})\b", t))
+    vistos = dict.fromkeys(f"{q}T{yy[-2:]}" for q, yy in re.findall(_TRIMESTRE_RE, t))
     return list(vistos)
 
 

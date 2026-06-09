@@ -176,6 +176,28 @@ def test_multi_fonte_cruza_declarado_e_computado(deps):
     assert len(r.citacoes) == 2
 
 
+class LLMQuebrado:
+    """Redator que falha como na vida real (rede caiu, 429 esgotado, chave inválida)."""
+
+    def completar(self, prompt):
+        raise ConnectionError("rede caiu no meio da demo")
+
+
+def test_redator_caido_degrada_para_evidencia_citada_no_texto(deps):
+    """3ª auditoria: falha do LLM não pode virar 'Erro:' cru — cai na MESMA evidência citada do 'sem chave'."""
+    deps.llm = LLMQuebrado()
+    r = responder("Qual foi o custo do crédito realizado pelo Banco do Brasil em 2025?", deps)
+    assert not r.recusou and "Trechos recuperados" in r.texto and "indisponível" in r.texto
+    assert "BB, 4T25, release, pág. 12" in r.citacoes          # a citação estrutural sobrevive à queda
+
+
+def test_redator_caido_degrada_no_multi_fonte(deps):
+    deps.llm = LLMQuebrado()
+    r = responder("O market share de consignado do Bradesco computado a partir do IF.data confirma o "
+                  "~14,2% que o CEO declarou?", deps)
+    assert not r.recusou and "declarado x computado" in r.texto    # evidências lado a lado, citadas
+
+
 def test_multi_fonte_sem_llm_devolve_evidencias(deps):
     deps.llm = None
     r = responder(

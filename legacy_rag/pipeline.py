@@ -353,7 +353,10 @@ def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
 
     prompt = (f"{INSTRUCAO_MULTI}\n\nEVIDÊNCIAS (T = declarado no texto; N = computado do IF.data):\n"
               f"{contexto}\n\nPERGUNTA: {pergunta}\n\nRESPOSTA:")
-    saida = deps.llm.completar(prompt).strip()
+    try:
+        saida = deps.llm.completar(prompt).strip()
+    except Exception:    # redator caiu (rede/429/chave) -> mesma degradação do "sem LLM": evidências citadas
+        return evidencias
     # Se mesmo assim o LLM não reconciliar (devolve o sentinela), NÃO recusamos: mostramos as duas
     # evidências citadas lado a lado p/ o analista comparar. Honesto (não inventa) e útil. Ver ADR-0005.
     if SENTINELA_NAO_ENCONTRADO in saida.upper():
