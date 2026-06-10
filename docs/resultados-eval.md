@@ -261,7 +261,7 @@ Fontes:
 ========================================================================
 [computada (numeros / Bacen)]  Como evoluiu o market share do Banco do Brasil em consignado nos ultimos trimestres?
 ------------------------------------------------------------------------
-Market share de BB em consignado: 2023-09: 19.9%, 2023-12: 20.2%, 2024-03: 20.3%, 2024-06: 20.3%, 2024-09: 20.5%, 2024-12: 20.1%, 2025-03: 19.8%, 2025-06: 19.8%, 2025-09: 19.5%, 2025-12: 19.2%. Variação no período: 19.9% -> 19.2% (queda).
+Market share de BB em consignado: 2023-09: 19.9%, 2023-12: 20.2%, 2024-03: 20.3%, 2024-06: 20.3%, 2024-09: 20.5%, 2024-12: 20.1%, 2025-03: 19.8%, 2025-06: 19.8%, 2025-09: 19.5%, 2025-12: 19.2%. Variação (2023-09 a 2025-12): 19.9% -> 19.2% (queda).
 
 Fontes:
   - Bacen IF.data, modalidade=consignado (Empréstimo com Consignação em Folha), market share = carteira / Σ sistema (calc. em SQL)
@@ -269,12 +269,12 @@ Fontes:
 ========================================================================
 [nao-respondivel (futuro)]  Qual sera o custo de credito do Bradesco no 2o trimestre de 2027?
 ------------------------------------------------------------------------
-[RECUSA] Não disponível na base. (R1: período 2027 está além da cobertura da base (realizado até 4T25, guidance até 2026).)
+[RECUSA] Não disponível na base. (R1: valor de 'custo_credito' em 2027 está além da cobertura da base (realizado até 4T25, guidance até 2026).)
 
 ========================================================================
 [nao-respondivel (cruza base contabil)]  Compare o guidance de custo de credito do Nubank com o do Itau.
 ------------------------------------------------------------------------
-[RECUSA] Não disponível na base. (R2: comparação entre bases contábeis incompatíveis (IFRS ['Nubank'] x Cosif) numa métrica de release/Cosif ('custo_credito'). Sem base comum -> incomparável.)
+[RECUSA] Não disponível na base. (R2: comparação entre bases contábeis incompatíveis (IFRS ['Nubank'] x Cosif ['Itau']) numa métrica de release/Cosif ('custo_credito'). Sem base comum -> incomparável.)
 ```
 
 **Leitura honesta:** as duas respostas de texto (lucro pág. 8, consignado pág. 21) são **redigidas
@@ -282,6 +282,14 @@ pelo LLM a partir do contexto recuperado**, com **citação anexada por código*
 depende do LLM lembrar de citar). A série de market share é **computada em SQL** (determinística,
 auditável por re-execução) — o LLM nem entra nesse caminho. As recusas saem do **Estágio 1**
 (roteador), com o motivo explícito.
+
+> **Nota (10/06/2026):** as partes **determinísticas** deste bloco (série SQL e as duas recusas)
+> foram re-registradas com o código atual — as 4ª/5ª baterias melhoraram as mensagens (R1 passou a
+> nomear a métrica; R2 nomeia os dois lados; a variação nomeia a janela). O comportamento é o mesmo.
+> O script ganhou ainda 2 perguntas nas baterias (share do Nubank em cartão — determinística — e a
+> B3 multi-fonte, mostrada no §5): quem rodar verá 7 blocos, não 5. As respostas **de texto** acima
+> são o registro de 07/06 — na re-execução de hoje o Groq (free tier) caiu e o sistema degradou
+> honestamente para evidências citadas, o cenário discutido no §6.
 
 ---
 
