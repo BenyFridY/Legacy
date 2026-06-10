@@ -5,6 +5,7 @@ justamente medir o sistema contra o gabarito de verdade.
 """
 
 from legacy_rag.eval.runner import (
+    CAMINHO_ESTENDIDO,
     avaliar_recusa_por_escopo,
     carregar_perguntas,
     formatar_relatorio,
@@ -44,3 +45,23 @@ def test_relatorio_tem_as_secoes_chave():
     assert "Matriz de confusao de recusa" in texto
     assert "Taxa de recusa correta" in texto
     assert "n=12" in texto                 # honestidade estatística explícita (dinâmico = nº real)
+
+
+def test_bateria_estendida_36_de_36():
+    """A bateria estendida (fraseios pós-congelamento das regras) acerta comportamento E rota.
+    36 = 3x o harness oficial: sinônimos de ranking, janelas, tickers, sub-produtos, cross-base."""
+    perguntas = carregar_perguntas(CAMINHO_ESTENDIDO)
+    assert len(perguntas) == 36
+    r = avaliar_recusa_por_escopo(perguntas)
+    assert r.acertos == 36 and r.total == 36                       # answer/refuse certo em todas
+    assert all(l.rota_ok for l in r.linhas)                        # e a ROTA certa em todas
+    assert r.contagem.false_answers == 0 and r.contagem.false_refusals == 0
+
+
+def test_bateria_estendida_cobre_todas_as_rotas_e_recusas():
+    """A bateria não é monocultura: exercita as 4 rotas + recusa, e as 5 famílias R1/R2/R3/R7/R8."""
+    r = avaliar_recusa_por_escopo(carregar_perguntas(CAMINHO_ESTENDIDO))
+    assert set(r.distribuicao_rotas) == {"computada", "comparativo", "doc_unico",
+                                         "multi_fonte", "nao_respondivel"}
+    motivos = {l.motivo[:2] for l in r.linhas if l.motivo}
+    assert {"R1", "R2", "R3", "R7", "R8"} <= motivos

@@ -1,0 +1,175 @@
+# Bateria ESTENDIDA — 36 fraseios além das 12 oficiais (rota + recusa, Estágio 1).
+#
+# Por que existe: o n=12 do harness oficial é o tamanho que o case pede ("~10 perguntas"),
+# mas é pequeno para dar confiança no ROTEAMENTO. Esta bateria triplica a superfície com
+# fraseios variados (sinônimos, janelas, tickers, sub-produtos) e checa DUAS coisas por
+# pergunta: o comportamento (answer/refuse) E a rota (expected_route).
+#
+# Honestidade: escrita em 10/06 APÓS o congelamento das regras — reduz (não elimina) a
+# circularidade do conjunto oficial: mesmo autor, mas fraseios que as regras não viram.
+#
+# Schema: id / question / expected_behavior (answer|refuse) / expected_route (categoria).
+
+questions:
+
+  # ---------- COMPUTADA (número de 1 banco, SQL) ----------
+  - id: ext-nubank-share-consignado
+    question: "Qual o market share do Nubank em consignado, segundo o IF.data?"
+    expected_behavior: answer
+    expected_route: computada
+  - id: ext-itau-share-cartao
+    question: "Qual o market share do Itaú em cartão de crédito, segundo o IF.data?"
+    expected_behavior: answer
+    expected_route: computada
+  - id: ext-santander-share-veiculos
+    question: "Qual o market share do Santander em veículos, segundo o IF.data?"
+    expected_behavior: answer
+    expected_route: computada
+  - id: ext-bb-share-rural-bacen
+    question: "Qual o market share do BB em crédito rural, segundo o Bacen?"
+    expected_behavior: answer
+    expected_route: computada
+  - id: ext-itau-carteira-serie
+    question: "Como evoluiu a carteira de consignado do Itaú, segundo o IF.data?"
+    expected_behavior: answer
+    expected_route: computada
+  - id: ext-bradesco-share-evolucao
+    question: "Como evoluiu o market share do Bradesco em consignado?"
+    expected_behavior: answer
+    expected_route: computada
+
+  # ---------- COMPARATIVO (ranking / cross-bank, SQL) ----------
+  - id: ext-ranking-lidera-4t25
+    question: "Qual banco lidera o consignado no 4T25?"
+    expected_behavior: answer
+    expected_route: comparativo
+  - id: ext-ranking-rei-4t25
+    question: "O Itaú é o rei do consignado no 4T25?"
+    expected_behavior: answer
+    expected_route: comparativo
+  - id: ext-ranking-campeao-cartao
+    question: "Qual banco é o campeão de cartão de crédito em 2025?"
+    expected_behavior: answer
+    expected_route: comparativo
+  - id: ext-comparativo-bb-itau
+    question: "Compare o market share de consignado do BB com o do Itaú de 2023 a 2025, segundo o IF.data."
+    expected_behavior: answer
+    expected_route: comparativo
+  - id: ext-comparativo-desde
+    question: "Entre o Bradesco e o Santander, quem ganhou mais participação em consignado desde 2024?"
+    expected_behavior: answer
+    expected_route: comparativo
+  - id: ext-carteira-ranking
+    question: "Qual banco tem a maior carteira de consignado no 4T25?"
+    expected_behavior: answer
+    expected_route: comparativo
+  - id: ext-ranking-menor-share
+    question: "Qual banco tem o menor market share em veículos no 4T25?"
+    expected_behavior: answer
+    expected_route: comparativo
+
+  # ---------- DOC ÚNICO (texto: recuperar e citar) ----------
+  - id: ext-bradesco-ceo-declarou
+    question: "Qual market share de consignado o CEO do Bradesco declarou na teleconferência?"
+    expected_behavior: answer
+    expected_route: doc_unico
+  - id: ext-itau-lucro-4t25
+    question: "Qual o lucro do Itaú no 4T25?"
+    expected_behavior: answer
+    expected_route: doc_unico
+  - id: ext-itau-clt-release
+    question: "O que o Itaú declarou sobre consignado CLT no release do 4T25?"
+    expected_behavior: answer
+    expected_route: doc_unico
+  - id: ext-bb-guidance-2026
+    question: "Qual a faixa de guidance do BB para 2026?"
+    expected_behavior: answer
+    expected_route: doc_unico
+  - id: ext-bradesco-verbatim-ok
+    question: "Cite a frase literal do CEO do Bradesco sobre consignado na teleconferência."
+    expected_behavior: answer
+    expected_route: doc_unico
+  - id: ext-itau-basileia
+    question: "Qual o índice de Basileia do Itaú no 4T25?"
+    expected_behavior: answer
+    expected_route: doc_unico
+  - id: ext-share-declarado-2-ceos
+    question: "Qual market share de consignado o CEO do Bradesco e o do Itaú declararam na teleconferência?"
+    expected_behavior: answer
+    expected_route: doc_unico
+
+  # ---------- MULTI-FONTE (declarado x computado) ----------
+  - id: ext-bradesco-bate-ifdata
+    question: "O share de consignado que o CEO do Bradesco declarou bate com o IF.data?"
+    expected_behavior: answer
+    expected_route: multi_fonte
+  - id: ext-santander-b3-enunciado
+    question: "O Santander disse que ia ganhar participação em cartões em 2023; o market share confirma nos trimestres seguintes?"
+    expected_behavior: answer
+    expected_route: multi_fonte
+  - id: ext-bb-subiu-ifdata
+    question: "O market share do Banco do Brasil subiu, segundo o IF.data?"
+    expected_behavior: answer
+    expected_route: multi_fonte
+
+  # ---------- RECUSAS R1 (futuro além da cobertura) ----------
+  - id: ext-r1-custo-2t2027
+    question: "Qual será o custo de crédito do Bradesco no 2T2027?"
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+  - id: ext-r1-share-4t2028
+    question: "Qual será o market share de consignado do BB no 4T2028, segundo o IF.data?"
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+  - id: ext-r1-guidance-2027
+    question: "Qual o guidance de custo de crédito do Itaú para 2027?"
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+  - id: ext-r1-carteira-2027
+    question: "Qual banco terá a maior carteira de consignado em 2027?"
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+
+  # ---------- RECUSAS R2 (bases contábeis incompatíveis) ----------
+  - id: ext-r2-nubank-itau
+    question: "Compare o guidance de custo de crédito do Nubank com o do Itaú."
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+  - id: ext-r2-nubank-santander
+    question: "Compare o custo de crédito do Nubank com o do Santander."
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+
+  # ---------- RECUSAS R3 (verbatim inexistente) ----------
+  - id: ext-r3-bb-verbatim
+    question: "Cite a frase literal do CEO do BB sobre consignado na teleconferência."
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+  - id: ext-r3-itau-verbatim
+    question: "Cite a frase literal do CEO do Itaú na teleconferência do 4T25 sobre consignado."
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+
+  # ---------- RECUSAS R7 (sub-produto fora da granularidade do IF.data) ----------
+  - id: ext-r7-inss-share
+    question: "Qual o market share do BB em consignado INSS, segundo o IF.data?"
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+  - id: ext-r7-privado-ranking
+    question: "Qual banco tem o maior market share em consignado privado no 4T25?"
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+  - id: ext-r7-cheque-especial
+    question: "Qual o saldo de cheque especial do Itaú, segundo o IF.data?"
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+
+  # ---------- RECUSAS R8 (recomendação de investimento) ----------
+  - id: ext-r8-comprar-itau
+    question: "Vale a pena comprar ações do Itaú?"
+    expected_behavior: refuse
+    expected_route: nao_respondivel
+  - id: ext-r8-vender-bbdc4
+    question: "Devo vender BBDC4 agora?"
+    expected_behavior: refuse
+    expected_route: nao_respondivel

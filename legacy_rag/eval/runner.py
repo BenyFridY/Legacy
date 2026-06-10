@@ -28,6 +28,7 @@ from legacy_rag.eval.metrics import RefusalCounts, score_refusals
 from legacy_rag.router.router import Rota, rotear
 
 CAMINHO_PADRAO = ROOT / "eval" / "questions.yaml"
+CAMINHO_ESTENDIDO = ROOT / "eval" / "questions_estendido.yaml"   # 36 fraseios extra (rota + recusa)
 
 
 # --------------------------------------------------------------------------
@@ -67,6 +68,8 @@ class LinhaResultado:
     categoria: str         # rota.categoria
     motivo: str | None     # motivo de recusa, se houver
     ok: bool               # previsto == esperado
+    rota_esperada: str | None = None   # expected_route do yaml (bateria estendida); None = não checa
+    rota_ok: bool | None = None        # categoria == rota_esperada (None quando não checa)
 
 
 @dataclass
@@ -90,11 +93,14 @@ def avaliar_recusa_por_escopo(perguntas: list[dict]) -> ResultadoEscopo:
     distribuicao: dict[str, int] = {}
     for q in perguntas:
         esperado = q["expected_behavior"]
+        rota_esp = q.get("expected_route")          # opcional (bateria estendida): checa a ROTA também
         previsto, rota = prever_comportamento(q["question"])
         distribuicao[rota.categoria] = distribuicao.get(rota.categoria, 0) + 1
         linhas.append(LinhaResultado(
             id=q["id"], esperado=esperado, previsto=previsto,
             categoria=rota.categoria, motivo=rota.motivo_recusa, ok=(previsto == esperado),
+            rota_esperada=rota_esp,
+            rota_ok=(rota.categoria == rota_esp) if rota_esp else None,
         ))
     contagem = score_refusals((l.esperado, l.previsto) for l in linhas)
     return ResultadoEscopo(linhas=linhas, contagem=contagem, distribuicao_rotas=distribuicao)
@@ -108,15 +114,17 @@ def _pct(x: float | None) -> str:
     return "n/a" if x is None else f"{x * 100:.0f}%"
 
 
-def formatar_relatorio(r: ResultadoEscopo) -> str:
+def formatar_relatorio(r: ResultadoEscopo,
+                       titulo: str = "EVAL - Recusa por ESCOPO (Estagio 1, roteador deterministico, sem modelo)",
+                       rodape: list[str] | None = None) -> str:
     L = []
     L.append("=" * 72)
-    L.append("EVAL - Recusa por ESCOPO (Estagio 1, roteador deterministico, sem modelo)")
+    L.append(titulo)
     L.append("=" * 72)
     L.append(f"{'id':<38} {'esperado':<9} {'previsto':<9} {'ok':<3} rota")
     L.append("-" * 72)
     for l in r.linhas:
-        marca = "ok" if l.ok else "X"
+        marca = "ok" if (l.ok and l.rota_ok is not False) else "X"
         L.append(f"{l.id:<38} {l.esperado:<9} {l.previsto:<9} {marca:<3} {l.categoria}")
     L.append("-" * 72)
 
@@ -130,12 +138,19 @@ def formatar_relatorio(r: ResultadoEscopo) -> str:
     L.append(f"  Taxa de recusa correta ... {_pct(c.correct_refusal_rate)}   (dos que DEVIAM recusar)")
     L.append(f"  Taxa de over-recusa ...... {_pct(c.over_refusal_rate)}   (dos respondiveis, recusou por engano)")
     L.append(f"  Acuracia de comportamento  {r.acertos}/{r.total}")
+    com_rota = [l for l in r.linhas if l.rota_ok is not None]
+    if com_rota:
+        L.append(f"  Rota correta ............. {sum(1 for l in com_rota if l.rota_ok)}/{len(com_rota)}"
+                 "   (categoria prevista == esperada)")
     L.append("")
     L.append(f"Distribuicao de rotas: {r.distribuicao_rotas}")
-    L.append(f"(n={r.total}: sanidade forte, nao estatistica de populacao. Estagio 2 e retrieval")
-    L.append(" esperam os modelos reais + gold de chunk_id fixado na ingestao.)")
-    L.append("CIRCULARIDADE: estas perguntas e as regras R1/R2/R3 co-evoluiram (mesmo autor) -> mede")
-    L.append(" consistencia INTERNA do gate de escopo, NAO generalizacao p/ perguntas nao vistas.")
+    for linha in (rodape if rodape is not None else [
+        f"(n={r.total}: sanidade forte, nao estatistica de populacao. Estagio 2 e retrieval",
+        " esperam os modelos reais + gold de chunk_id fixado na ingestao.)",
+        "CIRCULARIDADE: estas perguntas e as regras R1/R2/R3 co-evoluiram (mesmo autor) -> mede",
+        " consistencia INTERNA do gate de escopo, NAO generalizacao p/ perguntas nao vistas.",
+    ]):
+        L.append(linha)
     L.append("=" * 72)
     return "\n".join(L)
 
@@ -144,6 +159,17 @@ def main() -> None:
     perguntas = carregar_perguntas()
     resultado = avaliar_recusa_por_escopo(perguntas)
     print(formatar_relatorio(resultado))
+    if CAMINHO_ESTENDIDO.exists():
+        ext = avaliar_recusa_por_escopo(carregar_perguntas(CAMINHO_ESTENDIDO))
+        print()
+        print(formatar_relatorio(
+            ext,
+            titulo="EVAL ESTENDIDO - 36 fraseios extra (rota + recusa, Estagio 1, sem modelo)",
+            rodape=[
+                f"(n={ext.total}; tambem checa a ROTA, nao so recusar/responder.)",
+                "Fraseios escritos APOS o congelamento das regras (10/06) — reduz, nao elimina,",
+                " a circularidade do conjunto oficial (mesmo autor, fraseios nao vistos).",
+            ]))
 
 
 if __name__ == "__main__":

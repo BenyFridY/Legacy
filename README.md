@@ -119,6 +119,7 @@ categorias de comportamento + 1 distrator anti-over-recusa:
 | recusa correta (dos que deviam recusar) | **100%** |
 | over-recusa (recusou um respondível) | **0%** |
 | alucinação (respondeu o que devia recusar) | **0** |
+| **bateria estendida** (36 fraseios extra, escritos após o congelamento das regras) | **36/36** comportamento · **36/36 rota** |
 
 **3) Fidelidade da resposta — faithfulness (juiz LLM INDEPENDENTE, Groq temp 0).** Nas respostas
 geradas (texto, **4 bancos**): **6/6 inteiramente sustentadas** pelo contexto citado — e o juiz é um
@@ -271,9 +272,10 @@ set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 **Estágio 1 — prova imediata, 100% offline (~1 min; sem rede, sem modelo, sem chave):**
 
 ```bat
-:: suíte completa com fakes -> espere "245 passed" em poucos segundos
+:: suíte completa com fakes -> espere "247 passed" em poucos segundos
 python -m pytest -q
 :: matriz de recusa-por-escopo (roteador puro) -> espere "Acuracia de comportamento  12/12"
+::   e, logo abaixo, a bateria ESTENDIDA: "36/36" de comportamento e "Rota correta 36/36"
 python -m legacy_rag.eval.runner
 ```
 
@@ -318,7 +320,7 @@ python scripts\ui_demo.py
 > ⚠️ **DuckDB é single-writer:** feche o chat (`ui_demo.py`) antes de rodar qualquer outro script —
 > dois processos no mesmo `data/legacy.duckdb` dão `IOException` (só `--dry-run` não abre o DB).
 
-Os **245 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **247 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -353,7 +355,7 @@ docs/
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
 scripts/               atualizar_base · ingerir_numeros · ingerir_corpus · ingerir_bradesco · auditar_base · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 23 arquivos · 245 testes
+tests/                 24 arquivos · 247 testes
 ```
 
 ---
