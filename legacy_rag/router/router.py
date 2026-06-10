@@ -186,7 +186,12 @@ def extrair_slots(pergunta: str) -> Slots:
         serie=bool(re.search(r"evolu|trajet|ao longo|ultimos|trimestres seguintes|\bserie\b", t)),
         comparacao=bool(re.search(r"\bcompar|\bvs\b|versus|em relacao a", t)),
         pede_verbatim=bool(re.search(r"frase literal|verbatim|cite a frase|transcricao (literal|verbatim)", t)),
-        superlativo=bool(re.search(r"qual (o )?banco|que banco|\bquem\b|\bmaior\b|\bmenor\b|\blidera?\b|\branking\b", t)),
+        # sinônimos de ranking com \b; "primeiro" SOZINHO fica fora ("primeiro trimestre") e
+        # "na frente" também ("frente de consignado" é linha de negócio nos releases, não ranking).
+        superlativo=bool(re.search(
+            r"qual (o )?banco|que banco|\bquem\b|\bmaior\b|\bmenor\b|\blidera?\b|\blideranca\b"
+            r"|\branking\b|\bdominam?\b|\brei\b|\bcampe(a|ao|as|oes)\b|\btop\b"
+            r"|numero (um|1)\b|primeiro lugar", t)),
         janela_aberta=bool(re.search(r"seguintes|\bdesde\b|a partir de", t)),
         # "até que ponto..." é retórico ("em que medida"), não teto de janela; "bate(u)" não casa (\b).
         janela_ate=bool(re.search(r"\bate\b(?!\s+que\b)", t)),

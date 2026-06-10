@@ -151,6 +151,24 @@ def test_share_computado_de_dois_bancos_vira_comparativo():
     assert r.categoria == "comparativo"
 
 
+def test_sinonimos_naturais_de_ranking_vao_para_o_sql():
+    """"domina"/"rei"/"nº 1"/"campeão"/"liderança" = mesmo pedido de ranking que "lidera" -> comparativo
+    com os 5 cobertos. "primeiro" SOZINHO fica fora da regex de propósito (casaria "primeiro trimestre")."""
+    for p in ["O Itaú domina o consignado?",
+              "O Itaú é o rei do consignado?",
+              "O BB é o número 1 em consignado?",
+              "O Bradesco é o campeão de cartão?",
+              "O Santander tem a liderança em veículos?"]:
+        r = rotear(p)
+        assert r.categoria == "comparativo" and len(r.bancos) == 5, p
+
+
+def test_primeiro_trimestre_nao_e_ranking():
+    """Contraprova da regex ampliada: "primeiro trimestre" é período, não pedido de ranking -> doc_unico."""
+    r = rotear("Qual o lucro do Itaú no primeiro trimestre de 2026?")
+    assert r.categoria == "doc_unico" and not r.deve_recusar
+
+
 # (3) -------------------------------------- R7: sub-produto fora da granularidade do IF.data
 # O IF.data (carteira PF) só separa em 7 modalidades. Pedir o NÚMERO de um sub-recorte que só existe
 # no release (consignado INSS, cheque especial, SFH...) deve RECUSAR com motivo — não computar a
