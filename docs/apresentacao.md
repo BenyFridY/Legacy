@@ -72,9 +72,9 @@ Beny Frid · Legacy Capital · junho/2026
 |---|---|---|
 | Como obter | **recuperar** o trecho e **citar** | **computar** com SQL (Bacen IF.data) |
 | Quem faz | busca híbrida + rerank | DuckDB (conta determinística) |
-| Papel do LLM | **escreve** a resposta com o trecho | **nenhum cálculo** — só redige o resultado |
+| Papel do LLM | **escreve** a resposta com o trecho | **nenhum — nem entra**; Python formata o resultado já citado |
 
-**O LLM nunca faz a conta.** O SQL faz a conta; o LLM só veste o número em linguagem — e sempre cita a fonte.
+**O LLM nunca faz a conta.** No caminho de número ele **nem entra**: o SQL computa, o Python formata e a citação é anexada por código. O LLM só escreve onde a resposta é texto (caminho de texto e reconciliação multi-fonte).
 
 > 🎤 **Fale:** "Essa é a sacada que organiza o projeto todo. Pergunta de texto eu **recupero e cito**. Pergunta de número eu **computo com SQL** sobre dados oficiais do Banco Central. O modelo de linguagem **nunca** faz a conta — ele só escreve a frase final com o número que o SQL já calculou. Assim o número é sempre exato e rastreável."
 >
@@ -102,8 +102,9 @@ Beny Frid · Legacy Capital · junho/2026
    GATE 0,60: evidência forte?                 │
         │ não → RECUSA (com motivo)            │
         │ sim                                  │
-        └────────► LLM REDIGE com CITAÇÃO ◄────┘
-                   (nunca faz a conta; ou RECUSA, sem inventar)
+        └────────► RESPOSTA CITADA ◄───────────┘
+                   (texto: LLM redige · número: Python formata, o LLM nem entra;
+                    ou RECUSA, sem inventar)
 ```
 
 **Zoom no caminho de texto — um funil de "barato/impreciso" → "caro/preciso":**
@@ -113,7 +114,7 @@ Beny Frid · Legacy Capital · junho/2026
             → reranker relê os ~10 finalistas juntos → top 5 → GATE 0,60
 ```
 
-> 🎤 **Fale:** "Toda pergunta passa por um **roteador determinístico** que decide: é número ou texto? **Número** vai pro SQL — carteira do banco dividida pelo sistema, conta exata e auditável. **Texto** entra num funil: duas buscas baratas pegam 50 candidatos cada (embedding por significado, BM25 por palavra exata), o RRF funde por posição, e o reranker entrevista os 10 finalistas a fundo. No fim, um **portão de evidência (0,60)** decide: se nada é bom o bastante, **recusa**; senão o LLM redige **com citação** — mas o LLM **nunca faz a conta**."
+> 🎤 **Fale:** "Toda pergunta passa por um **roteador determinístico** que decide: é número ou texto? **Número** vai pro SQL — carteira do banco dividida pelo sistema, conta exata e auditável. **Texto** entra num funil: duas buscas baratas pegam 50 candidatos cada (embedding por significado, BM25 por palavra exata), o RRF funde por posição, e o reranker entrevista os 10 finalistas a fundo. No fim, um **portão de evidência (0,60)** decide: se nada é bom o bastante, **recusa**; senão o LLM redige **com citação**. No caminho de número o LLM **nem entra** — Python formata o resultado do SQL, já citado."
 >
 > 💡 **Lógica:** este slide é a **prova visual** da tese do slide 3 ("separar texto de número"). Cada caixa existe por um motivo que você sabe defender.
 >
@@ -241,7 +242,7 @@ reais. **Duvidar do próprio código** achou o que os testes não pegavam.
 | **Dual-path determinístico** (não agente LLM) | número exato e auditável; eval reproduzível; mesma pergunta → mesmo caminho | flexibilidade — regras léxicas quebram em gíria/fraseado não-previsto |
 | **Stack aberto/local** (sem Cohere/Pinecone) | **US$ 0**, privado (dado não sai da máquina), reproduzível offline | talvez um delta de qualidade vs. APIs pagas — **não comprovado em PT** |
 | **Vetor força-bruta** (não HNSW) | busca **exata** e instantânea na escala atual; zero peça móvel | é O(N): precisaria de índice HNSW acima de ~100k fichas |
-| **LLM só redige** (SQL faz a conta) | nunca alucina número; resposta sempre citada | menos "esperto" que um agente que raciocina sozinho |
+| **LLM nunca toca no número** (SQL computa; Python formata) | nunca alucina número; resposta sempre citada | menos "esperto" que um agente que raciocina sozinho |
 
 **Onde o sistema quebra (assumido, não escondido):**
 - gíria extrema (*"calote"*) e paráfrase sem palavra em comum → *fix:* expansão de query;

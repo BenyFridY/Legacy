@@ -206,11 +206,11 @@
     <tr><th style="width:18%"></th><th>TEXTO <span style="opacity:.75; text-transform:none">("o que o CEO disse")</span></th><th>NÚMERO <span style="opacity:.75; text-transform:none">("qual o market share")</span></th></tr>
     <tr><td>Como obter</td><td><b>recuperar</b> o trecho e <b>citar</b></td><td><b>computar</b> com SQL (Bacen IF.data)</td></tr>
     <tr><td>Quem faz</td><td>busca híbrida + rerank</td><td>DuckDB (conta determinística)</td></tr>
-    <tr><td>Papel do LLM</td><td><b>escreve</b> a resposta com o trecho</td><td><b class="ambar">nenhum cálculo</b> — só redige o resultado</td></tr>
+    <tr><td>Papel do LLM</td><td><b>escreve</b> a resposta com o trecho</td><td><b class="ambar">nenhum — nem entra</b>; Python formata o resultado já citado</td></tr>
   </table>
-  <div class="callout"><b>O LLM nunca faz a conta.</b> O SQL faz a conta; o LLM só veste o número em linguagem — e sempre cita a fonte.</div>
+  <div class="callout"><b>O LLM nunca faz a conta.</b> No caminho de número ele <b>nem entra</b>: o SQL computa, o Python formata e a citação é anexada por código. O LLM só escreve onde a resposta é texto (caminho de texto e reconciliação multi-fonte).</div>
   <template class="notas">
-    <h4>🎤 Fale</h4><p>"Essa é a sacada que organiza o projeto todo. Pergunta de texto eu <b>recupero e cito</b>. Pergunta de número eu <b>computo com SQL</b> sobre dados oficiais do Banco Central. O LLM <b>nunca</b> faz a conta — só escreve a frase final com o número que o SQL já calculou. Assim o número é sempre exato e rastreável."</p>
+    <h4>🎤 Fale</h4><p>"Essa é a sacada que organiza o projeto todo. Pergunta de texto eu <b>recupero e cito</b>. Pergunta de número eu <b>computo com SQL</b> sobre dados oficiais do Banco Central. O LLM <b>nunca</b> faz a conta — no caminho de número ele <b>nem entra</b>: o SQL calcula, o código formata e cita. Assim o número é sempre exato e rastreável."</p>
     <div class="esc"><b>🛡️ "Mas LLM não faz conta?"</b><p>Faz, e bem, <i>quando recebe o contexto certo</i> — testei. Mas não quero <b>depender</b> disso pra número de mercado: SQL é determinístico e auditável. O LLM erra quando precisa <b>lembrar</b> o número; aqui ele nunca precisa lembrar.</p></div>
     <div class="esc"><b>🛡️ "E quando a pergunta é as duas coisas?"</b><p>Existe — é o coração do Caso B: comparo o que a empresa <b>declarou</b> no texto com o que <b>computei</b> do Bacen. Mostro daqui a pouco.</p></div>
   </template>
@@ -238,14 +238,14 @@
       </div>
     </div>
     <div class="ramos-setas"><span>▶</span><span>◀</span></div>
-    <div class="no final">LLM REDIGE com CITAÇÃO<span>nunca faz a conta · ou recusa, sem inventar</span></div>
+    <div class="no final">RESPOSTA CITADA<span>texto: LLM redige · número: Python formata (LLM nem entra) · ou recusa, sem inventar</span></div>
   </div>
   <div class="funil"><b style="font-family:'Segoe UI'">Funil do texto:&nbsp;</b>
     <span>3.650 fichas</span><i>→</i><span>embedding top 50</span><i>+</i><span>BM25 top 50</span><i>→</i>
     <span>RRF funde</span><i>→</i><span>reranker ~10</span><i>→</i><span>top 5</span><i>→</i><span>GATE 0,60</span>
   </div>
   <template class="notas">
-    <h4>🎤 Fale</h4><p>"Toda pergunta passa por um <b>roteador determinístico</b>: número ou texto? <b>Número</b> vai pro SQL — carteira do banco dividida pelo sistema, conta exata e auditável. <b>Texto</b> entra num funil: duas buscas baratas pegam 50 candidatos cada (embedding por significado, BM25 por palavra exata), o RRF funde por posição, o reranker entrevista os ~10 finalistas a fundo. No fim, um <b>portão de evidência (0,60)</b>: se nada é bom o bastante, <b>recusa</b>; senão o LLM redige <b>com citação</b> — mas nunca faz a conta."</p>
+    <h4>🎤 Fale</h4><p>"Toda pergunta passa por um <b>roteador determinístico</b>: número ou texto? <b>Número</b> vai pro SQL — carteira do banco dividida pelo sistema, conta exata e auditável. <b>Texto</b> entra num funil: duas buscas baratas pegam 50 candidatos cada (embedding por significado, BM25 por palavra exata), o RRF funde por posição, o reranker entrevista os ~10 finalistas a fundo. No fim, um <b>portão de evidência (0,60)</b>: se nada é bom o bastante, <b>recusa</b>; senão o LLM redige <b>com citação</b>. No caminho de número o LLM nem entra — Python formata o resultado do SQL, já citado."</p>
     <div class="esc"><b>🛡️ "Por que roteador de regras e não agente LLM?"</b><p>O eval pesa 50% e roda o sistema repetidamente — <b>mesma pergunta → mesmo caminho</b> mantém a avaliação reproduzível e auditável. Agente LLM seria mais flexível, mas traria não-determinismo e 3-5 chamadas por pergunta. Troquei flexibilidade por confiabilidade.</p></div>
   </template>
 </section>
@@ -348,7 +348,7 @@
     <tr><td><b>Dual-path determinístico</b><br><span class="dim">(não agente LLM)</span></td><td>número exato e auditável; eval reproduzível; mesma pergunta → mesmo caminho</td><td>flexibilidade — regras léxicas quebram em gíria/fraseado não-previsto</td></tr>
     <tr><td><b>Stack aberto/local</b><br><span class="dim">(sem Cohere/Pinecone)</span></td><td><b>US$ 0</b>, privado, reproduzível offline</td><td>talvez um delta de qualidade vs. APIs pagas — <b>não comprovado em PT</b></td></tr>
     <tr><td><b>Vetor força-bruta</b><br><span class="dim">(não HNSW)</span></td><td>busca <b>exata</b> e instantânea na escala atual; zero peça móvel</td><td>é O(N): precisaria de HNSW acima de ~100k fichas</td></tr>
-    <tr><td><b>LLM só redige</b><br><span class="dim">(SQL faz a conta)</span></td><td>nunca alucina número; resposta sempre citada</td><td>menos "esperto" que um agente que raciocina sozinho</td></tr>
+    <tr><td><b>LLM nunca toca no número</b><br><span class="dim">(SQL computa; Python formata)</span></td><td>nunca alucina número; resposta sempre citada</td><td>menos "esperto" que um agente que raciocina sozinho</td></tr>
   </table>
   <p style="margin-top:4px"><b>Onde quebra (assumido, não escondido):</b> <span class="dim">gíria extrema ("calote") e paráfrase sem palavra em comum · transcrição perde pro release formal · número em célula de tabela perde contexto ao chunkar — é <i>por isso</i> que número vai pelo SQL.</span></p>
   <template class="notas">
