@@ -29,6 +29,7 @@ DEPS = None  # carregado UMA vez em main()
 # "lucro liquido recorrente": ela é borderline (o doc usa "Resultado Recorrente Gerencial") e o
 # LLM, mesmo a temp 0, oscila entre responder e recusar — péssimo para uma demo ao vivo.
 EXEMPLOS = [
+    "Quais bancos estao na base?",                                         # direta (cobertura, sem retrieval)
     "Qual foi o Resultado Recorrente Gerencial do Itau no 4T25?",         # doc_unico (texto) - robusto
     "Qual foi o indice de Basileia do Itau no 4T25?",                      # doc_unico - fora do eval (generaliza)
     "Como evoluiu o market share do Banco do Brasil em consignado nos ultimos trimestres?",  # computada (SQL)

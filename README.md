@@ -51,10 +51,11 @@ python scripts\ui_demo.py
 
 ![Chat de demo — Legacy · Research de Equities](assets/UI.png)
 
-**Cole estas seis perguntas** — cada uma exercita um caminho diferente (o roteador ignora acento e maiúscula):
+**Cole estas sete perguntas** — cada uma exercita um caminho diferente (o roteador ignora acento e maiúscula):
 
 | pergunta | caminho | o que prova |
 |---|---|---|
+| *Quais bancos estão na base?* | **direta** | o sistema conhece a própria cobertura — responde do config, sem retrieval |
 | *Qual foi o Resultado Recorrente Gerencial do Itaú no 4T25?* | **texto** | acha e cita **R$ 12,3 bi** (pág. 8) num corpus multi-período |
 | *Qual o market share do Nubank em cartão de crédito no 4T25?* | **número genérico** | computado em SQL — **qualquer banco × modalidade**, não só consignado (sem precisar dizer "IF.data") |
 | *Qual banco teve o maior market share em consignado no 4T25?* | **ranking** | sem banco nomeado → compara **todos os cobertos** e elege o líder com gap em p.p. |
@@ -262,7 +263,7 @@ copy .env.example .env
 :: (em PowerShell: $env:KMP_DUPLICATE_LIB_OK='TRUE'; $env:PYTHONPATH='.'; $env:PYTHONIOENCODING='utf-8')
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 
-:: 217 testes — sem rede, sem torch, sem chave (fakes)
+:: 222 testes — sem rede, sem torch, sem chave (fakes)
 python -m pytest -q
 :: matriz de recusa-por-escopo (sem modelo)
 python -m legacy_rag.eval.runner
@@ -291,7 +292,7 @@ python scripts\ui_demo.py
 > ⚠️ **DuckDB é single-writer:** feche o chat (`ui_demo.py`) antes de rodar qualquer outro script —
 > dois processos no mesmo `data/legacy.duckdb` dão `IOException` (só `--dry-run` não abre o DB).
 
-Os **217 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **222 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -326,7 +327,7 @@ docs/
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
 scripts/               atualizar_base · ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 23 arquivos · 217 testes
+tests/                 23 arquivos · 222 testes
 ```
 
 ---
