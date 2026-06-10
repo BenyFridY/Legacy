@@ -357,9 +357,11 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
 - **Gate calibrado num gold pequeno:** o limiar **0,60** veio de varrer um mini-gold (joelho com 0%
   over-recusa / 0% vazamento), mas `n=12`; produção pede um gold maior e idealmente por-modalidade.
 - **Fallback do reranker:** caímos para a ordem do RRF quando o desvio-padrão das notas fica < 0,05.
-  O limiar do "não-discrimina" nasceu por inspeção e depois foi **calibrado**
-  (`scripts/calibrar_discrimina_rerank.py`): rodadas *achatadas* medem pstdev ≤ 0,048 e rodadas que
-  *discriminam*, ≥ 0,072 — o 0,05 cai no vão entre as duas populações (n pequeno, mesma ressalva do gate).
+  O limiar nasceu por inspeção; a medição (`scripts/calibrar_discrimina_rerank.py`) mostra que ele
+  pega as duas sondagens difíceis (gíria/paráfrase, pstdev 0,004/0,042) **mas não separa populações**:
+  8 das 20 fáceis/médias também disparam. Falha benigna — o fallback só troca a ordenação (nunca
+  recusa) e o hit@3 de 81,8% foi medido com ele ativo — porém é **ponto de operação**, não joelho
+  calibrado como o 0,60 do gate (detalhe em `docs/resultados-eval.md` §3c).
 - **Interação fallback × gate (over-recusa em gíria/paráfrase):** quando o cross-encoder achata as notas
   (~0,50), o fallback recupera a **ordem** do RRF, mas as **notas** continuam achatadas; como o gate de
   evidência exige ≥ 0,60, uma pergunta **respondível porém difícil** (gíria/paráfrase) pode ser recusada

@@ -204,11 +204,24 @@ pelo LLM); o **0,60** separa perfeitamente (0% over-recusa, 0% vazamento) e barr
 gate**. `LIMIAR_EVIDENCIA_PADRAO` foi ajustado para 0,60. Ressalva: `n=12` é pequeno; produção pede um
 gold maior e por-modalidade (banda segura medida ~[0,60; 0,71]).
 
-**3c. Fallback do reranker (`LIMIAR_DISCRIMINA_RERANK = 0,05`)** — mesmo método, outro limiar: quando
-o desvio-padrão das notas do cross-encoder fica abaixo de 0,05, o pipeline mantém a ordem do RRF
-(o reranker "não discriminou"). Calibrado por `scripts/calibrar_discrimina_rerank.py`: rodadas
-**achatadas** medem `pstdev ≤ 0,048` e rodadas que **discriminam**, `≥ 0,072` — o 0,05 cai no vão
-entre as duas populações. Mesma ressalva de `n` pequeno do gate.
+**3c. Fallback do reranker (`LIMIAR_DISCRIMINA_RERANK = 0,05`)** — quando o desvio-padrão das notas
+do cross-encoder fica abaixo de 0,05, o pipeline mantém a ordem do RRF (o reranker "não discriminou").
+Medido por `scripts/calibrar_discrimina_rerank.py` sobre as 22 sondagens (re-rodado em 10/06/2026):
+
+```
+  dificeis (giria/parafrase, n=2)   pstdev 0,004 e 0,042          -> fallback dispara nas DUAS (o caso-alvo)
+  faceis/medias (n=20)              pstdev 0,004–0,088 (média 0,055) -> 8 de 20 TAMBÉM disparam
+```
+
+**Leitura honesta:** diferente do gate (§3b), aqui **não há vão limpo entre duas populações** — os
+valores formam um contínuo (uma versão anterior deste parágrafo afirmava separação ≤0,048 vs ≥0,072,
+que a re-medição não sustenta: o "vão" local é só 0,048–0,052). O 0,05 fica acima das duas difíceis
+(o caso que motivou o mecanismo), mas 8 fáceis/médias disparam junto. Por que isso não compromete:
+o fallback **não recusa nem descarta nada** — só decide qual ordenação confiar; nas fáceis que
+disparam, a melhor nota segue ~0,73 (o gate decide igual) e a ordem do RRF já acerta — e o **hit@3
+de 81,8% (§2) foi medido com o fallback ativo**, então o efeito já está dentro da métrica-manchete.
+É um **ponto de operação com falha benigna**, não um joelho calibrado como o 0,60; produção pediria
+um critério por distribuição (ex.: razão top1/top2) em vez de desvio-padrão global.
 
 ---
 
