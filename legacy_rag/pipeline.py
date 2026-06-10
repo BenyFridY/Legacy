@@ -65,6 +65,8 @@ def responder(pergunta: str, deps: Dependencias) -> Resposta:
     rota = rotear(pergunta)
     if rota.deve_recusar:                                   # Estágio 1: recusa por escopo
         return Resposta(texto="Não disponível na base.", recusou=True, motivo=rota.motivo_recusa)
+    if rota.categoria == "direta":                          # saudação/meta: resposta do SISTEMA, sem
+        return Resposta(texto=rota.resposta_pronta or "")   # retrieval (a resposta vive no config)
     if rota.categoria == "computada":
         return _caminho_computado(rota, deps)
     if rota.categoria == "comparativo":

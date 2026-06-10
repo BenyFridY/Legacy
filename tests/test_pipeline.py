@@ -400,6 +400,21 @@ def test_ranking_lista_quem_ficou_sem_serie(deps):
     assert not r.recusou and "sem série na janela:" in r.texto     # Itau/Santander/Nubank sem consignado
 
 
+def test_saudacao_no_pipeline_nao_busca_nem_recusa(deps):
+    """'Bom dia' -> resposta direta do sistema: sem recusa, sem fontes, sem tocar no retrieval."""
+    r = responder("Bom dia", deps)
+    assert not r.recusou and r.citacoes == [] and "bancos cobertos" in r.texto
+
+
+def test_recusa_por_evidencia_fraca_ensina_a_reformular(deps):
+    """A recusa do gate diz COMO reformular (trimestre + termo do documento) — bateria simples:
+    'PDD do Itaú' falha porque o release do Itaú chama de 'custo do crédito'."""
+    from types import SimpleNamespace
+    from legacy_rag.generation.gate import gate_evidencia
+    d = gate_evidencia([SimpleNamespace(score=0.55)], limiar=0.60)
+    assert not d.responder and "Dica:" in d.motivo and "custo do" in d.motivo
+
+
 def test_multi_fonte_parafrase_sem_a_palavra_share_computa(deps):
     """5ª bateria: 'o que o CEO falou de consignado bate com o Bacen?' não traz 'share' — ainda assim
     o lado COMPUTADO entra (modalidade explícita + métrica neutra), rotulado como share."""

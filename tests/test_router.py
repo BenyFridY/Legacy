@@ -338,6 +338,29 @@ def test_parafrase_natural_do_carro_chefe_roteia_multi_fonte():
     assert r3.categoria == "multi_fonte"
 
 
+def test_saudacao_recebe_resposta_direta_sem_retrieval():
+    """'Bom dia' ecoava a transcrição do Bradesco (que tem 'bom dia' literal) com 5 fontes —
+    saudação não é pergunta de conhecimento: resposta de SISTEMA, sem retrieval."""
+    r = rotear("Bom dia")
+    assert r.categoria == "direta" and "bancos cobertos" in r.resposta_pronta
+    assert rotear("oi").categoria == "direta"
+    assert rotear("Obrigado!").categoria == "direta"
+
+
+def test_saudacao_com_pergunta_segue_o_fluxo_normal():
+    """Contraprova: a saudação só casa a mensagem INTEIRA — 'bom dia, qual o lucro...' roteia normal."""
+    r = rotear("Bom dia, qual foi o lucro do Itaú no 4T25?")
+    assert r.categoria == "doc_unico" and r.bancos == ["Itau"]
+
+
+def test_meta_pergunta_de_cobertura_responde_direto():
+    """'Quais bancos estão na base?' recusava — mas a resposta o sistema SABE (está no config)."""
+    r = rotear("Quais bancos estão na base?")
+    assert r.categoria == "direta" and "Nubank" in r.resposta_pronta and "3T23 a 4T25" in r.resposta_pronta
+    assert rotear("Qual a cobertura da base?").categoria == "direta"
+    assert rotear("que fontes você tem disponíveis?").categoria == "direta"
+
+
 def test_janela_aberta_em_trimestres_seguintes():
     """B3 do enunciado: 'disse em 2023... subiu nos trimestres SEGUINTES?' — o ano citado é ponto
     de PARTIDA (janela aberta), não moldura; 'de 2023 a 2024' segue fechada."""

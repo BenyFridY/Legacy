@@ -36,7 +36,12 @@ def gate_evidencia(resultados: list[Resultado],
         return DecisaoEvidencia(False, 0.0, "Nenhum trecho recuperado para a pergunta.")
     melhor = max(r.score for r in resultados)
     if melhor < limiar:
+        # A recusa ENSINA a reformular (bateria simples: "inadimplência do Itaú" ficou a 0,02 do
+        # limiar; "PDD do Itaú" falha porque o release do Itaú chama de "custo do crédito" — o
+        # retrieval acha o termo que está ESCRITO no documento, não o sinônimo da cabeça do usuário).
         return DecisaoEvidencia(
             False, melhor,
-            f"Evidência fraca: melhor nota {melhor:.2f} < limiar {limiar:.2f} -> recusar.")
+            f"Evidência fraca: melhor nota {melhor:.2f} < limiar {limiar:.2f} -> recusar. "
+            "Dica: nomeie o trimestre (ex.: 4T25) e use o termo do documento — ex.: 'custo do "
+            "crédito' (Itaú) em vez de 'PDD'; 'inadimplência acima de 90 dias'.")
     return DecisaoEvidencia(True, melhor, None)

@@ -69,7 +69,7 @@ PAGINA = """<!doctype html>
        max-width:88%;box-shadow:0 4px 18px rgba(20,38,31,.08)}
  .badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700;color:#fff;
         letter-spacing:.5px;text-transform:uppercase}
- .doc_unico{background:#2563eb}.computada{background:#0d9488}.comparativo{background:#0e7490}.multi_fonte{background:#7c3aed}.nao_respondivel{background:#d97706}
+ .doc_unico{background:#2563eb}.computada{background:#0d9488}.comparativo{background:#0e7490}.multi_fonte{background:#7c3aed}.nao_respondivel{background:#d97706}.direta{background:#5b6b62}
  .meta{font-size:12px;color:var(--suave);margin:11px 0 4px}
  .resp{white-space:pre-wrap;font-size:15px;line-height:1.55;margin-top:4px}
  .recusa{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:13px;color:#9a3412;font-size:14.5px}

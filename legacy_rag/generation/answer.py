@@ -94,5 +94,7 @@ def responder_de_contexto(pergunta: str, resultados: list[Resultado], llm: LLMCl
                               + contexto, citacoes=citacoes)
     if SENTINELA_NAO_ENCONTRADO in saida.upper():
         return Resposta(texto="Não disponível na base.", recusou=True,
-                        motivo="O LLM não encontrou a resposta no contexto fornecido.")
+                        motivo="O LLM não encontrou a resposta no contexto fornecido. "
+                               "Dica: nomeie o trimestre (ex.: 4T25) e use o termo do documento — "
+                               "ex.: 'custo do crédito' (Itaú) em vez de 'PDD'.")
     return Resposta(texto=saida, citacoes=citacoes, recusou=False)

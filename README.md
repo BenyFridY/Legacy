@@ -186,7 +186,13 @@ lado a lado** (não inventa, não recusa). Saídas completas em [`docs/resultado
   (pede *recomendação* de investimento — "vale a pena comprar?" — a base documenta fatos; aconselhar
   compra/venda não é papel do sistema, e a recusa diz o que ele *pode* mostrar).
 - **Estágio 2 — evidência** (gate): mesmo no escopo, se a melhor nota do reranker fica **abaixo do
-  limiar** (**0,60**, calibrado — ver *Resultados*), recusa em vez de redigir sobre evidência fraca.
+  limiar** (**0,60**, calibrado — ver *Resultados*), recusa em vez de redigir sobre evidência fraca —
+  e a recusa **ensina a reformular** (nomeie o trimestre e use o termo do documento: *custo do
+  crédito* no Itaú, não *PDD*; o retrieval acha o termo que está **escrito**, não o sinônimo).
+- **Camada de UX (sem retrieval):** saudação (*"bom dia"*) e meta-pergunta sobre a cobertura
+  (*"quais bancos estão na base?"*) recebem **resposta direta do roteador** — não são perguntas de
+  conhecimento (a resposta vive no config, não em PDF). Sem isso, o "bom dia" ecoava a transcrição
+  do Bradesco — que tem "bom dia" literal — com cinco fontes.
 
 **Roteador determinístico** (e não agente LLM aberto) é uma escolha de projeto deliberada: como o
 eval pesa **50%** da nota e roda o sistema repetidamente, *mesma pergunta → mesmo caminho* mantém a

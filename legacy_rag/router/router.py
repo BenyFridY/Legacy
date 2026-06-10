@@ -53,7 +53,7 @@ from legacy_rag.config import (
     MODALIDADES_IFDATA_TXT, SUBPRODUTOS_FORA_IFDATA,
 )
 
-CATEGORIAS = ("doc_unico", "computada", "comparativo", "multi_fonte", "nao_respondivel")
+CATEGORIAS = ("doc_unico", "computada", "comparativo", "multi_fonte", "nao_respondivel", "direta")
 
 
 # --------------------------------------------------------------------------
@@ -294,14 +294,47 @@ class Rota:
     janela_aberta: bool = False        # "trimestres seguintes"/"desde" -> a janela de números NÃO fecha no
                                        # ano citado (a pergunta do PDF: "disse em 2023... subiu DEPOIS?")
     motivo_recusa: str | None = None   # preenchido quando categoria == "nao_respondivel"
+    resposta_pronta: str | None = None  # preenchido quando categoria == "direta" (saudação/meta)
 
     @property
     def deve_recusar(self) -> bool:
         return self.categoria == "nao_respondivel"
 
 
+# Saudação e meta-pergunta sobre o SISTEMA não são perguntas de conhecimento: a resposta não está
+# em PDF nenhum (está no config) — buscar seria errado nos dois sentidos. "Bom dia" ecoava a
+# transcrição do Bradesco (que tem 'bom dia' literal, nota > 0,60) com 5 fontes; "quais bancos
+# estão na base?" recusava algo que o sistema SABE. Camada de UX, não um 5º caminho de retrieval.
+_SAUDACAO_RE = re.compile(   # casa a MENSAGEM INTEIRA: "bom dia, qual o lucro..." NÃO entra aqui
+    r"^(bom dia|boa tarde|boa noite|oi+|ola|opa|e ai|eai|hey|hello|hi"
+    r"|obrigad[oa]s?|valeu|tudo bem|td bem|tudo bom|teste|ping)[\s!?.,]*$")
+_RESPOSTA_SAUDACAO = (
+    "Olá! Pergunte sobre os bancos cobertos — Itaú, Bradesco, Banco do Brasil, Santander e Nubank: "
+    "lucro, market share por modalidade (cartão, consignado, veículos...), guidance, custo de crédito. "
+    "Toda resposta sai citada; o que não está na base é recusado com o motivo.")
+_RESPOSTA_COBERTURA = (   # janelas: as mesmas que o R1 e a recusa do caminho computado já declaram
+    "Cobertura atual — bancos: Itaú, Bradesco, Banco do Brasil, Santander e Nubank. "
+    "Texto (releases, transcrições e notas do Bacen, ingeridos por manifesto): 3T25 a 1T26. "
+    "Números (Bacen IF.data, carteira PF por modalidade, share computado em SQL): 3T23 a 4T25. "
+    "Fora disso, o sistema recusa com o motivo.")
+
+
+def _resposta_direta(t: str) -> str | None:
+    """Resposta de sistema (sem retrieval) p/ saudação e meta-pergunta de cobertura; None = segue o fluxo."""
+    if _SAUDACAO_RE.match(t.strip()):
+        return _RESPOSTA_SAUDACAO
+    if (re.search(r"\b(quais?|que) (bancos|fontes|documentos|empresas)\b", t)
+            and re.search(r"base|cobert|disponiv|voce (tem|cobre|atende)", t)) \
+            or re.search(r"qual (e |eh )?a cobertura( da base)?|o que (tem|ha|existe) na base", t):
+        return _RESPOSTA_COBERTURA
+    return None
+
+
 def rotear(pergunta: str) -> Rota:
     """Decide o caminho da pergunta: escopo primeiro (recusa cedo), depois o caminho."""
+    direta = _resposta_direta(_sem_acento(pergunta))
+    if direta is not None:
+        return Rota("direta", [], [], "outra", resposta_pronta=direta)
     s = extrair_slots(pergunta)
     motivo = _gate_escopo(s)
     if motivo is not None:
