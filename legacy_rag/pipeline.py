@@ -163,13 +163,22 @@ def _janela_da_rota(rota: Rota) -> tuple[int | None, int | None]:
     JANELA ABERTA ("disse em 2023... subiu nos trimestres SEGUINTES?" — a pergunta B3 do enunciado):
     o período citado é o PONTO DE PARTIDA, não a moldura — am_fim=None deixa a série correr até o fim
     da base. Sem isso, a resposta mostrava 3T23->4T23 para uma pergunta sobre o que veio DEPOIS de 2023.
+
+    JANELA ATÉ ("como evoluiu ATÉ 2024?"): o espelho — o período citado é o TETO, e am_ini=None deixa
+    a série começar do início da base. Só vale com UM marco citado ("de 2023 até 2025" segue bilateral).
     """
     ams = [a for a in (_periodo_para_am(p) for p in rota.periodos) if a is not None]
     if ams:
-        return (min(ams), None if rota.janela_aberta else max(ams))
-    if rota.anos:
-        return (min(rota.anos) * 100 + 1, None if rota.janela_aberta else max(rota.anos) * 100 + 12)
-    return (None, None)
+        ini, fim, um_marco = min(ams), max(ams), len(set(ams)) == 1
+    elif rota.anos:
+        ini, fim, um_marco = min(rota.anos) * 100 + 1, max(rota.anos) * 100 + 12, len(set(rota.anos)) == 1
+    else:
+        return (None, None)
+    if rota.janela_aberta:
+        return (ini, None)
+    if rota.janela_ate and um_marco:
+        return (None, fim)
+    return (ini, fim)
 
 
 def _rotulo(modalidade: str) -> str:

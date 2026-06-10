@@ -368,3 +368,11 @@ def test_janela_aberta_em_trimestres_seguintes():
                "dele em cartão de crédito subiu de fato nos trimestres seguintes?")
     assert r.janela_aberta is True and r.categoria == "multi_fonte"
     assert rotear("Como evoluiu o share do BB de 2023 a 2024, segundo o IF.data?").janela_aberta is False
+
+
+def test_janela_ate_e_teto_nao_moldura():
+    """Espelho da janela aberta: 'até 2024' liga o slot (o ano vira TETO no pipeline); 'bateu' não
+    casa por fronteira de palavra e 'até que ponto' é retórico, não teto."""
+    assert rotear("Como evoluiu o market share do BB em consignado até 2024?").janela_ate is True
+    assert rotear("O guidance do BB bateu com o realizado?").janela_ate is False
+    assert rotear("Até que ponto o share do BB cresceu em 2024?").janela_ate is False

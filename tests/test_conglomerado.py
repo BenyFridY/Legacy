@@ -65,3 +65,22 @@ def test_serie_sem_janela_mantem_comportamento_antigo(con):
     """Sem am_ini/am_fim -> série inteira (não regrediu o caminho sem recorte)."""
     serie = market_share_conglomerado_serie(con, "CONG_A", "consignado")
     assert serie == [(202403, pytest.approx(0.25)), (202412, pytest.approx(0.35))]
+
+
+def test_serie_janela_aberta_so_inicio(con):
+    """Janela UNILATERAL (só am_ini, a janela aberta 'desde X'): corta o que vem ANTES do início.
+    am_fim=None não pode descartar a janela inteira (achado da auditoria final)."""
+    serie = market_share_conglomerado_serie(con, "CONG_A", "consignado", am_ini=202412)
+    assert serie == [(202412, pytest.approx(0.35))]                 # o 202403 fica fora
+
+
+def test_serie_janela_so_fim(con):
+    """Janela unilateral pelo outro lado (só am_fim, '...até X'): corta o que vem DEPOIS."""
+    serie = market_share_conglomerado_serie(con, "CONG_A", "consignado", am_fim=202403)
+    assert serie == [(202403, pytest.approx(0.25))]
+
+
+def test_serie_cnpj_janela_aberta_so_inicio(con):
+    """A mesma garantia na função por CNPJ cru (as duas séries usam o mesmo recorte)."""
+    serie = market_share_serie(con, "111", "consignado", am_ini=202412)
+    assert serie == [(202412, pytest.approx(0.30))]                 # 300/1000 só no 202412

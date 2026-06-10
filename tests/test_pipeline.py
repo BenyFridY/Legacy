@@ -11,7 +11,8 @@ import pytest
 from legacy_rag.index.chunking import Chunk
 from legacy_rag.index.embed import embedar_chunks
 from legacy_rag.index.store_texto import garantir_schema, persistir_chunks
-from legacy_rag.pipeline import Dependencias, responder
+from legacy_rag.pipeline import Dependencias, _janela_da_rota, responder
+from legacy_rag.router.router import rotear
 from legacy_rag.structured.store import conectar
 
 
@@ -421,3 +422,31 @@ def test_multi_fonte_parafrase_sem_a_palavra_share_computa(deps):
     r = responder("O que o CEO do Bradesco falou de consignado bate com o Bacen?", deps)
     assert not r.recusou
     assert any("IF.data" in c for c in r.citacoes)                 # o lado computado entrou
+
+
+# ------------------------------------------ auditoria final (pré-entrega)
+
+def test_janela_aberta_nao_vaza_para_antes_do_inicio(deps_multiano):
+    """'Desde 2024...' = baseline em 2024, não no começo da base. A base tem um ponto de 2023 (10%)
+    que deve ficar FORA — antes, am_fim=None descartava a janela inteira no SQL e a variação saía
+    com baseline de 2023 (resposta numericamente errada para a pergunta feita)."""
+    r = responder("Como evoluiu o market share do BB em consignado desde 2024?", deps_multiano)
+    assert not r.recusou
+    assert "30.0%" in r.texto and "20.0%" in r.texto               # 202412 e 202512 entram
+    assert "10.0%" not in r.texto                                  # 202312 (antes do início) fica fora
+
+
+def test_janela_ate_comeca_do_inicio_da_base(deps_multiano):
+    """O espelho: 'até 2024' = teto, não moldura — o ponto de 2023 ENTRA e o de 2025 fica fora.
+    Antes, 'até 2024' virava 'em 2024' (só os trimestres do ano citado)."""
+    r = responder("Como evoluiu o market share do BB em consignado até 2024?", deps_multiano)
+    assert not r.recusou
+    assert "10.0%" in r.texto and "30.0%" in r.texto               # 202312 e 202412 entram
+    assert "20.0%" not in r.texto                                  # 202512 (depois do teto) fica fora
+
+
+def test_janela_ate_com_dois_marcos_segue_bilateral():
+    """'de 2023 até 2025' tem dois marcos: a janela continua fechada nos dois lados (o teto só vale
+    quando UM período é citado)."""
+    r = rotear("Como evoluiu o market share do BB em consignado de 2023 até 2025?")
+    assert _janela_da_rota(r) == (202301, 202512)

@@ -88,6 +88,7 @@ class Slots:
     pede_verbatim: bool = False                         # "frase literal", "transcrição verbatim"
     superlativo: bool = False                           # "qual banco...", "maior", "lidera" — pedido de ranking
     janela_aberta: bool = False                         # "trimestres seguintes", "desde" — janela SEM fim fixo
+    janela_ate: bool = False                            # "até 2024" — o período citado é o TETO, não a moldura
     pede_recomendacao: bool = False                     # "vale a pena comprar?" — conselho de investimento (R8)
 
 
@@ -185,6 +186,8 @@ def extrair_slots(pergunta: str) -> Slots:
         pede_verbatim=bool(re.search(r"frase literal|verbatim|cite a frase|transcricao (literal|verbatim)", t)),
         superlativo=bool(re.search(r"qual (o )?banco|que banco|\bquem\b|\bmaior\b|\bmenor\b|\blidera?\b|\branking\b", t)),
         janela_aberta=bool(re.search(r"seguintes|\bdesde\b|a partir de", t)),
+        # "até que ponto..." é retórico ("em que medida"), não teto de janela; "bate(u)" não casa (\b).
+        janela_ate=bool(re.search(r"\bate\b(?!\s+que\b)", t)),
         pede_recomendacao=bool(re.search(
             r"vale a pena (comprar|vender|investir)|dev(o|emos) (comprar|vender|investir)"
             r"|compro ou vendo|hora de (comprar|vender)|me recomenda (comprar|vender)", t)),
@@ -293,6 +296,8 @@ class Rota:
     modalidade_explicita: bool = False  # a pergunta nomeou o produto? (senão, o pipeline avisa que assumiu)
     janela_aberta: bool = False        # "trimestres seguintes"/"desde" -> a janela de números NÃO fecha no
                                        # ano citado (a pergunta do PDF: "disse em 2023... subiu DEPOIS?")
+    janela_ate: bool = False           # "até 2024" -> o período citado é o TETO; a série começa do início
+                                       # da base (espelho da janela aberta, pelo outro lado)
     motivo_recusa: str | None = None   # preenchido quando categoria == "nao_respondivel"
     resposta_pronta: str | None = None  # preenchido quando categoria == "direta" (saudação/meta)
 
@@ -347,4 +352,5 @@ def rotear(pergunta: str) -> Rota:
         bancos = list(ENTIDADES)   # ranking sem banco nomeado: compara TODOS os cobertos e elege o líder
     return Rota(categoria, bancos, s.anos, s.metrica,
                 periodos=s.periodos, modalidade=s.modalidade,
-                modalidade_explicita=s.modalidade_explicita, janela_aberta=s.janela_aberta)
+                modalidade_explicita=s.modalidade_explicita, janela_aberta=s.janela_aberta,
+                janela_ate=s.janela_ate)

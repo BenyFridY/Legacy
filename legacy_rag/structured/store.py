@@ -94,18 +94,34 @@ def trimestres_intervalo(de: str, ate: str) -> list[int]:
     return periodos
 
 
+def _janela_sql(col: str, am_ini: int | None, am_fim: int | None) -> tuple[str, list[int]]:
+    """Fragmento SQL + parâmetros do recorte de janela sobre a coluna `col` (YYYYMM).
+
+    Suporta janela UNILATERAL: só am_ini (janela aberta, "desde X...") ou só am_fim ("...até X").
+    Antes, am_fim=None descartava a janela INTEIRA — "desde 2024" devolvia a série desde o começo
+    da base, e a variação saía com baseline errado (achado da auditoria final).
+    """
+    if am_ini is not None and am_fim is not None:
+        return f"AND {col} BETWEEN ? AND ?", [am_ini, am_fim]
+    if am_ini is not None:
+        return f"AND {col} >= ?", [am_ini]
+    if am_fim is not None:
+        return f"AND {col} <= ?", [am_fim]
+    return "", []
+
+
 def market_share_serie(con: duckdb.DuckDBPyConnection, cod_inst: str, modalidade: str,
                        am_ini: int | None = None, am_fim: int | None = None) -> list[tuple[int, float]]:
     """Série [(ano_mes, share)] de UM CodInst (CNPJ) numa modalidade. share = saldo ÷ sistema, em SQL.
 
     `am_ini`/`am_fim` (YYYYMM) recortam a JANELA: o filtro entra no numerador E no denominador
-    (sistema), para o share seguir = saldo/sistema do MESMO período. Sem janela -> série inteira.
+    (sistema), para o share seguir = saldo/sistema do MESMO período. Janela unilateral suportada
+    (só início = janela aberta; só fim). Sem janela -> série inteira.
     Atenção: por CNPJ cru, pode subestimar um banco que reporta em vários CNPJs — use
     market_share_conglomerado_serie para o share por banco (conglomerado).
     """
-    tem_janela = am_ini is not None and am_fim is not None
-    j_sis = "AND ano_mes BETWEEN ? AND ?" if tem_janela else ""
-    j_c = "AND c.ano_mes BETWEEN ? AND ?" if tem_janela else ""
+    j_sis, p_sis = _janela_sql("ano_mes", am_ini, am_fim)
+    j_c, p_c = _janela_sql("c.ano_mes", am_ini, am_fim)
     q = f"""
         WITH sistema AS (
             SELECT ano_mes, SUM(saldo) AS total
@@ -116,8 +132,7 @@ def market_share_serie(con: duckdb.DuckDBPyConnection, cod_inst: str, modalidade
         WHERE c.modalidade = ? AND c.cod_inst = ? {j_c}
         ORDER BY c.ano_mes;
     """
-    params = [modalidade, *([am_ini, am_fim] if tem_janela else []),
-              modalidade, cod_inst, *([am_ini, am_fim] if tem_janela else [])]
+    params = [modalidade, *p_sis, modalidade, cod_inst, *p_c]
     rows = con.execute(q, params).fetchall()
     return [(int(am), float(sh)) for am, sh in rows]
 
@@ -143,11 +158,11 @@ def market_share_conglomerado_serie(con: duckdb.DuckDBPyConnection, cod_prudenci
     Soma o saldo de TODOS os CNPJs do conglomerado (join carteira_pf x cadastro) e divide pelo
     sistema, por período. É o share "por banco" correto (não subestima quem usa vários CNPJs).
     `am_ini`/`am_fim` (YYYYMM) recortam a JANELA — aplicada ao numerador (conglomerado) E ao
-    denominador (sistema), para o share seguir = saldo/sistema do MESMO período. Sem janela -> tudo.
+    denominador (sistema), para o share seguir = saldo/sistema do MESMO período. Janela unilateral
+    suportada (só início = janela aberta; só fim). Sem janela -> tudo.
     """
-    tem_janela = am_ini is not None and am_fim is not None
-    j_sis = "AND ano_mes BETWEEN ? AND ?" if tem_janela else ""
-    j_cong = "AND c.ano_mes BETWEEN ? AND ?" if tem_janela else ""
+    j_sis, p_sis = _janela_sql("ano_mes", am_ini, am_fim)
+    j_cong, p_cong = _janela_sql("c.ano_mes", am_ini, am_fim)
     q = f"""
         WITH sistema AS (
             SELECT ano_mes, SUM(saldo) AS total
@@ -166,8 +181,7 @@ def market_share_conglomerado_serie(con: duckdb.DuckDBPyConnection, cod_prudenci
         FROM cong JOIN sistema s USING (ano_mes)
         ORDER BY cong.ano_mes;
     """
-    params = [modalidade, *([am_ini, am_fim] if tem_janela else []),
-              modalidade, cod_prudencial, *([am_ini, am_fim] if tem_janela else [])]
+    params = [modalidade, *p_sis, modalidade, cod_prudencial, *p_cong]
     rows = con.execute(q, params).fetchall()
     return [(int(am), float(sh)) for am, sh in rows]
 
