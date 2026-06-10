@@ -329,3 +329,38 @@ contexto, o LLM **não narrou** a frase "confere" e devolveu o sentinela: diante
 corretamente instruído a **não inventar** — hesitou. Em vez de **recusar**, o orquestrador **cai para
 as evidências citadas lado a lado** (honesto: não fabrica; útil: não vira recusa). Reforça a fraqueza de
 **RAG sobre tabelas** que motiva o **caminho dos NÚMEROS** (SQL), onde o share sai exato e auditável.
+
+---
+
+## 6. Auditoria da base estruturada (10/06/2026)
+
+As três perguntas que um avaliador (ou o próprio autor) faria antes de confiar no caminho dos
+números: *as tabelas estão certas? o share computa certo? os anos batem?* Virou checagem permanente:
+
+```
+python scripts/auditar_base.py
+```
+
+```
+ 1. Períodos       10 trimestres exatos (2023T3–2025T4), ~1.040 instituições/período      [OK]
+ 2. Modalidades    as 7 do config presentes na base                                       [OK]
+ 3. Denominador    Σ sistema (consignado) cresce +1,0% a +3,3% QoQ, SEM salto na virada
+                   2024->2025 — onde a fonte do Bacen mudou de formato (dupla contagem
+                   apareceria exatamente aqui)                                            [OK]
+ 4. Recomputação   share refeito por SQL INDEPENDENTE (outra formulação): diferença
+                   0.00e+00 nos 5 bancos × 10 períodos                                    [OK]
+ 5. Docs           séries registradas (BB consignado §4, Nubank cartão) batem ponto a
+                   ponto com a base                                                       [OK]
+ 6. Cadastro       0 instituições órfãs pré-2025 (0,00% do saldo sem conglomerado)        [OK]
+ 7. Unidade        Itaú consignado 2025-12 = 75.325.945.996 -> R$ 75,3 bi = o RELEASE     [OK]
+ 8. Qualidade      0 NULL, 0 saldo negativo                                               [OK]
+ 9. Continuidade   5 bancos × 10 pontos em consignado, sem buraco na série                [OK]
+10. Top-10 sistema BB 19,2% · CAIXA 14,7% · Bradesco 13,8% · Itaú 10,0% · Santander 8,0%  [ACHADO]
+```
+
+**Dois achados além do "passou":** *(i)* **as fontes se confirmam** — o saldo do IF.data bate com o
+gerencial do release em 3 dígitos (Itaú consignado: **R$ 75,3 bi nas duas**; Bradesco 3T25: computado
+**R$ 101,6 bi** × *"quase R$ 102 bilhões"* na fala do CEO) — validação cruzada involuntária entre o
+caminho do texto e o dos números; *(ii)* **a Caixa é a 2ª do sistema em consignado (14,7%) e não está
+na base** — por isso toda resposta de *ranking* passou a carregar o rótulo **"entre os 5 bancos
+cobertos"**: sem ele, o "acima de" do vice lia-se como vice do sistema inteiro.

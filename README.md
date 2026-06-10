@@ -326,7 +326,7 @@ docs/
   conceitos/           5 docs didáticos (RAG, embeddings, BM25/híbrida, números/SQL, arquitetura do código)
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
-scripts/               atualizar_base · ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
+scripts/               atualizar_base · ingerir_numeros · ingerir_corpus · ingerir_bradesco · auditar_base · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
 tests/                 23 arquivos · 222 testes
 ```
 
@@ -374,10 +374,14 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   *número* de um sub-recorte fora dos 7 baldes do IF.data (*consignado INSS*, *cheque especial*, *SFH*) —
   aponta a modalidade-pai (SQL) ou o release (texto). **Limite residual:** um sinônimo fora da lista ainda
   cai no default — mas agora **avisado**, não silencioso (ver ADR-0005, item 14).
-- **O caminho de números só computa SHARE:** *"qual a **carteira** de consignado do Itaú segundo o
-  IF.data?"* liga o SQL e devolve a série de **share** — rotulada como share (transparente), mas é
-  resposta a uma pergunta vizinha. O dado bruto (R$ da carteira) está no DB; o fix é um segundo
-  formatador atrás da mesma janela. Achado da 4ª bateria adversarial.
+- **Carteira (R$) × share (%):** o caminho de números computa **os dois, cada um na sua unidade** —
+  ranking, série e cruzamento de *carteira* respondem em **R$** (saldo IF.data; a auditoria de dados
+  de 10/06 validou a unidade: Itaú consignado 4T25 = **R$ 75,3 bi** na base **e** no release), e share
+  segue em % e p.p. O **nível** pontual ("qual o saldo no 4T25?") fica no **texto** por desenho:
+  o release é a autoridade do próprio número gerencial, citado da página. **Limite residual:** o
+  ranking compara só os **5 bancos cobertos** — e a auditoria mostrou a **Caixa em 2º no consignado
+  do sistema** (14,7%, fora da base); por isso a resposta de ranking carrega o rótulo *"entre os 5
+  bancos cobertos"* (sem ele, o "acima de" do vice lia-se como vice do sistema inteiro).
 - **RAG sobre tabelas:** o número *declarado* do B3 (consignado **14,1%**) vive numa **célula de
   tabela**; ao chunkar, perde cabeçalho/unidade e o LLM (corretamente) não o lê. Quando uma tabela densa
   estoura o tamanho-alvo e quebra em 2+ fichas, as fichas de continuação ficam **sem a linha de cabeçalho

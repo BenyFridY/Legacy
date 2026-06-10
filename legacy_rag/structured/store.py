@@ -186,6 +186,28 @@ def market_share_conglomerado_serie(con: duckdb.DuckDBPyConnection, cod_prudenci
     return [(int(am), float(sh)) for am, sh in rows]
 
 
+def carteira_conglomerado_serie(con: duckdb.DuckDBPyConnection, cod_prudencial: str,
+                                modalidade: str, am_ini: int | None = None,
+                                am_fim: int | None = None) -> list[tuple[int, float]]:
+    """Série [(ano_mes, saldo_em_R$)] de um BANCO (conglomerado prudencial) numa modalidade.
+
+    O saldo ABSOLUTO da carteira PF — o mesmo numerador do share, sem dividir pelo sistema.
+    Unidade: R$ (auditoria de 10/06: Itaú consignado 4T25 = 7,53e10 na base ↔ "R$ 75,3 bi" do
+    release — as duas fontes se confirmam). Janela unilateral suportada, como no share.
+    """
+    j_cong, p_cong = _janela_sql("c.ano_mes", am_ini, am_fim)
+    q = f"""
+        SELECT c.ano_mes, SUM(c.saldo) AS saldo
+        FROM carteira_pf c
+        LEFT JOIN cadastro cad ON c.cod_inst = cad.cod_inst AND c.ano_mes = cad.ano_mes
+        WHERE c.modalidade = ? AND COALESCE(cad.cod_prudencial, c.cod_inst) = ? {j_cong}
+        GROUP BY c.ano_mes
+        ORDER BY c.ano_mes;
+    """
+    rows = con.execute(q, [modalidade, cod_prudencial, *p_cong]).fetchall()
+    return [(int(am), float(s)) for am, s in rows]
+
+
 def ranking_conglomerado(con: duckdb.DuckDBPyConnection, ano_mes: int, modalidade: str,
                          top: int = 10) -> list[tuple[str, str, float]]:
     """Top conglomerados por share numa modalidade/período: [(cod_prudencial, nome, share)].

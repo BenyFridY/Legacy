@@ -391,6 +391,37 @@ def test_guardas_do_ranking_natural_continuam_no_texto():
     assert rotear("Qual banco teve o maior lucro no 4T25?").categoria == "doc_unico"
 
 
+def test_carteira_spot_fica_no_texto():
+    """Princípio 'absoluto = release': 'qual o saldo no 4T25?' continua doc_unico — o release é a
+    autoridade do nível (R$ 75,3 bi citado da pág. 21; a auditoria de 10/06 mostrou que o IF.data
+    confirma). Guarda da demo/§4: este fraseio NÃO pode mudar de rota."""
+    assert rotear("Qual o saldo da carteira de credito consignado do Itau no 4T25?").categoria == "doc_unico"
+
+
+def test_carteira_ranking_e_serie_vao_pro_sql():
+    """Dinâmica/comparação = IF.data: ranking de carteira e série de carteira são computáveis em R$
+    (antes: ranking respondia SHARE — unidade errada; série caía no texto e era recusada)."""
+    r1 = rotear("Qual banco tem a maior carteira de consignado?")
+    assert r1.categoria == "comparativo" and r1.metrica == "carteira" and len(r1.bancos) == 5
+    r2 = rotear("Como evoluiu a carteira de consignado do BB?")
+    assert r2.categoria == "computada" and r2.metrica == "carteira"
+
+
+def test_carteira_futura_recusa_r1():
+    """metrica='carteira' (antes 'outra') faz o R1 pegar carteira em ano futuro."""
+    r = rotear("Qual sera a carteira de consignado do Itau em 2027?")
+    assert r.categoria == "nao_respondivel" and r.motivo_recusa.startswith("R1")
+
+
+def test_carteira_subproduto_r7_so_quando_vai_pro_sql():
+    """R7 estendido: ranking de carteira de SUB-produto (INSS) recusa com motivo — computar a
+    modalidade-pai disfarçada seria responder a pergunta errada. A fronteira documentada fica:
+    saldo SPOT de sub-produto ('cheque especial do Itaú') segue pro TEXTO."""
+    r = rotear("Qual banco tem a maior carteira de consignado INSS?")
+    assert r.categoria == "nao_respondivel" and r.motivo_recusa.startswith("R7")
+    assert rotear("Qual o saldo de cheque especial do Itau?").categoria == "doc_unico"
+
+
 def test_janela_ate_e_teto_nao_moldura():
     """Espelho da janela aberta: 'até 2024' liga o slot (o ano vira TETO no pipeline); 'bateu' não
     casa por fronteira de palavra e 'até que ponto' é retórico, não teto."""

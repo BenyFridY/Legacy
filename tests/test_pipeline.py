@@ -5,6 +5,8 @@ Monta uma base DuckDB em memória (chunks de texto + carteira_pf de números) e 
 Encoder/reranker/LLM são FALSOS e determinísticos: provam o FLUXO e as RECUSAS.
 """
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -450,6 +452,33 @@ def test_janela_ate_com_dois_marcos_segue_bilateral():
     quando UM período é citado)."""
     r = rotear("Como evoluiu o market share do BB em consignado de 2023 até 2025?")
     assert _janela_da_rota(r) == (202301, 202512)
+
+
+def test_carteira_ranking_em_reais(deps):
+    """'Qual banco tem a maior carteira de consignado no 4T24?' responde em R$ (saldo IF.data), não
+    em % — e nomeia a cobertura (auditoria 10/06: a Caixa é a 2ª do SISTEMA em consignado e não está
+    na base; sem o rótulo, o 'acima de' lia-se como vice do sistema inteiro)."""
+    r = responder("Qual banco tem a maior carteira de consignado no 4T24?", deps)
+    assert not r.recusou
+    assert "Maior carteira" in r.texto and "BB" in r.texto and "R$ 250" in r.texto
+    assert "entre os 5 bancos cobertos" in r.texto
+
+
+def test_carteira_serie_em_reais(deps):
+    """'Como evoluiu a carteira de consignado do BB?' -> série de SALDO em R$ com variação (antes
+    caía no texto, que não tem a série)."""
+    r = responder("Como evoluiu a carteira de consignado do BB?", deps)
+    assert not r.recusou
+    assert "R$ 200" in r.texto and "R$ 250" in r.texto and "alta" in r.texto
+
+
+def test_multi_fonte_carteira_confronta_em_reais(deps):
+    """'A carteira que o Bradesco declarou bate com o IF.data?' — o lado computado entra em R$
+    (antes entrava a série de SHARE: % para conferir um número em R$). Sem LLM -> evidências."""
+    deps_sem_llm = replace(deps, llm=None)
+    r = responder("A carteira de consignado que o Bradesco declarou bate com o IF.data?", deps_sem_llm)
+    assert not r.recusou
+    assert "saldo IF.data" in r.texto and "R$ 142" in r.texto
 
 
 def test_lidera_sem_a_palavra_share_responde_ranking(deps):

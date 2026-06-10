@@ -163,6 +163,8 @@ def extrair_slots(pergunta: str) -> Slots:
         metrica = "custo_credito"
     elif re.search(r"guidance|projec", t):
         metrica = "guidance"
+    elif re.search(r"\bcarteira\b|\bsaldo\b", t):
+        metrica = "carteira"          # saldo ABSOLUTO em R$ (vs share, que é a fatia relativa)
     else:
         metrica = "outra"
 
@@ -244,7 +246,11 @@ def _gate_escopo(s: Slots) -> str | None:
     # dispara em pergunta DECLARADA (texto): o release pode citar o sub-produto. FRONTEIRA por desenho:
     # número de sub-produto SEM citar IF.data/share ("saldo de cheque especial do Itaú?") segue para o
     # TEXTO — o release traz o saldo e o gate decide; R7 só protege o caminho COMPUTADO. Ver ADR-0005.
-    if s.subproduto_fora and (s.cita_ifdata or s.metrica == "market_share") and not s.declarado:
+    # Para CARTEIRA (saldo), o sinal de SQL é ranking/série/2+ bancos — saldo SPOT de sub-produto
+    # ("saldo de cheque especial do Itaú?") continua indo pro TEXTO, como documentado acima.
+    if s.subproduto_fora and not s.declarado and (
+            s.cita_ifdata or s.metrica == "market_share"
+            or (s.metrica == "carteira" and (s.superlativo or s.serie or len(s.bancos) >= 2))):
         return (f"R7: '{s.subproduto_fora}' é um sub-recorte fora da granularidade do IF.data "
                 f"(carteira PF separa em: {MODALIDADES_IFDATA_TXT}). O número por sub-produto não é "
                 f"computável; posso dar a modalidade-pai (SQL) ou o que o release declara (texto).")
@@ -267,8 +273,14 @@ def _classificar_caminho(s: Slots) -> str:
     # final). `cita_ifdata` sozinho NÃO basta — "o que o Bacen mudou na 4.966?" é pergunta de TEXTO
     # sobre as notas; a palavra 'Bacen' não sequestra a rota. Guardas do ranking: `declarado` segura
     # "maior desafio citado pelo CEO" no texto; sem modalidade do Bacen ("maior lucro"), texto também.
+    # CARTEIRA (saldo em R$) segue o princípio "absoluto = release; dinâmica/comparação = IF.data":
+    # o saldo SPOT ("qual o saldo no 4T25?") fica no TEXTO — o release é a autoridade e a auditoria
+    # de 10/06 mostrou que as fontes se confirmam (R$ 75,3 bi nos dois). Série ("como evoluiu a
+    # carteira...") e comparação de 2+ bancos vêm pro SQL, que é quem tem a série e o cross-bank.
+    pede_carteira_sql = (s.metrica == "carteira" and s.modalidade_explicita
+                         and (s.serie or len(s.bancos) >= 2))
     pede_numero = (s.metrica == "market_share" or (s.cita_ifdata and s.modalidade_explicita)
-                   or (s.superlativo and s.modalidade_explicita))
+                   or (s.superlativo and s.modalidade_explicita) or pede_carteira_sql)
     # RANKING ("qual banco lidera/tem o maior share?") é comparativo sem banco nomeado OU com UM SÓ
     # ("o Itaú é o maior?"): comparar só a série do nomeado respondia OUTRA pergunta ("qual o share
     # dele?") com cara de completa. rotear() preenche com TODOS os cobertos — o corpo lista cada

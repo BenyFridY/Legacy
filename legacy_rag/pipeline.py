@@ -33,7 +33,7 @@ from legacy_rag.generation.answer import (
 from legacy_rag.retrieval.hibrido import buscar_hibrido
 from legacy_rag.retrieval.rerank import rerankar
 from legacy_rag.router.router import Rota, rotear
-from legacy_rag.structured.store import market_share_conglomerado_serie
+from legacy_rag.structured.store import carteira_conglomerado_serie, market_share_conglomerado_serie
 
 
 def _mapa_prudencial_padrao() -> dict[str, str]:
@@ -194,24 +194,48 @@ def _nota_modalidade(rota: Rota) -> str:
     return f"(produto não especificado; assumi {_rotulo(rota.modalidade)}) "
 
 
-def _citacao_ifdata(modalidade: str) -> str:
+def _citacao_ifdata(modalidade: str, metrica: str = "market_share") -> str:
+    if metrica == "carteira":
+        return (f"Bacen IF.data, modalidade={_rotulo(modalidade)} ({modalidade}), "
+                f"saldo da carteira PF do conglomerado prudencial (calc. em SQL)")
     return (f"Bacen IF.data, modalidade={_rotulo(modalidade)} ({modalidade}), "
             f"market share = carteira / Σ sistema (calc. em SQL)")
 
 
-def _formatar_serie(banco: str, modalidade: str, serie: list[tuple[int, float]]) -> str:
-    pontos = ", ".join(f"{am // 100}-{am % 100:02d}: {sh * 100:.1f}%" for am, sh in serie)
+def _fmt_reais(v: float) -> str:
+    """Saldo legível. A base guarda R$ unitário (auditoria 10/06: Itaú consignado 4T25 = 7,53e10
+    ↔ 'R$ 75,3 bi' do release). Adaptativo p/ não imprimir 'R$ 0.0 bi' em bases de teste pequenas."""
+    if abs(v) >= 1e9:
+        return f"R$ {v / 1e9:.1f} bi"
+    if abs(v) >= 1e6:
+        return f"R$ {v / 1e6:.1f} mi"
+    return f"R$ {v:,.0f}"
+
+
+def _fmt_reais_delta(v: float) -> str:
+    return ("+" if v >= 0 else "-") + _fmt_reais(abs(v))
+
+
+def _formatar_serie(banco: str, modalidade: str, serie: list[tuple[int, float]],
+                    metrica: str = "market_share") -> str:
+    eh_carteira = metrica == "carteira"
+    fmt = _fmt_reais if eh_carteira else (lambda v: f"{v * 100:.1f}%")
+    rotulo = (f"Carteira de {banco} em {_rotulo(modalidade)} (saldo IF.data)" if eh_carteira
+              else f"Market share de {banco} em {_rotulo(modalidade)}")
+    pontos = ", ".join(f"{am // 100}-{am % 100:02d}: {fmt(v)}" for am, v in serie)
     if len(serie) == 1:   # foto única (ex.: "share no 4T25") -> sem a frase de Variação, que compararia
-        return f"Market share de {banco} em {_rotulo(modalidade)}: {pontos}."   # o ponto com ele mesmo
-    ini, fim = serie[0][1] * 100, serie[-1][1] * 100
+        return f"{rotulo}: {pontos}."                                           # o ponto com ele mesmo
+    v0, vN = serie[0][1], serie[-1][1]
     am0, amN = serie[0][0], serie[-1][0]                       # nomeia o intervalo REAL coberto
     janela = f"{am0 // 100}-{am0 % 100:02d} a {amN // 100}-{amN % 100:02d}"
-    # 0,1 p.p. = o passo da exibição (%.1f): abaixo disso os números IMPRESSOS podem ser iguais e
-    # rotular "alta/queda" seria afirmar o que o leitor não consegue conferir. (O empate do comparativo
-    # usa 0,05 = MEIO passo — lá dois bancos disputam um título; aqui é a tendência de um só.)
-    tend = "estável" if abs(fim - ini) < 0.1 else ("alta" if fim > ini else "queda")
-    return (f"Market share de {banco} em {_rotulo(modalidade)}: {pontos}. "
-            f"Variação ({janela}): {ini:.1f}% -> {fim:.1f}% ({tend}).")
+    # Tendência só quando os números IMPRESSOS diferem: abaixo do passo de exibição, rotular
+    # "alta/queda" seria afirmar o que o leitor não consegue conferir. (No share o passo é 0,1 p.p.;
+    # na carteira, a igualdade dos valores formatados faz o mesmo papel.)
+    if eh_carteira:
+        tend = "estável" if fmt(v0) == fmt(vN) else ("alta" if vN > v0 else "queda")
+    else:
+        tend = "estável" if abs(vN - v0) * 100 < 0.1 else ("alta" if vN > v0 else "queda")
+    return f"{rotulo}: {pontos}. Variação ({janela}): {fmt(v0)} -> {fmt(vN)} ({tend})."
 
 
 def _computar_serie(rota: Rota, deps: Dependencias, am_ini: int | None = None, am_fim: int | None = None):
@@ -226,7 +250,8 @@ def _computar_serie(rota: Rota, deps: Dependencias, am_ini: int | None = None, a
     prud = deps.mapa_prudencial.get(banco)
     if not prud:
         return None
-    serie = market_share_conglomerado_serie(deps.con, prud, rota.modalidade, am_ini, am_fim)
+    fn = carteira_conglomerado_serie if rota.metrica == "carteira" else market_share_conglomerado_serie
+    serie = fn(deps.con, prud, rota.modalidade, am_ini, am_fim)
     return (banco, serie) if serie else None
 
 
@@ -251,8 +276,9 @@ def _caminho_computado(rota: Rota, deps: Dependencias) -> Resposta:
         return Resposta(texto="Não disponível na base.", recusou=True,
                         motivo=_motivo_nao_computavel(rota, deps))
     banco, serie = computado
-    return Resposta(texto=_nota_modalidade(rota) + _formatar_serie(banco, rota.modalidade, serie),
-                    citacoes=[_citacao_ifdata(rota.modalidade)])
+    return Resposta(texto=_nota_modalidade(rota) + _formatar_serie(banco, rota.modalidade, serie,
+                                                                   rota.metrica),
+                    citacoes=[_citacao_ifdata(rota.modalidade, rota.metrica)])
 
 
 # --------------------------------------------------------------------------
@@ -272,14 +298,15 @@ def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
     Recusa honesta se < 2 bancos computáveis, ou se não houver trimestre comum a todos.
     """
     am_ini, am_fim = _janela_da_rota(rota)
+    fn_serie = carteira_conglomerado_serie if rota.metrica == "carteira" else market_share_conglomerado_serie
     series = []
     for banco in rota.bancos:
         prud = deps.mapa_prudencial.get(banco)
         if not prud:
             continue
-        s = market_share_conglomerado_serie(deps.con, prud, rota.modalidade, am_ini, am_fim)
+        s = fn_serie(deps.con, prud, rota.modalidade, am_ini, am_fim)
         if s:
-            series.append((banco, dict(s)))                   # {ano_mes: share}
+            series.append((banco, dict(s)))                   # {ano_mes: share ou saldo R$}
     if len(series) < 2:
         return Resposta(texto="Não disponível na base.", recusou=True,
                         motivo="comparação cross-bank exige série de ao menos 2 bancos "
@@ -289,40 +316,69 @@ def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
         return Resposta(texto="Não disponível na base.", recusou=True,
                         motivo="os bancos não têm nenhum trimestre em comum na janela pedida -> incomparável.")
     am0, amN = comuns[0], comuns[-1]
-    cit = [_citacao_ifdata(rota.modalidade)]
+    cit = [_citacao_ifdata(rota.modalidade, rota.metrica)]
     nota = _nota_modalidade(rota)                             # avisa se a modalidade foi presumida
     # Sem corte silencioso: banco pedido (ou do ranking) que ficou de fora por falta de série é NOMEADO.
     fora = [b for b in rota.bancos if b not in {nome for nome, _ in series}]
     nota_fora = f" (sem série na janela: {', '.join(fora)})" if fora else ""
+    # CARTEIRA compara SALDOS em R$ (a pergunta pediu R$ — responder share aqui era responder a
+    # pergunta vizinha); SHARE segue em % e p.p. como antes.
+    eh_cart = rota.metrica == "carteira"
+    fmt = _fmt_reais if eh_cart else (lambda v: f"{v:.1f}%")
+    escala = 1.0 if eh_cart else 100.0
+    titulo = "Carteira" if eh_cart else "Market share"
+    fonte = "saldo Bacen IF.data" if eh_cart else "Bacen IF.data"
+    # Cobertura honesta no RANKING: o sistema tem ~1.000 instituições e a base cobre 5 — a auditoria
+    # de 10/06 mostrou a Caixa em 2º no consignado do SISTEMA, fora da cobertura. Sem este rótulo,
+    # o "acima de" do vice lia-se como vice do sistema inteiro.
+    cobertura = "; entre os 5 bancos cobertos" if len(rota.bancos) >= len(ENTIDADES) else ""
 
     if am0 == amN:                                            # uma única foto comum -> compara NÍVEIS
         janela = f"{am0 // 100}-{am0 % 100:02d}"
-        niveis = sorted(((b, d[am0] * 100) for b, d in series), key=lambda x: x[1], reverse=True)
-        corpo = "; ".join(f"{b}: {v:.1f}%" for b, v in niveis)
+        niveis = sorted(((b, d[am0] * escala) for b, d in series), key=lambda x: x[1], reverse=True)
+        corpo = "; ".join(f"{b}: {fmt(v)}" for b, v in niveis)
         gap = niveis[0][1] - niveis[1][1]
+        # Empate: no share, meio passo de exibição (0,05 p.p.); na carteira, valores IMPRESSOS iguais.
+        empatou = (fmt(niveis[0][1]) == fmt(niveis[1][1])) if eh_cart else (gap < _TOL_EMPATE_PP)
         # O veredito nomeia AS DUAS PONTAS ("qual o MENOR share?" lia um veredito só do maior — 5ª bateria).
-        veredito = (f"Maior participação em {janela}: {niveis[0][0]} (+{gap:.1f} p.p. acima de "
-                    f"{niveis[1][0]}); menor: {niveis[-1][0]} ({niveis[-1][1]:.1f}%)."
-                    if gap >= _TOL_EMPATE_PP else f"Empate técnico entre {niveis[0][0]} e {niveis[1][0]}.")
-        resumo = (f"Market share em {_rotulo(rota.modalidade)} ({janela}, Bacen IF.data, calc. em SQL) — "
+        if empatou:
+            veredito = f"Empate técnico entre {niveis[0][0]} e {niveis[1][0]}."
+        elif eh_cart:
+            veredito = (f"Maior carteira em {janela}: {niveis[0][0]} ({_fmt_reais_delta(gap)} acima de "
+                        f"{niveis[1][0]}); menor: {niveis[-1][0]} ({fmt(niveis[-1][1])}).")
+        else:
+            veredito = (f"Maior participação em {janela}: {niveis[0][0]} (+{gap:.1f} p.p. acima de "
+                        f"{niveis[1][0]}); menor: {niveis[-1][0]} ({niveis[-1][1]:.1f}%).")
+        resumo = (f"{titulo} em {_rotulo(rota.modalidade)} ({janela}, {fonte}, calc. em SQL{cobertura}) — "
                   f"{corpo}. {veredito}{nota_fora}")
         return Resposta(texto=nota + resumo, citacoes=cit)
 
     # janela com >=2 trimestres comuns -> compara a VARIAÇÃO sobre os MESMOS extremos (am0 -> amN)
     janela = f"{am0 // 100}-{am0 % 100:02d} a {amN // 100}-{amN % 100:02d}"
-    detalhes = sorted(((b, d[amN] * 100 - d[am0] * 100, d[am0] * 100, d[amN] * 100) for b, d in series),
-                      key=lambda x: x[1], reverse=True)        # (banco, delta_pp, ini, fim), maior variação 1º
-    corpo = "; ".join(f"{b}: {ini:.1f}% -> {fim:.1f}% ({dl:+.1f} p.p.)" for b, dl, ini, fim in detalhes)
+    detalhes = sorted(((b, (d[amN] - d[am0]) * escala, d[am0] * escala, d[amN] * escala) for b, d in series),
+                      key=lambda x: x[1], reverse=True)        # (banco, delta, ini, fim), maior variação 1º
+    if eh_cart:
+        corpo = "; ".join(f"{b}: {fmt(ini)} -> {fmt(fim)} ({_fmt_reais_delta(dl)})"
+                          for b, dl, ini, fim in detalhes)
+    else:
+        corpo = "; ".join(f"{b}: {ini:.1f}% -> {fim:.1f}% ({dl:+.1f} p.p.)" for b, dl, ini, fim in detalhes)
     (lider, d_lider, _, _), (segundo, d_seg, _, _) = detalhes[0], detalhes[1]
     ultimo, d_ult = detalhes[-1][0], detalhes[-1][1]
-    if abs(d_lider - d_seg) < _TOL_EMPATE_PP:
-        veredito = f"Variação equivalente no período entre {lider} e {segundo} (diferença < {_TOL_EMPATE_PP:.2f} p.p.)."
+    empatou = (_fmt_reais_delta(d_lider) == _fmt_reais_delta(d_seg)) if eh_cart \
+        else (abs(d_lider - d_seg) < _TOL_EMPATE_PP)
+    if empatou:
+        sufixo = "." if eh_cart else f" (diferença < {_TOL_EMPATE_PP:.2f} p.p.)."
+        veredito = f"Variação equivalente no período entre {lider} e {segundo}{sufixo}"
+    elif eh_cart:
+        verbo = "cresceu mais" if d_lider > 0 else "encolheu menos"
+        veredito = (f"Quem {verbo}: {lider} ({_fmt_reais_delta(d_lider - d_seg)} a mais que {segundo}); "
+                    f"na outra ponta, {ultimo} ({_fmt_reais_delta(d_ult)}).")
     else:
         # As duas pontas: "quem PERDEU mais?" lia um veredito que só coroava o ganhador (5ª bateria).
         verbo = "ganhou mais" if d_lider > 0 else "perdeu menos"
         veredito = (f"Quem {verbo} participação: {lider} ({d_lider - d_seg:+.1f} p.p. a mais que {segundo}); "
                     f"na outra ponta, {ultimo} ({d_ult:+.1f} p.p.).")
-    resumo = (f"Market share em {_rotulo(rota.modalidade)} ({janela}, Bacen IF.data, calc. em SQL) — "
+    resumo = (f"{titulo} em {_rotulo(rota.modalidade)} ({janela}, {fonte}, calc. em SQL{cobertura}) — "
               f"{corpo}. {veredito}{nota_fora}")
     return Resposta(texto=nota + resumo, citacoes=cit)   # nota TAMBÉM aqui (3ª auditoria: só o ramo
                                                          # de 1 foto avisava; este é o ramo mais comum)
@@ -351,14 +407,16 @@ def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
     # reconcilia (declarado x computado) em vez de devolver evidência crua. Ver ADR-0005.
     relevantes = [r for r in resultados if r.score >= deps.limiar]
     tem_texto = len(relevantes) > 0
-    # O caminho SQL só sabe computar MARKET SHARE. Numa pergunta de custo de crédito/guidance (B1),
-    # anexar a série de share de consignado seria evidência ENGANOSA -> nunca computa nessas métricas.
-    # Computa quando a métrica É share, OU quando a pergunta nomeou a MODALIDADE sem nomear métrica
-    # ("o que o CEO falou de consignado bate com o Bacen?" — 5ª bateria: a paráfrase natural do
-    # carro-chefe não traz a palavra 'share'; a série entra ROTULADA como share, citada como cálculo).
+    # O caminho SQL computa SHARE e CARTEIRA (saldo). Numa pergunta de custo de crédito/guidance (B1),
+    # anexar a série de consignado seria evidência ENGANOSA -> nunca computa nessas métricas.
+    # Computa quando a métrica É share ou carteira (cada uma na SUA unidade — antes, "a carteira que
+    # o CEO declarou bate?" entrava com a série de SHARE: % para conferir R$), OU quando a pergunta
+    # nomeou a MODALIDADE sem nomear métrica ("o que o CEO falou de consignado bate com o Bacen?" —
+    # 5ª bateria: a paráfrase natural não traz 'share'; a série entra ROTULADA, citada como cálculo).
     # Alinha pela MESMA janela de período do lado declarado (ex.: declarado no 4T25 -> computa no 4T25).
     am_ini, am_fim = _janela_da_rota(rota)
-    computa = rota.metrica == "market_share" or (rota.metrica == "outra" and rota.modalidade_explicita)
+    computa = (rota.metrica in ("market_share", "carteira")
+               or (rota.metrica == "outra" and rota.modalidade_explicita))
     computado = _computar_serie(rota, deps, am_ini, am_fim) if computa else None
 
     if not tem_texto and computado is None:                 # nem declarado nem computado -> recusa
@@ -372,8 +430,8 @@ def _caminho_multi(pergunta: str, rota: Rota, deps: Dependencias) -> Resposta:
             citacoes.append(r.citacao)
     if computado is not None:
         banco, serie = computado
-        cit = _citacao_ifdata(rota.modalidade)
-        partes.append(("N1", cit, _formatar_serie(banco, rota.modalidade, serie)))
+        cit = _citacao_ifdata(rota.modalidade, rota.metrica)
+        partes.append(("N1", cit, _formatar_serie(banco, rota.modalidade, serie, rota.metrica)))
         citacoes.append(cit)
 
     # Cabeçalho HONESTO: nomeia só os lados que de fato entraram (não promete 'x computado' se só há texto).
