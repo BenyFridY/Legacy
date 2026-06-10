@@ -204,6 +204,12 @@ pelo LLM); o **0,60** separa perfeitamente (0% over-recusa, 0% vazamento) e barr
 gate**. `LIMIAR_EVIDENCIA_PADRAO` foi ajustado para 0,60. Ressalva: `n=12` é pequeno; produção pede um
 gold maior e por-modalidade (banda segura medida ~[0,60; 0,71]).
 
+**3c. Fallback do reranker (`LIMIAR_DISCRIMINA_RERANK = 0,05`)** — mesmo método, outro limiar: quando
+o desvio-padrão das notas do cross-encoder fica abaixo de 0,05, o pipeline mantém a ordem do RRF
+(o reranker "não discriminou"). Calibrado por `scripts/calibrar_discrimina_rerank.py`: rodadas
+**achatadas** medem `pstdev ≤ 0,048` e rodadas que **discriminam**, `≥ 0,072` — o 0,05 cai no vão
+entre as duas populações. Mesma ressalva de `n` pequeno do gate.
+
 ---
 
 ## 4. Resolução do Caso B — ponta a ponta (**modelos reais: BGE-M3 + reranker + Groq/Llama 3.3 70B**)

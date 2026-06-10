@@ -32,17 +32,17 @@ Posição é comparável; nota bruta não.
 
 ## Re-ranker (o passo final)
 
-Depois da híbrida trazer ~20 candidatos, o **reranker** (`bge-reranker-v2-m3`) lê **pergunta + candidato
+Depois da híbrida trazer ~10 candidatos, o **reranker** (`bge-reranker-v2-m3`) lê **pergunta + candidato
 juntos** e dá uma nota de relevância mais fina, reordenando pro **top-5**.
 
-> **Analogia:** híbrida = **triagem** (pega 20); reranker = **entrevista final** (escolhe 5). Mais caro,
+> **Analogia:** híbrida = **triagem** (pega 10); reranker = **entrevista final** (escolhe 5). Mais caro,
 > por isso só nos finalistas.
 
 ## O stack de retrieval completo
 
 ```
 pergunta ─┬─► BM25 (palavra exata)        ─┐
-          └─► vetorial / BGE-M3 (sentido) ─┴─► FUNDE (RRF) ─► RERANK (20→5) ─► trechos + citação
+          └─► vetorial / BGE-M3 (sentido) ─┴─► FUNDE (RRF) ─► RERANK (10→5) ─► trechos + citação
 ```
 
 ## No nosso caso

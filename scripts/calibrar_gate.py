@@ -3,8 +3,10 @@
 Pontua cada pergunta com o retrieval REAL (encoder + reranker, SEM LLM -> rapido), pega a MELHOR
 nota do reranker e varre o limiar, contando os dois erros: over-recusa (respondivel recusada) x
 vazamento (fora-da-base que passou). Imprime a tabela e o 'joelho' recomendado, comparando ao
-valor atual (0,30). E o numero que faltava no criterio de avaliacao (mede a recusa por EVIDENCIA,
-nao so a recusa por escopo do roteador). Ver legacy_rag/eval/calibracao_gate.py.
+valor vigente em config.LIMIAR_EVIDENCIA_PADRAO (0,60 — derivado por ESTE script; o placeholder
+original era 0,30). A grade para em 0,60 mas o joelho nao depende do teto: o tie-break 'menor
+limiar' escolheria 0,60 mesmo com grade maior (fora-da-base max ~0,59; respondivel min ~0,72).
+Ver legacy_rag/eval/calibracao_gate.py.
 
 Uso (depois de ingerir o corpus):
   set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8 & python scripts/calibrar_gate.py

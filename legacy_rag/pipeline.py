@@ -195,6 +195,9 @@ def _formatar_serie(banco: str, modalidade: str, serie: list[tuple[int, float]])
     ini, fim = serie[0][1] * 100, serie[-1][1] * 100
     am0, amN = serie[0][0], serie[-1][0]                       # nomeia o intervalo REAL coberto
     janela = f"{am0 // 100}-{am0 % 100:02d} a {amN // 100}-{amN % 100:02d}"
+    # 0,1 p.p. = o passo da exibição (%.1f): abaixo disso os números IMPRESSOS podem ser iguais e
+    # rotular "alta/queda" seria afirmar o que o leitor não consegue conferir. (O empate do comparativo
+    # usa 0,05 = MEIO passo — lá dois bancos disputam um título; aqui é a tendência de um só.)
     tend = "estável" if abs(fim - ini) < 0.1 else ("alta" if fim > ini else "queda")
     return (f"Market share de {banco} em {_rotulo(modalidade)}: {pontos}. "
             f"Variação ({janela}): {ini:.1f}% -> {fim:.1f}% ({tend}).")

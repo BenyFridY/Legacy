@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retrieval para Research de Equities — Beny Frid · Legacy Capital</title>
+<style>
+  /* ============ base ============ */
+  :root{
+    --bg:#0d1117; --panel:#161d27; --panel2:#1b2433; --ink:#e8edf4; --dim:#9aa7b8;
+    --gold:#d4a843; --teal:#39c6b3; --red:#e06c5e; --line:#2a3548;
+    --mono:'Cascadia Code','Consolas',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font:18px/1.55 'Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  b,strong{color:#fff}
+  .gold{color:var(--gold)} .teal{color:var(--teal)} .red{color:var(--red)} .dim{color:var(--dim)}
+
+  /* ============ slides ============ */
+  .slide{
+    position:absolute; inset:0; display:none; flex-direction:column;
+    padding:56px 84px 72px; overflow:auto;
+  }
+  .slide.ativo{display:flex}
+  .slide.centro{justify-content:center; align-items:center; text-align:center}
+  .kicker{
+    font:600 13px/1 var(--mono); letter-spacing:.22em; text-transform:uppercase;
+    color:var(--gold); margin-bottom:14px;
+  }
+  h1{font-size:46px; line-height:1.15; font-weight:700; letter-spacing:-.01em}
+  h2{font-size:34px; line-height:1.2; font-weight:700; margin-bottom:26px; letter-spacing:-.01em}
+  h3{font-size:20px; margin:18px 0 8px; color:var(--gold)}
+  .sub{font-size:22px; color:var(--dim); margin-top:18px}
+  ul{list-style:none}
+  li{margin:10px 0; padding-left:26px; position:relative}
+  li::before{content:'▸'; position:absolute; left:0; color:var(--gold)}
+  li.nao::before{content:'✕'; color:var(--red)}
+  li.sim::before{content:'✓'; color:var(--teal)}
+
+  /* tabelas */
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:16.5px}
+  th{color:var(--gold); text-align:left; font-weight:600; padding:9px 14px;
+     border-bottom:2px solid var(--line); white-space:nowrap}
+  td{padding:9px 14px; border-bottom:1px solid var(--line); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td:first-child{color:#fff}
+  em{color:var(--teal); font-style:italic}
+
+  /* cartões e blocos */
+  .cards{display:flex; gap:18px; margin:18px 0; flex-wrap:wrap}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:18px 22px; flex:1; min-width:180px;
+  }
+  .card .num{font:700 40px/1.1 'Segoe UI'; color:var(--teal)}
+  .card .num.au{color:var(--gold)}
+  .card .leg{font-size:14px; color:var(--dim); margin-top:6px}
+  .callout{
+    background:var(--panel); border-left:4px solid var(--gold); border-radius:0 10px 10px 0;
+    padding:16px 22px; margin:18px 0; font-size:17.5px;
+  }
+  .ancora{
+    font-size:24px; font-style:italic; color:var(--gold);
+    border-top:1px solid var(--line); padding-top:22px; margin-top:auto;
+  }
+  pre.diag{
+    font:14.5px/1.5 var(--mono); color:var(--ink); background:var(--panel);
+    border:1px solid var(--line); border-radius:12px; padding:20px 26px;
+    overflow:auto; margin:10px 0;
+  }
+  pre.diag .g{color:var(--gold)} pre.diag .t{color:var(--teal)} pre.diag .r{color:var(--red)} pre.diag .d{color:var(--dim)}
+  .duas{display:grid; grid-template-columns:1fr 1fr; gap:34px; align-items:start}
+
+  /* regras R1..R8 */
+  .regras{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin:14px 0}
+  .regra{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 16px; font-size:16px}
+  .regra .tag{font:700 13px var(--mono); color:var(--red); margin-right:8px}
+
+  /* ============ moldura ============ */
+  #hud{
+    position:fixed; left:0; right:0; bottom:0; height:46px; display:flex;
+    align-items:center; justify-content:space-between; padding:0 28px;
+    font:12.5px var(--mono); color:var(--dim); z-index:5;
+    background:linear-gradient(transparent,rgba(13,17,23,.92) 40%);
+  }
+  #barra{position:fixed; top:0; left:0; height:3px; background:var(--gold); z-index:6; transition:width .25s}
+  #notas{
+    position:fixed; right:0; top:0; bottom:0; width:min(460px,44vw); z-index:7;
+    background:var(--panel2); border-left:1px solid var(--line); padding:26px 28px 60px;
+    overflow:auto; display:none; font-size:15px; box-shadow:-12px 0 40px rgba(0,0,0,.5);
+  }
+  #notas.aberto{display:block}
+  #notas h4{color:var(--gold); font:600 12px var(--mono); letter-spacing:.18em;
+            text-transform:uppercase; margin:20px 0 8px}
+  #notas h4:first-child{margin-top:0}
+  #notas p{margin:8px 0; color:var(--ink)}
+  #notas .esc{border-top:1px dashed var(--line); padding-top:10px; margin-top:10px}
+  #notas .esc b{color:var(--teal)}
+  kbd{font:12px var(--mono); background:var(--panel); border:1px solid var(--line);
+      border-radius:4px; padding:1px 6px}
+
+  /* ============ impressão (PDF de backup) ============ */
+  @media print{
+    body{overflow:visible; background:#0d1117; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    .slide{position:relative; display:flex !important; page-break-after:always; height:100vh}
+    #hud,#barra,#notas{display:none !important}
+  }
+</style>
+</head>
+<body>
+
+<div id="barra"></div>
+
+<!-- ================= 1 · CAPA ================= -->
+<section class="slide centro" data-n="1">
+  <div>
+    <div class="kicker">Case Estágio AI · Legacy Capital · junho/2026</div>
+    <h1>Sistema de Retrieval para<br>Research de Equities</h1>
+    <p class="sub">RAG <em>dual-path</em> roteado — <b class="gold">texto que cita, número que computa</b></p>
+    <p class="sub" style="margin-top:46px; font-size:18px">Beny Frid</p>
+  </div>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"Construí um sistema de retrieval pra apoiar o research de equities. A ideia central — que vou defender hoje — é simples: <b>separar o que é texto do que é número</b>. É exatamente aí que o RAG ingênuo quebra, e foi a primeira decisão de arquitetura que tomei."</p>
+    <div class="esc"><b>🛡️ "O que é dual-path?"</b><p>Dois caminhos separados — um pra texto, um pra número — que só se encontram na resposta final. Mostro no diagrama.</p></div>
+  </template>
+</section>
+
+<!-- ================= 2 · O PROBLEMA ================= -->
+<section class="slide" data-n="2">
+  <div class="kicker">2 · O problema</div>
+  <h2>Por que research de equities é difícil pra um RAG</h2>
+  <p><b>O research lê uma montanha</b> de releases, transcrições de call e balanços — e precisa de resposta:</p>
+  <ul>
+    <li><b>rápida</b></li>
+    <li><b>com a fonte</b> (citável, auditável)</li>
+    <li><b>com o número certo</b></li>
+  </ul>
+  <h3>O "RAG ingênuo" falha em dois pontos:</h3>
+  <ul>
+    <li class="nao"><b>Número:</b> o LLM <em>lembra</em> o número aproximado — e erra. <span class="dim">"1,2%" e "12%" moram em textos quase idênticos.</span></li>
+    <li class="nao"><b>Honestidade:</b> quando não sabe, ele <b class="red">inventa</b> em vez de dizer "não tenho".</li>
+  </ul>
+  <p class="ancora dim" style="font-size:19px">Errar um número ou inventar uma fonte não é bugzinho — é perder a confiança do analista.</p>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"Num contexto de research, errar um número ou inventar uma fonte não é um bugzinho — é perder a confiança do analista. O RAG ingênuo, de jogar tudo num índice vetorial e pedir pro modelo responder, falha justamente nessas duas coisas: número e honestidade."</p>
+    <div class="esc"><b>🛡️ "Por que não só um índice grande + GPT?"</b><p>Número não se recupera por similaridade — 1,2% e 12% têm vizinhança semântica quase igual. E sem portão de evidência, o modelo preenche lacuna inventando. As duas falhas têm a mesma raiz: tratar número como texto.</p></div>
+  </template>
+</section>
+
+<!-- ================= 3 · A SACADA ================= -->
+<section class="slide" data-n="3">
+  <div class="kicker">3 · A sacada central</div>
+  <h2>Texto e número são problemas <span class="gold">diferentes</span>.<br>Trate cada um do seu jeito.</h2>
+  <table>
+    <tr><th></th><th>TEXTO <span class="dim">("o que o CEO disse")</span></th><th>NÚMERO <span class="dim">("qual o market share")</span></th></tr>
+    <tr><td>Como obter</td><td><b>recuperar</b> o trecho e <b>citar</b></td><td><b>computar</b> com SQL (Bacen IF.data)</td></tr>
+    <tr><td>Quem faz</td><td>busca híbrida + rerank</td><td>DuckDB (conta determinística)</td></tr>
+    <tr><td>Papel do LLM</td><td><b>escreve</b> a resposta com o trecho</td><td><b class="red">nenhum cálculo</b> — só redige o resultado</td></tr>
+  </table>
+  <div class="callout"><b>O LLM nunca faz a conta.</b> O SQL faz a conta; o LLM só veste o número em linguagem — e sempre cita a fonte.</div>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"Essa é a sacada que organiza o projeto todo. Pergunta de texto eu <b>recupero e cito</b>. Pergunta de número eu <b>computo com SQL</b> sobre dados oficiais do Banco Central. O LLM <b>nunca</b> faz a conta — só escreve a frase final com o número que o SQL já calculou. Assim o número é sempre exato e rastreável."</p>
+    <div class="esc"><b>🛡️ "Mas LLM não faz conta?"</b><p>Faz, e bem, <i>quando recebe o contexto certo</i> — testei. Mas não quero <b>depender</b> disso pra número de mercado: SQL é determinístico e auditável. O LLM erra quando precisa <b>lembrar</b> o número; aqui ele nunca precisa lembrar.</p></div>
+    <div class="esc"><b>🛡️ "E quando a pergunta é as duas coisas?"</b><p>Existe — é o coração do Caso B: comparo o que a empresa <b>declarou</b> no texto com o que <b>computei</b> do Bacen. Mostro daqui a pouco.</p></div>
+  </template>
+</section>
+
+<!-- ================= 4 · ARQUITETURA ================= -->
+<section class="slide" data-n="4">
+  <div class="kicker">4 · A arquitetura</div>
+  <h2><em>Dual-path</em> roteado</h2>
+  <pre class="diag">
+                        pergunta
+                           │
+                <span class="g">┌──────────▼──────────┐</span>
+                <span class="g">│  ROTEADOR (regras)  │</span>  <span class="d">número ou texto? (determinístico)</span>
+                <span class="g">└──────────┬──────────┘</span>
+          ┌────────────────┴────────────────┐
+        <span class="t">TEXTO</span>                             <span class="t">NÚMERO</span>
+          │                                  │
+ embedding + BM25                     DuckDB (SQL):
+  → RRF → reranker                    carteira_banco ÷ Σ sistema
+          │                           = market share <span class="t">(EXATO)</span>
+ <span class="g">GATE 0,60: evidência forte?</span>                 │
+      │ <span class="r">não → RECUSA (com motivo)</span>            │
+      │ sim                                  │
+      └────────► <span class="g">LLM REDIGE com CITAÇÃO</span> ◄────┘
+                 <span class="d">(nunca faz a conta; ou recusa, sem inventar)</span></pre>
+  <p class="dim" style="margin-top:8px"><b style="color:var(--ink)">Funil do texto</b> — barato/impreciso → caro/preciso:&nbsp;
+  <span style="font-family:var(--mono); font-size:14.5px">3.650 fichas → embedding (top 50) + BM25 (top 50) → RRF → reranker (~10) → top 5 → GATE 0,60</span></p>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"Toda pergunta passa por um <b>roteador determinístico</b>: número ou texto? <b>Número</b> vai pro SQL — carteira do banco dividida pelo sistema, conta exata e auditável. <b>Texto</b> entra num funil: duas buscas baratas pegam 50 candidatos cada (embedding por significado, BM25 por palavra exata), o RRF funde por posição, o reranker entrevista os ~10 finalistas a fundo. No fim, um <b>portão de evidência (0,60)</b>: se nada é bom o bastante, <b>recusa</b>; senão o LLM redige <b>com citação</b> — mas nunca faz a conta."</p>
+    <div class="esc"><b>🛡️ "Por que roteador de regras e não agente LLM?"</b><p>O eval pesa 50% e roda o sistema repetidamente — <b>mesma pergunta → mesmo caminho</b> mantém a avaliação reproduzível e auditável. Agente LLM seria mais flexível, mas traria não-determinismo e 3-5 chamadas por pergunta. Troquei flexibilidade por confiabilidade.</p></div>
+  </template>
+</section>
+
+<!-- ================= 5 · RECUSA ================= -->
+<section class="slide" data-n="5">
+  <div class="kicker">5 · Responder ou recusar</div>
+  <h2>Honestidade como <span class="gold">feature</span> — recusa em 2 estágios</h2>
+  <h3>Estágio 1 — ESCOPO (roteador, antes de buscar)</h3>
+  <div class="regras">
+    <div class="regra"><span class="tag">R1</span><b>futuro</b> — valor de métrica além da cobertura (&gt;2026); data <i>documentada</i> passa</div>
+    <div class="regra"><span class="tag">R2</span><b>bases incompatíveis</b> — IFRS × Cosif por <i>conjunção de sinais</i>, nunca pelo nome do banco</div>
+    <div class="regra"><span class="tag">R3</span><b>verbatim ausente</b> — frase literal de quem não tem transcrição oficial na base</div>
+    <div class="regra"><span class="tag">R7</span><b>sub-produto fora do Bacen</b> — "consignado INSS" → aponta a modalidade-pai ou o release</div>
+    <div class="regra" style="grid-column:1/-1"><span class="tag">R8</span><b>recomendação de investimento</b> — "vale a pena comprar?" → a base documenta <b>fatos</b>; aconselhar compra/venda, não</div>
+  </div>
+  <h3>Estágio 2 — EVIDÊNCIA (gate, depois de buscar)</h3>
+  <p>Melhor nota do reranker <b class="red">&lt; 0,60</b> (calibrado) → recusa em vez de redigir sobre evidência fraca.</p>
+  <div class="callout">Toda recusa diz o <b>MOTIVO</b> — auditável, nunca um "não sei" seco. Medido: <b class="teal">over-recusa 0%</b>.</div>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"Num sistema de research, recusar não é falha — é feature. Recuso em duas camadas. Primeiro <b>escopo</b>: antes de gastar busca, o roteador vê se a pergunta cabe na base. Depois <b>evidência</b>: mesmo no escopo, se o melhor trecho não passa de uma nota mínima calibrada, recuso. E toda recusa vem com o motivo."</p>
+    <div class="esc"><b>🛡️ "E se recusar demais?"</b><p>Medi: <b>0% de over-recusa</b> nas 12 perguntas de comportamento. E o caso sutil — data futura <i>documentada</i> (vigência de norma em 2027) — é <b>respondido</b>: uma trava confere se um trecho cita o ano. Recuso o valor que eu inventaria, não a data que está escrita.</p></div>
+    <div class="esc"><b>🛡️ "De onde vem o 0,60?"</b><p>Calibrei: variei o limiar contra um mini-gold de respondíveis × fora-da-base e achei o joelho — respondíveis ~0,72, fora-da-base ~0,50; 0,60 separa com 0% vazamento e 0% over-recusa. Antes era 0,30, placeholder que deixava tudo passar.</p></div>
+  </template>
+</section>
+
+<!-- ================= 6 · DEMO ================= -->
+<section class="slide" data-n="6">
+  <div class="kicker">6 · Caso B — ao vivo</div>
+  <h2>As rotas em ação <span class="dim" style="font-size:20px">(a demo é o centro)</span></h2>
+  <table style="font-size:15px">
+    <tr><th>pergunta</th><th>rota</th><th>resultado</th></tr>
+    <tr><td><i>Resultado Recorrente Gerencial do Itaú no 4T25?</i></td><td><b class="teal">texto</b></td><td><b>R$ 12,3 bi</b>, citado da <b>pág. 8</b></td></tr>
+    <tr><td><i>Market share do Nubank em cartão no 4T25?</i></td><td><b class="teal">número</b></td><td>SQL — <b>qualquer banco × modalidade</b>, sem precisar dizer "IF.data"</td></tr>
+    <tr><td><i>Qual banco teve o maior share em consignado no 4T25?</i></td><td><b class="teal">ranking</b></td><td>sem banco nomeado → compara <b>todos</b>, elege líder com gap em p.p.</td></tr>
+    <tr><td><i>Entre BB e Bradesco, quem ganhou mais share de consignado de 2023 a 2024?</i></td><td><b class="teal">comparativo</b></td><td>BB <b>+0,7 p.p. a mais</b> (cross-bank, <b>janela escolhida</b>)</td></tr>
+    <tr><td><i>O share do Bradesco no balanço bate com o que computamos do Bacen?</i></td><td><b class="gold">multi-fonte</b></td><td>declarado <b>14,2%</b> (call) / <b>14,1%</b> (release) × computado <b>13,8%</b> — lado a lado, citados</td></tr>
+    <tr><td><i>Custo de crédito do Bradesco no 2T2027?</i></td><td><b class="red">recusa</b></td><td><b>R1</b> — futuro fora da base, diz o motivo</td></tr>
+  </table>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"Agora ao vivo. <b>Texto</b>: o lucro do Itaú — acha na página 8 e cita. <b>Número</b>: share do Nubank em cartão, computado em SQL — funciona pra qualquer banco e produto. <b>Ranking</b>: qual banco lidera, com o gap exato. O <b>coração do Caso B</b>, multi-fonte: cruzo o que o Bradesco declarou na call com o que computei do Bacen — os dois lados citados, lado a lado, e a confirmação (~0,3 p.p.) se lê na hora. Se o redator hesitar diante das tabelas, o sistema não inventa nem recusa: entrega a evidência citada. E a <b>recusa</b>: pergunto o futuro, ele recusa com o motivo."</p>
+    <h4>💡 Ritual de demo</h4><p>Abrir a <code>ui_demo</code> com antecedência (~1-2 min de carga, o torch importa em silêncio) · NÃO rodar <code>resolver_caso</code>/<code>perguntar</code> com o chat aberto (DuckDB single-writer) · cada pergunta é independente — sem follow-up curto ("e o Bradesco?"), refaça a pergunta completa · as 6 perguntas coladas num bloco de notas.</p>
+    <div class="esc"><b>🛡️ "Isso é mocado?"</b><p>Não — backend real. Roteador é regra, número é SQL sobre dado público do Bacen baixado pela API Olinda, citação é anexada por código. Rodem a pergunta que quiserem — e dá pra conferir o share recomputando o SQL na mão.</p></div>
+    <div class="esc"><b>🛡️ Demo falhar / sem internet</b><p>Sem chave de LLM o sistema ainda roteia, recupera, computa e cita — só não redige texto livre. A parte crítica não depende do LLM. (backup: print salvo)</p></div>
+    <div class="esc"><b>🛡️ Multi-fonte não "narrar" veredito</b><p>É desenho: o LLM só redige quando reconcilia com segurança; senão mostra declarado × computado citados lado a lado — não inventa nem recusa.</p></div>
+    <div class="esc"><b>🛡️ "Vale a pena comprar?"</b><p>R8 → recusa explícita. Par de demo: "devo investir no Bradesco?" → recusa; "qual a recomendação dos analistas, segundo o release?" → responde o fato citado (Comprar 9, Manter 5, Vender 0).</p></div>
+    <div class="esc"><b>🛡️ Pergunta informal sem trimestre → recusa</b><p>Nomeie o trimestre ("no 4T25") — o pré-filtro de período fixa o documento certo; period-ambígua é fraqueza nomeada no README com fix descrito.</p></div>
+    <div class="esc"><b>🛡️ Tom macro ENTRE ANOS (B2 do enunciado, ex.: 2023→2025)</b><p>O corpus tem release/transcrição por trimestre e a pergunta vai pro caminho de texto; com 2+ períodos o pré-filtro de período é abandonado (fraqueza nomeada no README) — o retrieval semântico ainda recupera, mas sem garantia de cobertura de todos os trimestres. A trajetória completa pede mais transcrições ingeridas: no manifesto, é 1 linha por documento.</p></div>
+    <div class="esc"><b>🛡️ "Por que IF.data e não SCR.data?"</b><p>O confronto declarado×computado é trimestral por natureza — release e call são trimestrais. SCR (mensal) é o upgrade natural: mesma API Olinda, mesmo store.</p></div>
+    <div class="esc"><b>🛡️ "Selic hoje?" (tempo real)</b><p>A base é documental e datada — "hoje" não existe nela: o gate recusa ou a resposta cita o período do documento. Tempo real é outra classe de fonte, entraria pela mesma camada de ingestão.</p></div>
+    <div class="esc"><b>🛡️ B1 do PDF ao pé da letra (Bradesco 2023)</b><p>Recusa honesta — janela de texto ingerida: 3T25→1T26 (números: 3T23→4T25). A pergunta é respondível pelo desenho (é a Q5 do eval com BB 2025); cobrir 2023 é 1 linha no manifesto.</p></div>
+  </template>
+</section>
+
+<!-- ================= 7 · EVAL ================= -->
+<section class="slide" data-n="7">
+  <div class="kicker">7 · Resultados do eval</div>
+  <h2>"Comece pelo eval" — medi antes de otimizar</h2>
+  <div class="cards">
+    <div class="card"><div class="num">81,8%</div><div class="leg">hit@3 · 22 sondagens<br>5 fontes, 4 tipos de doc</div></div>
+    <div class="card"><div class="num">0,686</div><div class="leg">MRR (achei <i>cedo</i>)<br>hit@5: 86,4%</div></div>
+    <div class="card"><div class="num">90%</div><div class="leg">nas sondagens realistas<br>(sem gíria/paráfrase)</div></div>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="num au">12/12</div><div class="leg">comportamento certo (escopo)<br>over-recusa <b>0%</b> · <b>0</b> alucinação</div></div>
+    <div class="card"><div class="num au">6/6</div><div class="leg">fidelidade — juiz LLM<br><b>independente</b> (≠ gerador)</div></div>
+    <div class="card"><div class="num au">217</div><div class="leg">testes de fluxo<br>(sem rede / sem modelo)</div></div>
+  </div>
+  <div class="callout"><b>O eval pegou um bug real:</b> um doc rotulado "Bradesco 3T25" era o release de <b>4T19</b> (URL errada na fonte). O hit@3 caiu, investiguei, troquei a URL — e subiu <b class="teal">77% → 82%</b>.</div>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"O case diz 'comece pelo eval', e comecei. Retrieval: hit@3 de 82%, 90% nas realistas, num conjunto heterogêneo. Recusa: 12 de 12, zero over-recusa. Fidelidade: 6 de 6, com juiz de outra família de modelo pra não ter viés de auto-avaliação. E o melhor: o eval pegou um erro real — um documento que eu achava 3T25 era de 2019; o número caiu, investiguei, corrigi. Medir antes de afirmar."</p>
+    <div class="esc"><b>🛡️ "n é pequeno"</b><p>É, e sou explícito: escopo n=12, fidelidade n=6. Sanidade forte, não estatística de população. Em produção o gold cresce, idealmente por modalidade — o arcabouço está pronto e roda em segundos.</p></div>
+    <div class="esc"><b>🛡️ "Por que hit@3 e MRR?"</b><p>hit@3 = a página certa está entre as 3 primeiras (o analista olha poucas). MRR = quão no topo ela vem em média. Juntos: "achei" e "achei cedo".</p></div>
+  </template>
+</section>
+
+<!-- ================= 8 · SURPRESAS ================= -->
+<section class="slide" data-n="8">
+  <div class="kicker">8 · O que me surpreendeu</div>
+  <h2>Aprendizados não-óbvios</h2>
+  <ul style="font-size:19px">
+    <li><b>1 · O LLM não é determinístico — nem a temperatura 0.</b> A mesma pergunta deu <i>responde → recusa → responde</i>. Isso <b>confirmou</b> a arquitetura: confinar o não-determinismo ao texto livre; roteador (regra), conta (SQL) e citação (código) ficam determinísticos.</li>
+    <li><b>2 · O LLM faz conta BEM — com o contexto certo.</b> Testei e <b class="teal">refutei meu próprio pressuposto</b>. Escolhi SQL mesmo assim — por <b>auditabilidade</b>, não por incapacidade do modelo.</li>
+    <li><b>3 · Uma "fraqueza" virou feature.</b> Nubank reporta em IFRS (incomparável com Cosif) → virou a <b>recusa R2</b>: honestidade orgânica.</li>
+    <li><b>4 · Auditoria adversarial do próprio código</b> achou que a comparação entre bancos <b class="red">ignorava os anos</b> da pergunta. Corrigi e provei com dados reais. Duvidar do próprio código achou o que os testes não pegavam.</li>
+  </ul>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"Quatro surpresas. O LLM não é determinístico nem a zero grau — isso me convenceu a deixar número e roteamento determinísticos. Eu achava que ele erraria contas, testei, e ele acerta com o contexto certo — então minha escolha por SQL é por auditabilidade, não por achar o modelo burro. A fraqueza do Nubank virou a recusa R2. E uma auditoria adversarial do meu próprio código achou um bug que os testes não pegavam."</p>
+    <div class="esc"><b>🛡️ "Se o LLM faz conta, por que SQL?"</b><p>Auditabilidade e reprodutibilidade. Número de mercado eu quero re-executar e conferir, não depender de geração que pode variar.</p></div>
+  </template>
+</section>
+
+<!-- ================= 9 · PRÓS E CONTRAS ================= -->
+<section class="slide" data-n="9">
+  <div class="kicker">9 · Prós e contras</div>
+  <h2>O que ganhei × o que sacrifiquei</h2>
+  <table style="font-size:15.5px">
+    <tr><th>Escolha</th><th>Ganhei</th><th>Sacrifiquei</th></tr>
+    <tr><td><b>Dual-path determinístico</b><br><span class="dim">(não agente LLM)</span></td><td>número exato e auditável; eval reproduzível; mesma pergunta → mesmo caminho</td><td>flexibilidade — regras léxicas quebram em gíria/fraseado não-previsto</td></tr>
+    <tr><td><b>Stack aberto/local</b><br><span class="dim">(sem Cohere/Pinecone)</span></td><td><b>US$ 0</b>, privado, reproduzível offline</td><td>talvez um delta de qualidade vs. APIs pagas — <b>não comprovado em PT</b></td></tr>
+    <tr><td><b>Vetor força-bruta</b><br><span class="dim">(não HNSW)</span></td><td>busca <b>exata</b> e instantânea na escala atual; zero peça móvel</td><td>é O(N): precisaria de HNSW acima de ~100k fichas</td></tr>
+    <tr><td><b>LLM só redige</b><br><span class="dim">(SQL faz a conta)</span></td><td>nunca alucina número; resposta sempre citada</td><td>menos "esperto" que um agente que raciocina sozinho</td></tr>
+  </table>
+  <p style="margin-top:6px"><b>Onde quebra (assumido, não escondido):</b> <span class="dim">gíria extrema ("calote") e paráfrase sem palavra em comum · transcrição perde pro release formal · número em célula de tabela perde contexto ao chunkar — é <i>por isso</i> que número vai pelo SQL.</span></p>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"Cada escolha trocou flexibilidade/potência crua por reprodutibilidade e correção — o trade-off certo em finanças, onde errar número ou inventar fonte custa a confiança do analista. E sou honesto sobre onde quebra: gíria extrema, transcrição vs. release, número em tabela."</p>
+    <div class="esc"><b>🛡️ "Não é conservador demais?"</b><p>Para uma fundação de research, sim, de propósito. A interface é trocável — dá pra ligar reranker melhor ou um agente quando houver eval que justifique. Mas a base tem que ser confiável primeiro.</p></div>
+  </template>
+</section>
+
+<!-- ================= 10 · ESCALA ================= -->
+<section class="slide" data-n="10">
+  <div class="kicker">10 · Como escala</div>
+  <h2>De dezenas → centenas → dezenas de milhares</h2>
+  <p><b class="teal">O que NÃO muda (já pronto):</b> o pipeline. Crescer o corpus = <b>acrescentar linhas ao manifesto</b>; ingestão idempotente, falha isolada por documento.</p>
+  <h3 style="margin-top:14px">O que muda (projetado, não construído — honesto):</h3>
+  <table style="font-size:16px">
+    <tr><th>Gargalo</th><th>Hoje</th><th>Em escala</th></tr>
+    <tr><td><b>Índice vetorial</b></td><td>cosseno força-bruta (exato, instantâneo &lt;100k)</td><td><b>HNSW in-place no DuckDB</b> (extensão VSS, <code>CREATE INDEX</code>) — <i>sem trocar de sistema</i></td></tr>
+    <tr><td><b>BM25</b></td><td>reconstruído em memória por consulta</td><td><b>FTS persistido</b></td></tr>
+    <tr><td><b>Dedup</b></td><td>por (banco, período, tipo)</td><td><b>+ hash de conteúdo</b></td></tr>
+    <tr><td><b>Embedding</b></td><td>reprocessa o lote</td><td><b>incremental</b> (só hash novo)</td></tr>
+  </table>
+  <p class="dim">O que não escala sozinho (honesto): a curadoria do <i>gold</i> do eval e cada fonte nova (= um conector).</p>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"Crescer o corpus é acrescentar linha ao manifesto — o pipeline não muda. O que muda são os índices: hoje força-bruta porque é exata e instantânea nas 3.650 fichas; passando de ~100 mil, não migro de banco — ligo um HNSW no próprio DuckDB com a extensão VSS, um CREATE INDEX. Dedup vira hash de conteúdo, embedding vira incremental. Tudo projetado; não medi benchmark — não quis afirmar o que não testei."</p>
+    <div class="esc"><b>🛡️ "E os 500+ do enunciado?"</b><p>O case pede 500+ e crescendo. Provei a fundo com 11 documentos heterogêneos porque o critério nº 1 é qualidade de retrieval, não volume; o caminho de volume está desenhado e cabe no mesmo store. Preferi um problema provado a um número alegado.</p></div>
+  </template>
+</section>
+
+<!-- ================= 11 · FECHO ================= -->
+<section class="slide" data-n="11">
+  <div class="kicker">11 · Fecho</div>
+  <h2>Com mais tempo, em ordem de impacto:</h2>
+  <ul style="font-size:19px">
+    <li><b>1 · Chunking ciente de tabela</b> — ler o número <i>declarado</i> na célula do release (hoje vai pelo SQL).</li>
+    <li><b>2 · Recalibrar o gate</b> com gold maior, incl. gíria/paráfrase — fecha a over-recusa do caso difícil.</li>
+    <li><b>3 · Expansão de query</b> pra gíria (<i>"calote"</i> → <i>"inadimplência"</i>) — o limite mais visível do retrieval.</li>
+    <li><b>4 · Benchmark do HNSW in-place</b> (DuckDB VSS) — medir onde a força-bruta deixa de bastar.</li>
+  </ul>
+  <div class="callout" style="margin-top:24px"><b>O que entrego hoje:</b> uma fundação de retrieval confiável — número <b>exato</b> (SQL), fonte <b>sempre citada</b> (por código) e recusa <b>honesta com motivo</b> — provada por eval e pronta pra crescer por manifesto.</div>
+  <p class="ancora">"Separei texto de número — por isso o número está certo e o sistema recusa em vez de inventar."</p>
+  <template class="notas">
+    <h4>🎤 Fale</h4><p>"Com mais tempo, minha lista é priorizada: ler tabela no texto, recalibrar o gate pra gíria, expansão de query, e medir o HNSW. Mas o que entrego hoje é o que importa numa fundação de research: número exato porque vem de SQL, fonte sempre citada porque é anexada por código, e quando não sei, recuso com o motivo. Provei por eval e desenhei como cresce. Obrigado — bora pras perguntas."</p>
+    <div class="esc"><b>🛡️ "Qual o item nº 1?"</b><p>Chunking de tabela — destrava ler o número declarado direto do release, hoje o único lugar onde dependo do SQL pra contornar.</p></div>
+  </template>
+</section>
+
+<!-- ================= moldura ================= -->
+<aside id="notas" aria-label="notas do apresentador"></aside>
+<footer id="hud">
+  <span>Beny Frid · Legacy Capital</span>
+  <span><kbd>←</kbd><kbd>→</kbd> navegar &nbsp; <kbd>N</kbd> notas do apresentador &nbsp; <kbd>Ctrl+P</kbd> PDF</span>
+  <span id="pos"></span>
+</footer>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var notas = document.getElementById('notas'), pos = document.getElementById('pos'),
+      barra = document.getElementById('barra');
+  var i = Math.max(0, Math.min(slides.length-1, (parseInt(location.hash.slice(1),10)||1)-1));
+
+  function mostrar(n){
+    i = Math.max(0, Math.min(slides.length-1, n));
+    slides.forEach(function(s,k){ s.classList.toggle('ativo', k===i); });
+    pos.textContent = (i+1) + ' / ' + slides.length;
+    barra.style.width = ((i+1)/slides.length*100) + '%';
+    location.hash = i+1;
+    var t = slides[i].querySelector('template.notas');
+    notas.innerHTML = t ? t.innerHTML : '<p class="dim">(sem notas)</p>';
+  }
+  function prox(){ mostrar(i+1); }  function ant(){ mostrar(i-1); }
+
+  document.addEventListener('keydown', function(e){
+    if (e.key==='ArrowRight' || e.key==='PageDown' || e.key===' ') { e.preventDefault(); prox(); }
+    else if (e.key==='ArrowLeft' || e.key==='PageUp') { e.preventDefault(); ant(); }
+    else if (e.key==='Home') mostrar(0);
+    else if (e.key==='End') mostrar(slides.length-1);
+    else if (e.key==='n' || e.key==='N') notas.classList.toggle('aberto');
+    else if (e.key==='Escape') notas.classList.remove('aberto');
+  });
+  document.addEventListener('click', function(e){
+    if (notas.contains(e.target)) return;
+    if (e.clientX > window.innerWidth*0.7) prox();
+    else if (e.clientX < window.innerWidth*0.3) ant();
+  });
+  var x0 = null;
+  document.addEventListener('touchstart', function(e){ x0 = e.touches[0].clientX; });
+  document.addEventListener('touchend', function(e){
+    if (x0===null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    if (dx < -60) prox(); else if (dx > 60) ant();
+    x0 = null;
+  });
+  window.addEventListener('hashchange', function(){
+    var n = (parseInt(location.hash.slice(1),10)||1)-1;
+    if (n!==i) mostrar(n);
+  });
+  mostrar(i);
+})();
+</script>
+</body>
+</html>

@@ -256,7 +256,7 @@ copy .env.example .env
 :: (em PowerShell: $env:KMP_DUPLICATE_LIB_OK='TRUE'; $env:PYTHONPATH='.'; $env:PYTHONIOENCODING='utf-8')
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 
-:: 196 testes — sem rede, sem torch, sem chave (fakes)
+:: 217 testes — sem rede, sem torch, sem chave (fakes)
 python -m pytest -q
 :: matriz de recusa-por-escopo (sem modelo)
 python -m legacy_rag.eval.runner
@@ -285,7 +285,7 @@ python scripts\ui_demo.py
 > ⚠️ **DuckDB é single-writer:** feche o chat (`ui_demo.py`) antes de rodar qualquer outro script —
 > dois processos no mesmo `data/legacy.duckdb` dão `IOException` (só `--dry-run` não abre o DB).
 
-Os **196 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **217 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -320,7 +320,7 @@ docs/
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
 scripts/               atualizar_base · ingerir_numeros · ingerir_corpus · ingerir_bradesco · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 23 arquivos · 196 testes
+tests/                 23 arquivos · 217 testes
 ```
 
 ---
@@ -349,8 +349,10 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   `tipo_doc` quando a pergunta o pede ("na teleconferência").
 - **Gate calibrado num gold pequeno:** o limiar **0,60** veio de varrer um mini-gold (joelho com 0%
   over-recusa / 0% vazamento), mas `n=12`; produção pede um gold maior e idealmente por-modalidade.
-- **Fallback do reranker é heurístico:** caímos para a ordem do RRF quando o desvio-padrão das notas
-  fica < 0,05. Esse limiar do "não-discrimina" foi escolhido por inspeção, não calibrado.
+- **Fallback do reranker:** caímos para a ordem do RRF quando o desvio-padrão das notas fica < 0,05.
+  O limiar do "não-discrimina" nasceu por inspeção e depois foi **calibrado**
+  (`scripts/calibrar_discrimina_rerank.py`): rodadas *achatadas* medem pstdev ≤ 0,048 e rodadas que
+  *discriminam*, ≥ 0,072 — o 0,05 cai no vão entre as duas populações (n pequeno, mesma ressalva do gate).
 - **Interação fallback × gate (over-recusa em gíria/paráfrase):** quando o cross-encoder achata as notas
   (~0,50), o fallback recupera a **ordem** do RRF, mas as **notas** continuam achatadas; como o gate de
   evidência exige ≥ 0,60, uma pergunta **respondível porém difícil** (gíria/paráfrase) pode ser recusada
