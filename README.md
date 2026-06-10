@@ -383,6 +383,10 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   É por isso que o share *computado* vai pelo **caminho SQL**, não pelo texto.
 - **Lacunas do roteador (R4/R6):** distinguir *realizado* de *guidance* dentro de 2026 (R4) e métricas
   ainda não ingeridas (R6) caem hoje no Estágio 2 (gate), não numa regra dedicada.
+- **Fronteira de futuro declarada à mão:** `ANO_COBERTURA_MAX=2026` é uma constante do config que
+  espelha o que foi ingerido (realizado até 4T25, guidance falando de 2026) — ingerir guidance de
+  2027 exige atualizá-la junto. A falha de esquecer é **conservadora** (over-recusa visível, nunca
+  invenção); o fix de produção é derivar a fronteira da própria base na ingestão.
 - **Dedup só por (banco, período, tipo_doc):** falta dedup por **hash de conteúdo** para reingestão em
   escala (mesmo arquivo, URL diferente) — projetado, não construído.
 - **Janela mista ano+trimestre colapsa para o trimestre:** em *"de 2023 até o 4T25"* a precedência
