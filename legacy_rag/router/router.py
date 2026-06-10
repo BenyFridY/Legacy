@@ -321,6 +321,8 @@ class Rota:
                                        # ano citado (a pergunta do PDF: "disse em 2023... subiu DEPOIS?")
     janela_ate: bool = False           # "até 2024" -> o período citado é o TETO; a série começa do início
                                        # da base (espelho da janela aberta, pelo outro lado)
+    serie: bool = False                # "evoluiu/trajetória" -> trajetória pedida EXPLICITAMENTE; o
+                                       # comparativo sem janela e sem isto pede o recorte (não adivinha)
     motivo_recusa: str | None = None   # preenchido quando categoria == "nao_respondivel"
     resposta_pronta: str | None = None  # preenchido quando categoria == "direta" (saudação/meta)
 
@@ -377,4 +379,4 @@ def rotear(pergunta: str) -> Rota:
     return Rota(categoria, bancos, s.anos, s.metrica,
                 periodos=s.periodos, modalidade=s.modalidade,
                 modalidade_explicita=s.modalidade_explicita, janela_aberta=s.janela_aberta,
-                janela_ate=s.janela_ate)
+                janela_ate=s.janela_ate, serie=s.serie)

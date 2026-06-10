@@ -271,7 +271,7 @@ set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 **Estágio 1 — prova imediata, 100% offline (~1 min; sem rede, sem modelo, sem chave):**
 
 ```bat
-:: suíte completa com fakes -> espere "243 passed" em poucos segundos
+:: suíte completa com fakes -> espere "245 passed" em poucos segundos
 python -m pytest -q
 :: matriz de recusa-por-escopo (roteador puro) -> espere "Acuracia de comportamento  12/12"
 python -m legacy_rag.eval.runner
@@ -318,7 +318,7 @@ python scripts\ui_demo.py
 > ⚠️ **DuckDB é single-writer:** feche o chat (`ui_demo.py`) antes de rodar qualquer outro script —
 > dois processos no mesmo `data/legacy.duckdb` dão `IOException` (só `--dry-run` não abre o DB).
 
-Os **243 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **245 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -353,7 +353,7 @@ docs/
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
 scripts/               atualizar_base · ingerir_numeros · ingerir_corpus · ingerir_bradesco · auditar_base · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 23 arquivos · 243 testes
+tests/                 23 arquivos · 245 testes
 ```
 
 ---

@@ -260,7 +260,8 @@ def _motivo_nao_computavel(rota: Rota, deps: Dependencias) -> str:
     A 4ª bateria mostrou o motivo genérico ('banco único? conglomerado mapeado?') na cara da banca."""
     if not rota.bancos:
         return ("nenhum banco coberto reconhecido na pergunta — a base computa share de Itaú, Bradesco, "
-                "Banco do Brasil, Santander e Nubank (nomeie um, ou pergunte 'qual banco lidera...').")
+                "Banco do Brasil, Santander e Nubank (nomeie um, ou pergunte 'qual banco lidera "
+                "... no 4T25?').")
     if len(rota.bancos) > 1:
         return "mais de um banco num pedido de número único — nomeie um, ou peça a comparação entre eles."
     if not deps.mapa_prudencial.get(rota.bancos[0]):
@@ -298,6 +299,16 @@ def _caminho_comparativo(rota: Rota, deps: Dependencias) -> Resposta:
     Recusa honesta se < 2 bancos computáveis, ou se não houver trimestre comum a todos.
     """
     am_ini, am_fim = _janela_da_rota(rota)
+    # Decisão de 10/06 (ensaio da banca): sem recorte na pergunta NÃO adivinhamos a janela — o
+    # VEREDITO do comparativo muda com ela ("quem lidera hoje?" e "quem ganhou mais na série?" são
+    # perguntas DIFERENTES). Pedimos o recorte (recusa que ensina, estilo R7); "evoluiu/trajetória"
+    # é pedido explícito da história inteira e segue respondendo, com a janela declarada no texto.
+    if am_ini is None and am_fim is None and not rota.serie:
+        return Resposta(
+            texto="Preciso do recorte de tempo para comparar sem adivinhar.", recusou=True,
+            motivo="a pergunta não cita trimestre/ano nem pede evolução — para a FOTO, especifique o "
+                   "período ('no 4T25', 'em 2024'); para a TRAJETÓRIA, peça a evolução ('como evoluiu', "
+                   "'desde 2023', 'de 2023 a 2025'). Cobertura dos números: 3T23 a 4T25.")
     fn_serie = carteira_conglomerado_serie if rota.metrica == "carteira" else market_share_conglomerado_serie
     series = []
     for banco in rota.bancos:

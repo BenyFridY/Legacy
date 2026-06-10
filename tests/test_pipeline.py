@@ -150,7 +150,7 @@ def test_computada_nao_avisa_quando_modalidade_explicita(deps):
 def test_comparativo_multi_trimestre_avisa_modalidade_presumida(deps):
     """3ª auditoria: o aviso 'assumi consignado' saía SÓ no ramo de 1 foto do comparativo; o ramo
     principal (2+ trimestres, o da demo cross-ano) o descartava — default silencioso de volta."""
-    r = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação?", deps)
+    r = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação em 2024?", deps)
     assert not r.recusou and "assumi consignado" in r.texto
 
 
@@ -178,7 +178,7 @@ def test_r7_recusa_subproduto_no_pipeline(deps):
 def test_comparativo_cross_bank_quem_ganhou_mais(deps):
     """Cross-bank: compara a série de 2 bancos (SQL) e diz quem ganhou mais share.
     BB 20->25% (+5 p.p.) vs Bradesco 14->14,2% (+0,2 p.p.) -> BB ganhou mais."""
-    r = responder("Entre o Banco do Brasil e o Bradesco, qual ganhou mais participação em consignado?", deps)
+    r = responder("Entre o Banco do Brasil e o Bradesco, qual ganhou mais participação em consignado em 2024?", deps)
     assert not r.recusou
     assert "25.0%" in r.texto and "14.2%" in r.texto            # finais de cada banco
     assert "ganhou mais" in r.texto and "BB" in r.texto.split("ganhou mais")[-1]   # líder = BB
@@ -187,8 +187,24 @@ def test_comparativo_cross_bank_quem_ganhou_mais(deps):
 
 def test_comparativo_recusa_se_menos_de_dois_computaveis(deps):
     """Santander não está no mapa_prudencial do fixture -> só BB computa -> recusa honesta (exige >= 2)."""
-    r = responder("Compare o market share de consignado do Banco do Brasil e do Santander.", deps)
+    r = responder("Compare o market share de consignado do Banco do Brasil e do Santander em 2024.", deps)
     assert r.recusou and "ao menos 2" in r.motivo
+
+
+def test_comparativo_sem_periodo_pede_o_recorte(deps):
+    """Decisão de 10/06 (ensaio da banca): comparação SEM trimestre/ano e SEM pedido de evolução não
+    adivinha a janela — o VEREDITO muda com ela ("quem lidera hoje?" != "quem ganhou na série toda").
+    Pedir o recorte > responder a pergunta vizinha; e a recusa ensina as duas leituras + a cobertura."""
+    r = responder("Qual banco lidera o consignado?", deps)
+    assert r.recusou and "especifique" in r.motivo and "TRAJETÓRIA" in r.motivo
+    assert "3T23 a 4T25" in r.motivo                  # diz a cobertura, não só "faltou período"
+
+
+def test_evolucao_sem_periodo_segue_respondendo_a_serie_inteira(deps):
+    """Contraprova: 'como evoluiu' É o pedido explícito de trajetória -> série completa com a janela
+    declarada no texto, sem pedir recorte (quem pede evolução sem marco quer a história inteira)."""
+    r = responder("Como evoluiu o market share de consignado do Banco do Brasil e do Bradesco?", deps)
+    assert not r.recusou and "2024-03" in r.texto and "2024-12" in r.texto
 
 
 def test_multi_fonte_cruza_declarado_e_computado(deps):
@@ -306,7 +322,8 @@ def test_computada_cross_ano_recorta_a_janela(deps_multiano):
 
 def test_comparativo_empate_nao_elege_lider(deps_multiano):
     """Empate (#146): na janela inteira BB +10 e Bradesco +10 -> diz 'equivalente', não inventa líder."""
-    r = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação em consignado?", deps_multiano)
+    r = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação em consignado "
+                  "de 2023 a 2025?", deps_multiano)
     assert not r.recusou and "equivalente" in r.texto.lower() and "ganhou mais" not in r.texto
 
 
@@ -333,7 +350,8 @@ def test_comparativo_recusa_sem_trimestre_comum():
     ])
     deps = Dependencias(con=con, encoder=FakeEncoder(), reranker=FakeReranker(), llm=FakeLLM(),
                         mapa_prudencial={"BB": "PRUD_BB", "Bradesco": "PRUD_BRAD"})
-    r = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação em consignado?", deps)
+    r = responder("Entre o Banco do Brasil e o Bradesco, quem ganhou mais participação em consignado "
+                  "de 2024 a 2025?", deps)
     assert r.recusou and "comum" in (r.motivo or "")
 
 
