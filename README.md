@@ -249,40 +249,66 @@ Critério nº 1 do case. **Sem upload manual** — o sistema busca na fonte e in
 
 ---
 
-## Como rodar
+## Como rodar — do clone ao tudo rodando
 
 Stack **100% open/free**, sem chave paga no caminho crítico — ver [ADR-0003](docs/decisions/0003-stack-open-free.md). Python ≥ 3.11.
+Roteiro em **3 estágios**; cada comando diz **o que esperar** — se a saída bate, o estágio passou.
+
+**Estágio 0 — preparar (~1 min):**
 
 ```bat
 python -m venv .venv && .venv\Scripts\activate
 pip install -r requirements.txt
-:: opcional: LLM_PROVIDER=groq_free + GROQ_API_KEY no .env p/ a síntese
 copy .env.example .env
+:: (a chave do Groq é OPCIONAL e só entra no Estágio 3)
 
-:: no Windows, prefixe os scripts pesados com estas 3 variáveis (carrega torch sem conflito de OpenMP)
-:: (em PowerShell: $env:KMP_DUPLICATE_LIB_OK='TRUE'; $env:PYTHONPATH='.'; $env:PYTHONIOENCODING='utf-8')
+:: no Windows, prefixe os scripts com estas 3 variáveis (carrega torch sem conflito de OpenMP)
 set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
+:: em PowerShell:   $env:KMP_DUPLICATE_LIB_OK='TRUE'; $env:PYTHONPATH='.'; $env:PYTHONIOENCODING='utf-8'
+:: em macOS/Linux:  export KMP_DUPLICATE_LIB_OK=TRUE PYTHONPATH=. PYTHONIOENCODING=utf-8
+```
 
-:: 222 testes — sem rede, sem torch, sem chave (fakes)
+**Estágio 1 — prova imediata, 100% offline (~1 min; sem rede, sem modelo, sem chave):**
+
+```bat
+:: suíte completa com fakes -> espere "241 passed" em poucos segundos
 python -m pytest -q
-:: matriz de recusa-por-escopo (sem modelo)
+:: matriz de recusa-por-escopo (roteador puro) -> espere "Acuracia de comportamento  12/12"
 python -m legacy_rag.eval.runner
-:: UM comando: liga a base (numeros + texto, idempotente) + valida periodos
-:: aceita --de 2024T1 --ate 2025T4 (janela de trimestres) e --dry-run (so PREVE: nao baixa, nao grava)
+```
+
+**Estágio 2 — ligar a base e os modelos reais (internet; ~5–10 min na 1ª vez):**
+
+> ⚠️ a **1ª execução** com modelos reais **baixa ~2,3 GB** (BGE-M3 + reranker do Hugging Face) —
+> uma única vez, depois fica em cache. Se parecer "travado" no início, é o download.
+
+```bat
+:: UM comando: liga a base (números Bacen + os 11 PDFs do manifesto, idempotente) + valida períodos
+:: aceita --de 2024T1 --ate 2025T4 (janela de trimestres) e --dry-run (só PREVÊ: não baixa, não grava)
 python scripts\atualizar_base.py
-:: ^ chama os dois abaixo; rode-os direto se quiser so um lado
-:: ingestão por lado: números (carteira_pf + cadastro, Bacen IF.data; aceita --de/--ate)
+:: ^ chama os dois abaixo; rode-os direto se quiser só um lado
 python scripts\ingerir_numeros.py
-:: ... e texto (base pelo manifesto: 11 docs, 5 fontes)
 python scripts\ingerir_corpus.py
-:: hit@k / MRR reais (ciente de período)
+:: auditoria da base (10 checagens, read-only) -> espere tudo [OK] (detalhe: resultados-eval.md §6)
+python scripts\auditar_base.py
+:: hit@k / MRR reais, ciente de período -> espere hit@3 81,8% / MRR 0,686 nas 22 sondagens
 python scripts\eval_retrieval_real.py
-:: calibra o limiar do gate (over-recusa × vazamento → joelho)
+:: calibração do gate (over-recusa × vazamento -> joelho 0,60) e do fallback do reranker
 python scripts\calibrar_gate.py
-:: faithfulness com juiz INDEPENDENTE (Groq)
+python scripts\calibrar_discrimina_rerank.py
+```
+
+**Estágio 3 — opcional: o redator LLM (chave grátis do Groq no `.env`):** sem chave, **tudo acima
+continua funcionando** — roteia, recupera, computa e recusa; só a redação de texto livre degrada
+para "trechos citados". Com `LLM_PROVIDER=groq_free` + `GROQ_API_KEY`:
+
+```bat
+:: faithfulness com juiz INDEPENDENTE (gpt-oss-120b ≠ gerador)
 python scripts\eval_fidelidade_real.py
-:: resolve o Caso B ponta a ponta (LLM real, se .env tiver chave)
+:: resolve o Caso B ponta a ponta (7 perguntas, todas as rotas) -> compare com resultados-eval.md §4
 python scripts\resolver_caso.py
+:: o B3 ao vivo: DECLARADO (release + fala do CEO) × COMPUTADO (SQL)
+python scripts\resolver_b3.py
 :: pergunta LIVRE: mostra a rota + resposta citada ou recusa
 python scripts\perguntar.py "..."
 :: UI de demo local (http://localhost:8000) — extra p/ apresentação
@@ -292,7 +318,7 @@ python scripts\ui_demo.py
 > ⚠️ **DuckDB é single-writer:** feche o chat (`ui_demo.py`) antes de rodar qualquer outro script —
 > dois processos no mesmo `data/legacy.duckdb` dão `IOException` (só `--dry-run` não abre o DB).
 
-Os **222 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **241 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -327,7 +353,7 @@ docs/
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
 scripts/               atualizar_base · ingerir_numeros · ingerir_corpus · ingerir_bradesco · auditar_base · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 23 arquivos · 222 testes
+tests/                 23 arquivos · 241 testes
 ```
 
 ---

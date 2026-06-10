@@ -195,7 +195,7 @@ Medido: **over-recusa 0%**.
 
 **Fidelidade** (faithfulness, juiz LLM **independente** — gpt-oss-120b ≠ gerador): **6/6** sustentadas
 
-**Gate** calibrado: **0,60** é o joelho medido (0% vazamento, 0% over-recusa). **222 testes** de fluxo (sem rede/modelo).
+**Gate** calibrado: **0,60** é o joelho medido (0% vazamento, 0% over-recusa). **241 testes** de fluxo (sem rede/modelo).
 
 > **O eval pegou um bug real:** um documento rotulado "Bradesco 3T25" era, na verdade, o release de
 > **4T19** (URL errada na fonte). O hit@3 caiu, investiguei, troquei a URL — e subiu **77% → 82%**.
