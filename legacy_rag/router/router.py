@@ -262,12 +262,18 @@ def _classificar_caminho(s: Slots) -> str:
     # `not declarado` é o mesmo desempate da Q3 (computada): share que o CEO DECLAROU é fato de TEXTO,
     # não cálculo SQL — então share declarado por 2 bancos cai no texto (doc_unico), não no comparativo.
     # "Pede NÚMERO do IF.data": a palavra share/participação, OU a fonte citada com a MODALIDADE
-    # nomeada ("quem lidera em cartão segundo o IF.data?"). `cita_ifdata` sozinho NÃO basta — "o que
-    # o Bacen mudou na 4.966?" é pergunta de TEXTO sobre as notas; a palavra 'Bacen' não sequestra a rota.
-    pede_numero = s.metrica == "market_share" or (s.cita_ifdata and s.modalidade_explicita)
-    # RANKING ("qual banco lidera/tem o maior share?") é comparativo SEM banco nomeado: rotear()
-    # preenche com TODOS os bancos cobertos — o motor cross-bank já elege o líder (foto e variação).
-    if pede_numero and not s.declarado and (len(s.bancos) >= 2 or (not s.bancos and s.superlativo)):
+    # nomeada ("quem lidera em cartão segundo o IF.data?"), OU ranking de uma modalidade explícita
+    # ("qual banco lidera o consignado?" — o fraseio que a PRÓPRIA recusa computada sugere; auditoria
+    # final). `cita_ifdata` sozinho NÃO basta — "o que o Bacen mudou na 4.966?" é pergunta de TEXTO
+    # sobre as notas; a palavra 'Bacen' não sequestra a rota. Guardas do ranking: `declarado` segura
+    # "maior desafio citado pelo CEO" no texto; sem modalidade do Bacen ("maior lucro"), texto também.
+    pede_numero = (s.metrica == "market_share" or (s.cita_ifdata and s.modalidade_explicita)
+                   or (s.superlativo and s.modalidade_explicita))
+    # RANKING ("qual banco lidera/tem o maior share?") é comparativo sem banco nomeado OU com UM SÓ
+    # ("o Itaú é o maior?"): comparar só a série do nomeado respondia OUTRA pergunta ("qual o share
+    # dele?") com cara de completa. rotear() preenche com TODOS os cobertos — o corpo lista cada
+    # banco e o veredito de duas pontas mostra onde o nomeado ficou.
+    if pede_numero and not s.declarado and (len(s.bancos) >= 2 or s.superlativo):
         return "comparativo"
     # multi_fonte: cruza o DECLARADO (texto) com o COMPUTADO/realizado (número).
     if s.confronto and (s.declarado or s.cita_ifdata):
@@ -348,8 +354,9 @@ def rotear(pergunta: str) -> Rota:
                     modalidade_explicita=s.modalidade_explicita, motivo_recusa=motivo)
     categoria = _classificar_caminho(s)
     bancos = s.bancos
-    if categoria == "comparativo" and not bancos:
-        bancos = list(ENTIDADES)   # ranking sem banco nomeado: compara TODOS os cobertos e elege o líder
+    if categoria == "comparativo" and len(bancos) < 2:
+        bancos = list(ENTIDADES)   # ranking sem banco nomeado (ou com UM: "o Itaú é o maior?"):
+                                   # compara TODOS os cobertos e o veredito elege o líder real
     return Rota(categoria, bancos, s.anos, s.metrica,
                 periodos=s.periodos, modalidade=s.modalidade,
                 modalidade_explicita=s.modalidade_explicita, janela_aberta=s.janela_aberta,

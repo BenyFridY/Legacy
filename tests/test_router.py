@@ -370,6 +370,27 @@ def test_janela_aberta_em_trimestres_seguintes():
     assert rotear("Como evoluiu o share do BB de 2023 a 2024, segundo o IF.data?").janela_aberta is False
 
 
+def test_ranking_natural_sem_share_vai_pro_sql():
+    """Auditoria final: 'Qual banco lidera o consignado?' — a frase que a PRÓPRIA recusa do caminho
+    computado sugere — caía no texto e era recusada. Superlativo + modalidade explícita = número."""
+    r = rotear("Qual banco lidera o consignado?")
+    assert r.categoria == "comparativo" and len(r.bancos) == 5
+
+
+def test_superlativo_com_um_banco_compara_todos():
+    """'O Itaú tem o maior share?' devolvia SÓ a série do Itaú — respondia 'qual o share dele?'
+    (outra pergunta) com cara de completa. Agora compara os 5 e o veredito coroa o líder real."""
+    r = rotear("O Itau tem o maior market share em consignado?")
+    assert r.categoria == "comparativo" and len(r.bancos) == 5
+
+
+def test_guardas_do_ranking_natural_continuam_no_texto():
+    """As fronteiras não se moveram: 'maior desafio citado pelo CEO' é DECLARADO (texto); 'maior
+    lucro' não é modalidade do Bacen (texto)."""
+    assert rotear("Qual o maior desafio no consignado citado pelo CEO do Bradesco?").categoria == "doc_unico"
+    assert rotear("Qual banco teve o maior lucro no 4T25?").categoria == "doc_unico"
+
+
 def test_janela_ate_e_teto_nao_moldura():
     """Espelho da janela aberta: 'até 2024' liga o slot (o ano vira TETO no pipeline); 'bateu' não
     casa por fronteira de palavra e 'até que ponto' é retórico, não teto."""

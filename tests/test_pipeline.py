@@ -450,3 +450,19 @@ def test_janela_ate_com_dois_marcos_segue_bilateral():
     quando UM período é citado)."""
     r = rotear("Como evoluiu o market share do BB em consignado de 2023 até 2025?")
     assert _janela_da_rota(r) == (202301, 202512)
+
+
+def test_lidera_sem_a_palavra_share_responde_ranking(deps):
+    """'Qual banco lidera o consignado no 4T24?' (sem 'share') — o fraseio que a própria recusa
+    computada sugere — chegava ao texto e era recusado; agora é o ranking SQL."""
+    r = responder("Qual banco lidera o consignado no 4T24?", deps)
+    assert not r.recusou and "Maior participação" in r.texto and "BB" in r.texto
+
+
+def test_e_o_maior_com_um_banco_mostra_o_lider_real(deps):
+    """'O Bradesco tem o maior market share em consignado no 4T24?' — antes devolvia só a série do
+    Bradesco; agora o corpo traz o Bradesco (14.2%) E o veredito coroa o BB: a resposta diz
+    'não — o líder é o BB', em vez de responder outra pergunta."""
+    r = responder("O Bradesco tem o maior market share em consignado no 4T24?", deps)
+    assert not r.recusou
+    assert "Maior participação" in r.texto and "BB" in r.texto and "Bradesco: 14.2%" in r.texto
