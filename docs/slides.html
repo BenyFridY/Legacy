@@ -5,123 +5,170 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Retrieval para Research de Equities — Beny Frid · Legacy Capital</title>
 <style>
-  /* ============ base ============ */
+  /* ============ identidade Legacy (mesma paleta da ui_demo) ============ */
   :root{
-    --bg:#0d1117; --panel:#161d27; --panel2:#1b2433; --ink:#e8edf4; --dim:#9aa7b8;
-    --gold:#d4a843; --teal:#39c6b3; --red:#e06c5e; --line:#2a3548;
+    --verde:#1a4d36; --verde2:#2a6b4d; --verde-claro:#eaf3ee; --bg1:#eef2f0; --bg2:#e4ede8;
+    --card:#ffffff; --linha:#e3e9e5; --ink:#16261f; --suave:#5b6b62;
+    --azul:#2563eb; --teal:#0d9488; --ciano:#0e7490; --roxo:#7c3aed; --ambar:#d97706;
     --mono:'Cascadia Code','Consolas',monospace;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
-    background:var(--bg); color:var(--ink); overflow:hidden;
+    background:linear-gradient(160deg,var(--bg1),var(--bg2)); color:var(--ink); overflow:hidden;
     font:18px/1.55 'Segoe UI',system-ui,-apple-system,sans-serif;
   }
-  b,strong{color:#fff}
-  .gold{color:var(--gold)} .teal{color:var(--teal)} .red{color:var(--red)} .dim{color:var(--dim)}
+  b,strong{color:var(--verde)}
+  .verde{color:var(--verde)} .teal{color:var(--teal)} .ambar{color:var(--ambar)} .dim{color:var(--suave)}
 
   /* ============ slides ============ */
   .slide{
     position:absolute; inset:0; display:none; flex-direction:column;
-    padding:56px 84px 72px; overflow:auto;
+    padding:54px 88px 76px; overflow:auto;
   }
-  .slide.ativo{display:flex}
+  .slide.ativo{display:flex; animation:entra .35s ease-out}
+  @keyframes entra{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
   .slide.centro{justify-content:center; align-items:center; text-align:center}
   .kicker{
-    font:600 13px/1 var(--mono); letter-spacing:.22em; text-transform:uppercase;
-    color:var(--gold); margin-bottom:14px;
+    font:600 13px/1 var(--mono); letter-spacing:.24em; text-transform:uppercase;
+    color:var(--verde2); margin-bottom:14px;
   }
-  h1{font-size:46px; line-height:1.15; font-weight:700; letter-spacing:-.01em}
-  h2{font-size:34px; line-height:1.2; font-weight:700; margin-bottom:26px; letter-spacing:-.01em}
-  h3{font-size:20px; margin:18px 0 8px; color:var(--gold)}
-  .sub{font-size:22px; color:var(--dim); margin-top:18px}
+  h1{font-size:46px; line-height:1.14; font-weight:800; color:var(--verde); letter-spacing:-.01em}
+  h2{font-size:33px; line-height:1.2; font-weight:800; color:var(--verde); margin-bottom:24px; letter-spacing:-.01em}
+  h2 .sufixo{font-weight:600; color:var(--suave); font-size:20px}
+  h3{font-size:19px; margin:16px 0 8px; color:var(--verde2)}
+  .sub{font-size:22px; color:var(--suave); margin-top:16px}
   ul{list-style:none}
   li{margin:10px 0; padding-left:26px; position:relative}
-  li::before{content:'▸'; position:absolute; left:0; color:var(--gold)}
-  li.nao::before{content:'✕'; color:var(--red)}
-  li.sim::before{content:'✓'; color:var(--teal)}
+  li::before{content:'▸'; position:absolute; left:0; color:var(--verde2)}
+  li.nao::before{content:'✕'; color:var(--ambar)}
 
-  /* tabelas */
-  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:16.5px}
-  th{color:var(--gold); text-align:left; font-weight:600; padding:9px 14px;
-     border-bottom:2px solid var(--line); white-space:nowrap}
-  td{padding:9px 14px; border-bottom:1px solid var(--line); vertical-align:top}
-  tr:last-child td{border-bottom:none}
-  td:first-child{color:#fff}
-  em{color:var(--teal); font-style:italic}
-
-  /* cartões e blocos */
-  .cards{display:flex; gap:18px; margin:18px 0; flex-wrap:wrap}
-  .card{
-    background:var(--panel); border:1px solid var(--line); border-radius:12px;
-    padding:18px 22px; flex:1; min-width:180px;
+  /* tabelas — estilo cartão, como a demo */
+  table{
+    border-collapse:separate; border-spacing:0; width:100%; margin:12px 0; font-size:16.5px;
+    background:var(--card); border:1px solid var(--linha); border-radius:14px; overflow:hidden;
+    box-shadow:0 4px 18px rgba(20,38,31,.07);
   }
-  .card .num{font:700 40px/1.1 'Segoe UI'; color:var(--teal)}
-  .card .num.au{color:var(--gold)}
-  .card .leg{font-size:14px; color:var(--dim); margin-top:6px}
+  th{background:var(--verde); color:#fff; text-align:left; font-weight:700; padding:10px 16px; font-size:14.5px;
+     letter-spacing:.04em; text-transform:uppercase}
+  td{padding:10px 16px; border-top:1px solid var(--linha); vertical-align:top}
+  td:first-child{color:var(--ink); font-weight:600}
+  em{color:var(--ciano); font-style:italic}
+
+  /* badges de rota — MESMAS cores do chat de demo */
+  .badge{display:inline-block; padding:4px 12px; border-radius:999px; font:700 11px/1.3 'Segoe UI';
+         color:#fff; letter-spacing:.5px; text-transform:uppercase; white-space:nowrap}
+  .b-texto{background:var(--azul)} .b-numero{background:var(--teal)} .b-comp{background:var(--ciano)}
+  .b-multi{background:var(--roxo)} .b-recusa{background:var(--ambar)}
+
+  /* cartões de métrica */
+  .cards{display:flex; gap:18px; margin:16px 0; flex-wrap:wrap}
+  .card{
+    background:var(--card); border:1px solid var(--linha); border-radius:14px;
+    padding:18px 22px; flex:1; min-width:185px; box-shadow:0 4px 18px rgba(20,38,31,.07);
+  }
+  .card .num{font:800 40px/1.1 'Segoe UI'; color:var(--verde)}
+  .card .num.tl{color:var(--teal)}
+  .card .leg{font-size:14px; color:var(--suave); margin-top:6px}
   .callout{
-    background:var(--panel); border-left:4px solid var(--gold); border-radius:0 10px 10px 0;
-    padding:16px 22px; margin:18px 0; font-size:17.5px;
+    background:var(--verde-claro); border-left:4px solid var(--verde); border-radius:0 12px 12px 0;
+    padding:16px 22px; margin:16px 0; font-size:17.5px;
   }
   .ancora{
-    font-size:24px; font-style:italic; color:var(--gold);
-    border-top:1px solid var(--line); padding-top:22px; margin-top:auto;
+    font-size:23px; font-style:italic; color:var(--verde);
+    border-top:1px solid var(--linha); padding-top:20px; margin-top:auto; font-weight:600;
   }
-  pre.diag{
-    font:14.5px/1.5 var(--mono); color:var(--ink); background:var(--panel);
-    border:1px solid var(--line); border-radius:12px; padding:20px 26px;
-    overflow:auto; margin:10px 0;
-  }
-  pre.diag .g{color:var(--gold)} pre.diag .t{color:var(--teal)} pre.diag .r{color:var(--red)} pre.diag .d{color:var(--dim)}
-  .duas{display:grid; grid-template-columns:1fr 1fr; gap:34px; align-items:start}
 
   /* regras R1..R8 */
-  .regras{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin:14px 0}
-  .regra{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 16px; font-size:16px}
-  .regra .tag{font:700 13px var(--mono); color:var(--red); margin-right:8px}
+  .regras{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin:12px 0}
+  .regra{background:var(--card); border:1px solid var(--linha); border-radius:12px; padding:12px 16px;
+         font-size:15.5px; box-shadow:0 2px 10px rgba(20,38,31,.05)}
+  .regra .tag{display:inline-block; font:700 12px var(--mono); color:#fff; background:var(--ambar);
+              border-radius:6px; padding:2px 7px; margin-right:9px}
+
+  /* ============ diagrama (slide 4) ============ */
+  .fluxo{display:flex; flex-direction:column; align-items:center; gap:6px; margin:6px 0}
+  .no{background:var(--card); border:1px solid var(--linha); border-radius:12px; padding:10px 26px;
+      font-size:16.5px; box-shadow:0 3px 14px rgba(20,38,31,.08); text-align:center}
+  .no.pill{border-radius:999px; color:var(--suave); font-style:italic}
+  .no.roteador{background:linear-gradient(120deg,var(--verde),var(--verde2)); color:#fff; font-weight:800;
+               letter-spacing:.05em; padding:12px 34px}
+  .no.roteador span{display:block; font:400 13px 'Segoe UI'; color:#cfe3d8; letter-spacing:0}
+  .no.final{border:2px solid var(--verde); font-weight:700; color:var(--verde); padding:12px 30px}
+  .no.final span{display:block; font:400 13.5px 'Segoe UI'; color:var(--suave)}
+  .seta{color:var(--verde2); font-size:20px; line-height:1}
+  .ramos{display:grid; grid-template-columns:1fr 1fr; gap:22px; width:min(940px,100%)}
+  .ramos-setas{display:flex; justify-content:space-around; width:min(700px,90%); color:var(--verde2);
+               font-size:17px; font-weight:600}
+  .ramo{background:var(--card); border:1px solid var(--linha); border-radius:14px; padding:16px 20px;
+        box-shadow:0 4px 18px rgba(20,38,31,.07); font-size:15.5px}
+  .ramo h4{font-size:13px; letter-spacing:.18em; text-transform:uppercase; margin-bottom:8px}
+  .ramo.texto h4{color:var(--azul)} .ramo.numero h4{color:var(--teal)}
+  .ramo .passo{font-family:var(--mono); font-size:13.5px; color:var(--ink)}
+  .gate{margin-top:10px; background:var(--verde-claro); border:1px dashed var(--verde2); border-radius:10px;
+        padding:8px 12px; font-size:14.5px}
+  .gate .nao{display:block; color:var(--ambar); font-weight:600; margin-top:4px}
+  .funil{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:14px;
+         font:13px var(--mono); color:var(--ink)}
+  .funil span{background:var(--card); border:1px solid var(--linha); border-radius:999px; padding:4px 11px}
+  .funil i{color:var(--verde2); font-style:normal}
 
   /* ============ moldura ============ */
+  #marca{position:fixed; top:20px; right:28px; z-index:4; background:#fff; border:1px solid var(--linha);
+         border-radius:10px; padding:6px 12px; box-shadow:0 2px 10px rgba(20,38,31,.10)}
+  #marca img{height:26px; display:block}
+  body.na-capa #marca{display:none}
   #hud{
-    position:fixed; left:0; right:0; bottom:0; height:46px; display:flex;
+    position:fixed; left:0; right:0; bottom:0; height:48px; display:flex;
     align-items:center; justify-content:space-between; padding:0 28px;
-    font:12.5px var(--mono); color:var(--dim); z-index:5;
-    background:linear-gradient(transparent,rgba(13,17,23,.92) 40%);
+    font:12.5px var(--mono); color:var(--suave); z-index:5;
+    background:linear-gradient(transparent,rgba(238,242,240,.95) 45%);
   }
-  #barra{position:fixed; top:0; left:0; height:3px; background:var(--gold); z-index:6; transition:width .25s}
+  #hud .quem{display:flex; align-items:center; gap:10px}
+  #hud .quem img{height:20px}
+  #barra{position:fixed; top:0; left:0; height:4px; background:linear-gradient(90deg,var(--verde),var(--verde2));
+         z-index:6; transition:width .25s; border-radius:0 4px 4px 0}
   #notas{
-    position:fixed; right:0; top:0; bottom:0; width:min(460px,44vw); z-index:7;
-    background:var(--panel2); border-left:1px solid var(--line); padding:26px 28px 60px;
-    overflow:auto; display:none; font-size:15px; box-shadow:-12px 0 40px rgba(0,0,0,.5);
+    position:fixed; right:0; top:0; bottom:0; width:min(470px,44vw); z-index:7;
+    background:var(--card); border-left:1px solid var(--linha); padding:26px 28px 60px;
+    overflow:auto; display:none; font-size:15px; box-shadow:-14px 0 44px rgba(20,38,31,.18);
   }
   #notas.aberto{display:block}
-  #notas h4{color:var(--gold); font:600 12px var(--mono); letter-spacing:.18em;
+  #notas h4{color:var(--verde); font:700 12px var(--mono); letter-spacing:.18em;
             text-transform:uppercase; margin:20px 0 8px}
   #notas h4:first-child{margin-top:0}
   #notas p{margin:8px 0; color:var(--ink)}
-  #notas .esc{border-top:1px dashed var(--line); padding-top:10px; margin-top:10px}
-  #notas .esc b{color:var(--teal)}
-  kbd{font:12px var(--mono); background:var(--panel); border:1px solid var(--line);
-      border-radius:4px; padding:1px 6px}
+  #notas .esc{border-top:1px dashed var(--linha); padding-top:10px; margin-top:10px}
+  #notas .esc b{color:var(--ciano)}
+  kbd{font:12px var(--mono); background:var(--card); border:1px solid var(--linha);
+      border-radius:4px; padding:1px 6px; color:var(--ink)}
+  code{font:14px var(--mono); background:var(--verde-claro); border-radius:5px; padding:1px 6px}
+
+  /* logo da capa — "selo" branco, mesma linguagem do header da ui_demo */
+  .logo-capa{height:120px; padding:20px 30px; background:#fff; border-radius:20px;
+             box-shadow:0 6px 26px rgba(26,77,54,.18); margin-bottom:36px}
 
   /* ============ impressão (PDF de backup) ============ */
   @media print{
-    body{overflow:visible; background:#0d1117; -webkit-print-color-adjust:exact; print-color-adjust:exact}
-    .slide{position:relative; display:flex !important; page-break-after:always; height:100vh}
-    #hud,#barra,#notas{display:none !important}
+    body{overflow:visible; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    .slide{position:relative; display:flex !important; page-break-after:always; height:100vh; animation:none}
+    #hud,#barra,#notas,#marca{display:none !important}
   }
 </style>
 </head>
 <body>
 
 <div id="barra"></div>
+<div id="marca"><img src="" alt="Legacy Capital"></div>
 
 <!-- ================= 1 · CAPA ================= -->
 <section class="slide centro" data-n="1">
   <div>
-    <div class="kicker">Case Estágio AI · Legacy Capital · junho/2026</div>
+    <img class="logo-capa" src="" alt="Legacy Capital">
+    <div class="kicker">Case Estágio AI · junho/2026</div>
     <h1>Sistema de Retrieval para<br>Research de Equities</h1>
-    <p class="sub">RAG <em>dual-path</em> roteado — <b class="gold">texto que cita, número que computa</b></p>
-    <p class="sub" style="margin-top:46px; font-size:18px">Beny Frid</p>
+    <p class="sub">RAG <em>dual-path</em> roteado — <b>texto que cita, número que computa</b></p>
+    <p class="sub" style="margin-top:44px; font-size:18px">Beny Frid</p>
   </div>
   <template class="notas">
     <h4>🎤 Fale</h4><p>"Construí um sistema de retrieval pra apoiar o research de equities. A ideia central — que vou defender hoje — é simples: <b>separar o que é texto do que é número</b>. É exatamente aí que o RAG ingênuo quebra, e foi a primeira decisão de arquitetura que tomei."</p>
@@ -142,9 +189,9 @@
   <h3>O "RAG ingênuo" falha em dois pontos:</h3>
   <ul>
     <li class="nao"><b>Número:</b> o LLM <em>lembra</em> o número aproximado — e erra. <span class="dim">"1,2%" e "12%" moram em textos quase idênticos.</span></li>
-    <li class="nao"><b>Honestidade:</b> quando não sabe, ele <b class="red">inventa</b> em vez de dizer "não tenho".</li>
+    <li class="nao"><b>Honestidade:</b> quando não sabe, ele <b class="ambar">inventa</b> em vez de dizer "não tenho".</li>
   </ul>
-  <p class="ancora dim" style="font-size:19px">Errar um número ou inventar uma fonte não é bugzinho — é perder a confiança do analista.</p>
+  <p class="ancora" style="font-size:19px; font-weight:500; color:var(--suave)">Errar um número ou inventar uma fonte não é bugzinho — é perder a confiança do analista.</p>
   <template class="notas">
     <h4>🎤 Fale</h4><p>"Num contexto de research, errar um número ou inventar uma fonte não é um bugzinho — é perder a confiança do analista. O RAG ingênuo, de jogar tudo num índice vetorial e pedir pro modelo responder, falha justamente nessas duas coisas: número e honestidade."</p>
     <div class="esc"><b>🛡️ "Por que não só um índice grande + GPT?"</b><p>Número não se recupera por similaridade — 1,2% e 12% têm vizinhança semântica quase igual. E sem portão de evidência, o modelo preenche lacuna inventando. As duas falhas têm a mesma raiz: tratar número como texto.</p></div>
@@ -154,12 +201,12 @@
 <!-- ================= 3 · A SACADA ================= -->
 <section class="slide" data-n="3">
   <div class="kicker">3 · A sacada central</div>
-  <h2>Texto e número são problemas <span class="gold">diferentes</span>.<br>Trate cada um do seu jeito.</h2>
+  <h2>Texto e número são problemas <u>diferentes</u>.<br>Trate cada um do seu jeito.</h2>
   <table>
-    <tr><th></th><th>TEXTO <span class="dim">("o que o CEO disse")</span></th><th>NÚMERO <span class="dim">("qual o market share")</span></th></tr>
+    <tr><th style="width:18%"></th><th>TEXTO <span style="opacity:.75; text-transform:none">("o que o CEO disse")</span></th><th>NÚMERO <span style="opacity:.75; text-transform:none">("qual o market share")</span></th></tr>
     <tr><td>Como obter</td><td><b>recuperar</b> o trecho e <b>citar</b></td><td><b>computar</b> com SQL (Bacen IF.data)</td></tr>
     <tr><td>Quem faz</td><td>busca híbrida + rerank</td><td>DuckDB (conta determinística)</td></tr>
-    <tr><td>Papel do LLM</td><td><b>escreve</b> a resposta com o trecho</td><td><b class="red">nenhum cálculo</b> — só redige o resultado</td></tr>
+    <tr><td>Papel do LLM</td><td><b>escreve</b> a resposta com o trecho</td><td><b class="ambar">nenhum cálculo</b> — só redige o resultado</td></tr>
   </table>
   <div class="callout"><b>O LLM nunca faz a conta.</b> O SQL faz a conta; o LLM só veste o número em linguagem — e sempre cita a fonte.</div>
   <template class="notas">
@@ -173,25 +220,30 @@
 <section class="slide" data-n="4">
   <div class="kicker">4 · A arquitetura</div>
   <h2><em>Dual-path</em> roteado</h2>
-  <pre class="diag">
-                        pergunta
-                           │
-                <span class="g">┌──────────▼──────────┐</span>
-                <span class="g">│  ROTEADOR (regras)  │</span>  <span class="d">número ou texto? (determinístico)</span>
-                <span class="g">└──────────┬──────────┘</span>
-          ┌────────────────┴────────────────┐
-        <span class="t">TEXTO</span>                             <span class="t">NÚMERO</span>
-          │                                  │
- embedding + BM25                     DuckDB (SQL):
-  → RRF → reranker                    carteira_banco ÷ Σ sistema
-          │                           = market share <span class="t">(EXATO)</span>
- <span class="g">GATE 0,60: evidência forte?</span>                 │
-      │ <span class="r">não → RECUSA (com motivo)</span>            │
-      │ sim                                  │
-      └────────► <span class="g">LLM REDIGE com CITAÇÃO</span> ◄────┘
-                 <span class="d">(nunca faz a conta; ou recusa, sem inventar)</span></pre>
-  <p class="dim" style="margin-top:8px"><b style="color:var(--ink)">Funil do texto</b> — barato/impreciso → caro/preciso:&nbsp;
-  <span style="font-family:var(--mono); font-size:14.5px">3.650 fichas → embedding (top 50) + BM25 (top 50) → RRF → reranker (~10) → top 5 → GATE 0,60</span></p>
+  <div class="fluxo">
+    <div class="no pill">pergunta</div>
+    <div class="seta">▼</div>
+    <div class="no roteador">ROTEADOR<span>regras — número ou texto? (determinístico)</span></div>
+    <div class="ramos-setas"><span>◀ texto</span><span>número ▶</span></div>
+    <div class="ramos">
+      <div class="ramo texto">
+        <h4>Caminho de texto</h4>
+        <div class="passo">embedding + BM25 → RRF → reranker</div>
+        <div class="gate"><b>GATE 0,60</b> — evidência forte?
+          <span class="nao">não → RECUSA (com motivo)</span></div>
+      </div>
+      <div class="ramo numero">
+        <h4>Caminho de número</h4>
+        <div class="passo">DuckDB (SQL):<br>carteira_banco ÷ Σ sistema<br>= market share <b class="teal">EXATO</b></div>
+      </div>
+    </div>
+    <div class="ramos-setas"><span>▶</span><span>◀</span></div>
+    <div class="no final">LLM REDIGE com CITAÇÃO<span>nunca faz a conta · ou recusa, sem inventar</span></div>
+  </div>
+  <div class="funil"><b style="font-family:'Segoe UI'">Funil do texto:&nbsp;</b>
+    <span>3.650 fichas</span><i>→</i><span>embedding top 50</span><i>+</i><span>BM25 top 50</span><i>→</i>
+    <span>RRF funde</span><i>→</i><span>reranker ~10</span><i>→</i><span>top 5</span><i>→</i><span>GATE 0,60</span>
+  </div>
   <template class="notas">
     <h4>🎤 Fale</h4><p>"Toda pergunta passa por um <b>roteador determinístico</b>: número ou texto? <b>Número</b> vai pro SQL — carteira do banco dividida pelo sistema, conta exata e auditável. <b>Texto</b> entra num funil: duas buscas baratas pegam 50 candidatos cada (embedding por significado, BM25 por palavra exata), o RRF funde por posição, o reranker entrevista os ~10 finalistas a fundo. No fim, um <b>portão de evidência (0,60)</b>: se nada é bom o bastante, <b>recusa</b>; senão o LLM redige <b>com citação</b> — mas nunca faz a conta."</p>
     <div class="esc"><b>🛡️ "Por que roteador de regras e não agente LLM?"</b><p>O eval pesa 50% e roda o sistema repetidamente — <b>mesma pergunta → mesmo caminho</b> mantém a avaliação reproduzível e auditável. Agente LLM seria mais flexível, mas traria não-determinismo e 3-5 chamadas por pergunta. Troquei flexibilidade por confiabilidade.</p></div>
@@ -201,7 +253,7 @@
 <!-- ================= 5 · RECUSA ================= -->
 <section class="slide" data-n="5">
   <div class="kicker">5 · Responder ou recusar</div>
-  <h2>Honestidade como <span class="gold">feature</span> — recusa em 2 estágios</h2>
+  <h2>Honestidade como feature <span class="sufixo">— recusa em 2 estágios</span></h2>
   <h3>Estágio 1 — ESCOPO (roteador, antes de buscar)</h3>
   <div class="regras">
     <div class="regra"><span class="tag">R1</span><b>futuro</b> — valor de métrica além da cobertura (&gt;2026); data <i>documentada</i> passa</div>
@@ -211,8 +263,8 @@
     <div class="regra" style="grid-column:1/-1"><span class="tag">R8</span><b>recomendação de investimento</b> — "vale a pena comprar?" → a base documenta <b>fatos</b>; aconselhar compra/venda, não</div>
   </div>
   <h3>Estágio 2 — EVIDÊNCIA (gate, depois de buscar)</h3>
-  <p>Melhor nota do reranker <b class="red">&lt; 0,60</b> (calibrado) → recusa em vez de redigir sobre evidência fraca.</p>
-  <div class="callout">Toda recusa diz o <b>MOTIVO</b> — auditável, nunca um "não sei" seco. Medido: <b class="teal">over-recusa 0%</b>.</div>
+  <p>Melhor nota do reranker <b class="ambar">&lt; 0,60</b> (calibrado) → recusa em vez de redigir sobre evidência fraca.</p>
+  <div class="callout">Toda recusa diz o <b>MOTIVO</b> — auditável, nunca um "não sei" seco. Medido: <b>over-recusa 0%</b>.</div>
   <template class="notas">
     <h4>🎤 Fale</h4><p>"Num sistema de research, recusar não é falha — é feature. Recuso em duas camadas. Primeiro <b>escopo</b>: antes de gastar busca, o roteador vê se a pergunta cabe na base. Depois <b>evidência</b>: mesmo no escopo, se o melhor trecho não passa de uma nota mínima calibrada, recuso. E toda recusa vem com o motivo."</p>
     <div class="esc"><b>🛡️ "E se recusar demais?"</b><p>Medi: <b>0% de over-recusa</b> nas 12 perguntas de comportamento. E o caso sutil — data futura <i>documentada</i> (vigência de norma em 2027) — é <b>respondido</b>: uma trava confere se um trecho cita o ano. Recuso o valor que eu inventaria, não a data que está escrita.</p></div>
@@ -223,16 +275,17 @@
 <!-- ================= 6 · DEMO ================= -->
 <section class="slide" data-n="6">
   <div class="kicker">6 · Caso B — ao vivo</div>
-  <h2>As rotas em ação <span class="dim" style="font-size:20px">(a demo é o centro)</span></h2>
-  <table style="font-size:15px">
+  <h2>As rotas em ação <span class="sufixo">(a demo é o centro)</span></h2>
+  <table style="font-size:14.5px">
     <tr><th>pergunta</th><th>rota</th><th>resultado</th></tr>
-    <tr><td><i>Resultado Recorrente Gerencial do Itaú no 4T25?</i></td><td><b class="teal">texto</b></td><td><b>R$ 12,3 bi</b>, citado da <b>pág. 8</b></td></tr>
-    <tr><td><i>Market share do Nubank em cartão no 4T25?</i></td><td><b class="teal">número</b></td><td>SQL — <b>qualquer banco × modalidade</b>, sem precisar dizer "IF.data"</td></tr>
-    <tr><td><i>Qual banco teve o maior share em consignado no 4T25?</i></td><td><b class="teal">ranking</b></td><td>sem banco nomeado → compara <b>todos</b>, elege líder com gap em p.p.</td></tr>
-    <tr><td><i>Entre BB e Bradesco, quem ganhou mais share de consignado de 2023 a 2024?</i></td><td><b class="teal">comparativo</b></td><td>BB <b>+0,7 p.p. a mais</b> (cross-bank, <b>janela escolhida</b>)</td></tr>
-    <tr><td><i>O share do Bradesco no balanço bate com o que computamos do Bacen?</i></td><td><b class="gold">multi-fonte</b></td><td>declarado <b>14,2%</b> (call) / <b>14,1%</b> (release) × computado <b>13,8%</b> — lado a lado, citados</td></tr>
-    <tr><td><i>Custo de crédito do Bradesco no 2T2027?</i></td><td><b class="red">recusa</b></td><td><b>R1</b> — futuro fora da base, diz o motivo</td></tr>
+    <tr><td><i>Resultado Recorrente Gerencial do Itaú no 4T25?</i></td><td><span class="badge b-texto">texto</span></td><td><b>R$ 12,3 bi</b>, citado da <b>pág. 8</b></td></tr>
+    <tr><td><i>Market share do Nubank em cartão no 4T25?</i></td><td><span class="badge b-numero">número</span></td><td>SQL — <b>qualquer banco × modalidade</b>, sem precisar dizer "IF.data"</td></tr>
+    <tr><td><i>Qual banco teve o maior share em consignado no 4T25?</i></td><td><span class="badge b-comp">ranking</span></td><td>sem banco nomeado → compara <b>todos</b>, elege líder com gap em p.p.</td></tr>
+    <tr><td><i>Entre BB e Bradesco, quem ganhou mais share de consignado de 2023 a 2024?</i></td><td><span class="badge b-comp">comparativo</span></td><td>BB <b>+0,7 p.p. a mais</b> (cross-bank, <b>janela escolhida</b>)</td></tr>
+    <tr><td><i>O share do Bradesco no balanço bate com o que computamos do Bacen?</i></td><td><span class="badge b-multi">multi-fonte</span></td><td>declarado <b>14,2%</b> (call) / <b>14,1%</b> (release) × computado <b>13,8%</b> — lado a lado, citados</td></tr>
+    <tr><td><i>Custo de crédito do Bradesco no 2T2027?</i></td><td><span class="badge b-recusa">recusa</span></td><td><b>R1</b> — futuro fora da base, diz o motivo</td></tr>
   </table>
+  <p class="dim" style="font-size:14px; margin-top:6px">As cores das rotas acima são as mesmas do chat — a banca vê a mesma linguagem no slide e na demo.</p>
   <template class="notas">
     <h4>🎤 Fale</h4><p>"Agora ao vivo. <b>Texto</b>: o lucro do Itaú — acha na página 8 e cita. <b>Número</b>: share do Nubank em cartão, computado em SQL — funciona pra qualquer banco e produto. <b>Ranking</b>: qual banco lidera, com o gap exato. O <b>coração do Caso B</b>, multi-fonte: cruzo o que o Bradesco declarou na call com o que computei do Bacen — os dois lados citados, lado a lado, e a confirmação (~0,3 p.p.) se lê na hora. Se o redator hesitar diante das tabelas, o sistema não inventa nem recusa: entrega a evidência citada. E a <b>recusa</b>: pergunto o futuro, ele recusa com o motivo."</p>
     <h4>💡 Ritual de demo</h4><p>Abrir a <code>ui_demo</code> com antecedência (~1-2 min de carga, o torch importa em silêncio) · NÃO rodar <code>resolver_caso</code>/<code>perguntar</code> com o chat aberto (DuckDB single-writer) · cada pergunta é independente — sem follow-up curto ("e o Bradesco?"), refaça a pergunta completa · as 6 perguntas coladas num bloco de notas.</p>
@@ -251,18 +304,18 @@
 <!-- ================= 7 · EVAL ================= -->
 <section class="slide" data-n="7">
   <div class="kicker">7 · Resultados do eval</div>
-  <h2>"Comece pelo eval" — medi antes de otimizar</h2>
+  <h2>"Comece pelo eval" <span class="sufixo">— medi antes de otimizar</span></h2>
   <div class="cards">
     <div class="card"><div class="num">81,8%</div><div class="leg">hit@3 · 22 sondagens<br>5 fontes, 4 tipos de doc</div></div>
     <div class="card"><div class="num">0,686</div><div class="leg">MRR (achei <i>cedo</i>)<br>hit@5: 86,4%</div></div>
     <div class="card"><div class="num">90%</div><div class="leg">nas sondagens realistas<br>(sem gíria/paráfrase)</div></div>
   </div>
   <div class="cards">
-    <div class="card"><div class="num au">12/12</div><div class="leg">comportamento certo (escopo)<br>over-recusa <b>0%</b> · <b>0</b> alucinação</div></div>
-    <div class="card"><div class="num au">6/6</div><div class="leg">fidelidade — juiz LLM<br><b>independente</b> (≠ gerador)</div></div>
-    <div class="card"><div class="num au">217</div><div class="leg">testes de fluxo<br>(sem rede / sem modelo)</div></div>
+    <div class="card"><div class="num tl">12/12</div><div class="leg">comportamento certo (escopo)<br>over-recusa <b>0%</b> · <b>0</b> alucinação</div></div>
+    <div class="card"><div class="num tl">6/6</div><div class="leg">fidelidade — juiz LLM<br><b>independente</b> (≠ gerador)</div></div>
+    <div class="card"><div class="num tl">217</div><div class="leg">testes de fluxo<br>(sem rede / sem modelo)</div></div>
   </div>
-  <div class="callout"><b>O eval pegou um bug real:</b> um doc rotulado "Bradesco 3T25" era o release de <b>4T19</b> (URL errada na fonte). O hit@3 caiu, investiguei, troquei a URL — e subiu <b class="teal">77% → 82%</b>.</div>
+  <div class="callout"><b>O eval pegou um bug real:</b> um doc rotulado "Bradesco 3T25" era o release de <b>4T19</b> (URL errada na fonte). O hit@3 caiu, investiguei, troquei a URL — e subiu <b>77% → 82%</b>.</div>
   <template class="notas">
     <h4>🎤 Fale</h4><p>"O case diz 'comece pelo eval', e comecei. Retrieval: hit@3 de 82%, 90% nas realistas, num conjunto heterogêneo. Recusa: 12 de 12, zero over-recusa. Fidelidade: 6 de 6, com juiz de outra família de modelo pra não ter viés de auto-avaliação. E o melhor: o eval pegou um erro real — um documento que eu achava 3T25 era de 2019; o número caiu, investiguei, corrigi. Medir antes de afirmar."</p>
     <div class="esc"><b>🛡️ "n é pequeno"</b><p>É, e sou explícito: escopo n=12, fidelidade n=6. Sanidade forte, não estatística de população. Em produção o gold cresce, idealmente por modalidade — o arcabouço está pronto e roda em segundos.</p></div>
@@ -274,11 +327,11 @@
 <section class="slide" data-n="8">
   <div class="kicker">8 · O que me surpreendeu</div>
   <h2>Aprendizados não-óbvios</h2>
-  <ul style="font-size:19px">
+  <ul style="font-size:18.5px">
     <li><b>1 · O LLM não é determinístico — nem a temperatura 0.</b> A mesma pergunta deu <i>responde → recusa → responde</i>. Isso <b>confirmou</b> a arquitetura: confinar o não-determinismo ao texto livre; roteador (regra), conta (SQL) e citação (código) ficam determinísticos.</li>
     <li><b>2 · O LLM faz conta BEM — com o contexto certo.</b> Testei e <b class="teal">refutei meu próprio pressuposto</b>. Escolhi SQL mesmo assim — por <b>auditabilidade</b>, não por incapacidade do modelo.</li>
     <li><b>3 · Uma "fraqueza" virou feature.</b> Nubank reporta em IFRS (incomparável com Cosif) → virou a <b>recusa R2</b>: honestidade orgânica.</li>
-    <li><b>4 · Auditoria adversarial do próprio código</b> achou que a comparação entre bancos <b class="red">ignorava os anos</b> da pergunta. Corrigi e provei com dados reais. Duvidar do próprio código achou o que os testes não pegavam.</li>
+    <li><b>4 · Auditoria adversarial do próprio código</b> achou que a comparação entre bancos <b class="ambar">ignorava os anos</b> da pergunta. Corrigi e provei com dados reais. Duvidar do próprio código achou o que os testes não pegavam.</li>
   </ul>
   <template class="notas">
     <h4>🎤 Fale</h4><p>"Quatro surpresas. O LLM não é determinístico nem a zero grau — isso me convenceu a deixar número e roteamento determinísticos. Eu achava que ele erraria contas, testei, e ele acerta com o contexto certo — então minha escolha por SQL é por auditabilidade, não por achar o modelo burro. A fraqueza do Nubank virou a recusa R2. E uma auditoria adversarial do meu próprio código achou um bug que os testes não pegavam."</p>
@@ -290,14 +343,14 @@
 <section class="slide" data-n="9">
   <div class="kicker">9 · Prós e contras</div>
   <h2>O que ganhei × o que sacrifiquei</h2>
-  <table style="font-size:15.5px">
+  <table style="font-size:15px">
     <tr><th>Escolha</th><th>Ganhei</th><th>Sacrifiquei</th></tr>
     <tr><td><b>Dual-path determinístico</b><br><span class="dim">(não agente LLM)</span></td><td>número exato e auditável; eval reproduzível; mesma pergunta → mesmo caminho</td><td>flexibilidade — regras léxicas quebram em gíria/fraseado não-previsto</td></tr>
     <tr><td><b>Stack aberto/local</b><br><span class="dim">(sem Cohere/Pinecone)</span></td><td><b>US$ 0</b>, privado, reproduzível offline</td><td>talvez um delta de qualidade vs. APIs pagas — <b>não comprovado em PT</b></td></tr>
     <tr><td><b>Vetor força-bruta</b><br><span class="dim">(não HNSW)</span></td><td>busca <b>exata</b> e instantânea na escala atual; zero peça móvel</td><td>é O(N): precisaria de HNSW acima de ~100k fichas</td></tr>
     <tr><td><b>LLM só redige</b><br><span class="dim">(SQL faz a conta)</span></td><td>nunca alucina número; resposta sempre citada</td><td>menos "esperto" que um agente que raciocina sozinho</td></tr>
   </table>
-  <p style="margin-top:6px"><b>Onde quebra (assumido, não escondido):</b> <span class="dim">gíria extrema ("calote") e paráfrase sem palavra em comum · transcrição perde pro release formal · número em célula de tabela perde contexto ao chunkar — é <i>por isso</i> que número vai pelo SQL.</span></p>
+  <p style="margin-top:4px"><b>Onde quebra (assumido, não escondido):</b> <span class="dim">gíria extrema ("calote") e paráfrase sem palavra em comum · transcrição perde pro release formal · número em célula de tabela perde contexto ao chunkar — é <i>por isso</i> que número vai pelo SQL.</span></p>
   <template class="notas">
     <h4>🎤 Fale</h4><p>"Cada escolha trocou flexibilidade/potência crua por reprodutibilidade e correção — o trade-off certo em finanças, onde errar número ou inventar fonte custa a confiança do analista. E sou honesto sobre onde quebra: gíria extrema, transcrição vs. release, número em tabela."</p>
     <div class="esc"><b>🛡️ "Não é conservador demais?"</b><p>Para uma fundação de research, sim, de propósito. A interface é trocável — dá pra ligar reranker melhor ou um agente quando houver eval que justifique. Mas a base tem que ser confiável primeiro.</p></div>
@@ -309,8 +362,8 @@
   <div class="kicker">10 · Como escala</div>
   <h2>De dezenas → centenas → dezenas de milhares</h2>
   <p><b class="teal">O que NÃO muda (já pronto):</b> o pipeline. Crescer o corpus = <b>acrescentar linhas ao manifesto</b>; ingestão idempotente, falha isolada por documento.</p>
-  <h3 style="margin-top:14px">O que muda (projetado, não construído — honesto):</h3>
-  <table style="font-size:16px">
+  <h3 style="margin-top:12px">O que muda (projetado, não construído — honesto):</h3>
+  <table style="font-size:15.5px">
     <tr><th>Gargalo</th><th>Hoje</th><th>Em escala</th></tr>
     <tr><td><b>Índice vetorial</b></td><td>cosseno força-bruta (exato, instantâneo &lt;100k)</td><td><b>HNSW in-place no DuckDB</b> (extensão VSS, <code>CREATE INDEX</code>) — <i>sem trocar de sistema</i></td></tr>
     <tr><td><b>BM25</b></td><td>reconstruído em memória por consulta</td><td><b>FTS persistido</b></td></tr>
@@ -328,13 +381,13 @@
 <section class="slide" data-n="11">
   <div class="kicker">11 · Fecho</div>
   <h2>Com mais tempo, em ordem de impacto:</h2>
-  <ul style="font-size:19px">
+  <ul style="font-size:18.5px">
     <li><b>1 · Chunking ciente de tabela</b> — ler o número <i>declarado</i> na célula do release (hoje vai pelo SQL).</li>
     <li><b>2 · Recalibrar o gate</b> com gold maior, incl. gíria/paráfrase — fecha a over-recusa do caso difícil.</li>
     <li><b>3 · Expansão de query</b> pra gíria (<i>"calote"</i> → <i>"inadimplência"</i>) — o limite mais visível do retrieval.</li>
     <li><b>4 · Benchmark do HNSW in-place</b> (DuckDB VSS) — medir onde a força-bruta deixa de bastar.</li>
   </ul>
-  <div class="callout" style="margin-top:24px"><b>O que entrego hoje:</b> uma fundação de retrieval confiável — número <b>exato</b> (SQL), fonte <b>sempre citada</b> (por código) e recusa <b>honesta com motivo</b> — provada por eval e pronta pra crescer por manifesto.</div>
+  <div class="callout" style="margin-top:22px"><b>O que entrego hoje:</b> uma fundação de retrieval confiável — número <b>exato</b> (SQL), fonte <b>sempre citada</b> (por código) e recusa <b>honesta com motivo</b> — provada por eval e pronta pra crescer por manifesto.</div>
   <p class="ancora">"Separei texto de número — por isso o número está certo e o sistema recusa em vez de inventar."</p>
   <template class="notas">
     <h4>🎤 Fale</h4><p>"Com mais tempo, minha lista é priorizada: ler tabela no texto, recalibrar o gate pra gíria, expansão de query, e medir o HNSW. Mas o que entrego hoje é o que importa numa fundação de research: número exato porque vem de SQL, fonte sempre citada porque é anexada por código, e quando não sei, recuso com o motivo. Provei por eval e desenhei como cresce. Obrigado — bora pras perguntas."</p>
@@ -345,12 +398,17 @@
 <!-- ================= moldura ================= -->
 <aside id="notas" aria-label="notas do apresentador"></aside>
 <footer id="hud">
-  <span>Beny Frid · Legacy Capital</span>
+  <span class="quem"><img src="" alt=""> Beny Frid · Research de Equities</span>
   <span><kbd>←</kbd><kbd>→</kbd> navegar &nbsp; <kbd>N</kbd> notas do apresentador &nbsp; <kbd>Ctrl+P</kbd> PDF</span>
   <span id="pos"></span>
 </footer>
 
 <script>
+var LOGO = "data:image/png;base64,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";
+document.getElementById('marca').querySelector('img').src = LOGO;
+document.querySelector('.logo-capa').src = LOGO;
+document.querySelector('#hud .quem img').src = LOGO;
+
 (function(){
   var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
   var notas = document.getElementById('notas'), pos = document.getElementById('pos'),
@@ -360,6 +418,7 @@
   function mostrar(n){
     i = Math.max(0, Math.min(slides.length-1, n));
     slides.forEach(function(s,k){ s.classList.toggle('ativo', k===i); });
+    document.body.classList.toggle('na-capa', i===0);
     pos.textContent = (i+1) + ' / ' + slides.length;
     barra.style.width = ((i+1)/slides.length*100) + '%';
     location.hash = i+1;
