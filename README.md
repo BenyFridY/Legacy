@@ -23,7 +23,7 @@ conta). Por isso o número é **exato e auditável**, e o sistema **recusa em ve
 
 | retrieval — hit@3 | recusa por escopo | fidelidade (juiz independente) | alucinação |
 |:---:|:---:|:---:|:---:|
-| **90%** realista · 81,8% completo · MRR **0,686** | **12/12** · over-recusa **0%** | **6/6** sustentadas | **0** |
+| **95%** realista · 86,4% completo · MRR **0,667** | **12/12** · over-recusa **0%** | **6/6** sustentadas | **0** |
 
 > **Corpus provado a fundo, não largo (escolha assumida):** 11 documentos reais — 5 fontes, 4 tipos,
 > de **312 pp a 4 pp**, multi-período — + Bacen IF.data (10 trimestres). Escalar p/ **500+** é
@@ -101,14 +101,19 @@ trimestre, um filtro de metadados fixa o documento certo no corpus multi-períod
 
 | conjunto | hit@1 | hit@3 | hit@5 | MRR |
 |---|---|---|---|---|
-| **sondagens realistas** (sem gíria/paráfrase) | — | **90%** | — | — |
-| **22 sondagens** (inclui 2 limite + transcrição/nota) | 54,5% | 81,8% | 86,4% | **0,686** |
+| **sondagens realistas** (sem gíria/paráfrase) | — | **95%** | — | — |
+| **22 sondagens** (inclui 2 limite + transcrição/nota) | 50,0% | 86,4% | 86,4% | **0,667** |
+
+*(re-medido em 10/06 após o chunking ciente de tabela: hit@3 **subiu** 81,8% → 86,4% — o consignado
+do Santander, antes só no hit@5, entrou no top-3; custo honesto: hit@1 cedeu 1 sondagem e o MRR
+0,686 → 0,667, porque o cabeçalho re-prefixado adiciona tokens e desloca ranks levemente — a
+métrica que alimenta o LLM é o top-3/top-5, que melhorou.)*
 
 **Limites honestos** (não escondidos): a gíria *"calote"* e a paráfrase *"descontado direto da folha"*
 falham de propósito; a transcrição de *política de crédito* perde para o release formal (**embora** a de
-*inadimplência 90d* acerte no top-3); e o *consignado do Santander* aparece só no hit@5 (ver *Fraquezas*).
-Com o **filtro de período** (remove a competição 4T25/3T25/1T26), **7 das 8** sondagens realistas do Itaú
-ficam em **rank 1** — incl. o RRG de 1T26 e 3T25 (mesmo banco, trimestres quase idênticos).
+*inadimplência 90d* acerte no top-3). Com o **filtro de período** (remove a competição 4T25/3T25/1T26),
+as sondagens realistas do Itaú seguem no topo — incl. o RRG de 1T26 e 3T25 (mesmo banco, trimestres
+quase idênticos).
 
 **2) Recusa por escopo — Estágio 1 (roteador determinístico, sem modelo).** 12 perguntas, 3
 categorias de comportamento + 1 distrator anti-over-recusa:
@@ -211,6 +216,16 @@ avaliação **reprodutível e auditável**. O preço (fragilidade léxica) é as
 - **Duas formas por ficha:** `.indexavel` = cabeçalho de metadados (`banco | período | tipo |
   página`) + trecho, que vai para o **embedding** (dá contexto à busca); `.texto` = trecho cru, que é
   o que se **cita**.
+- **Ciente de tabela (10/06):** o overlap assume semântica de **prosa** (contexto = o que veio logo
+  antes); numa **tabela**, o contexto é a linha de **cabeçalho das colunas** (`R$ milhões 4T25 3T25
+  4T24...`). Quando uma tabela densa estoura o alvo e quebra em 2+ fichas, a continuação ficava com
+  números **órfãos de rótulo de coluna**. O fix: ficha com linha de **dados** de tabela mas **sem**
+  cabeçalho de colunas ganha, **re-prefixado**, o cabeçalho **mais próximo da mesma página** — mais
+  próximo, e não "o anterior", porque o pypdf emite na ordem do *stream* do PDF (o cabeçalho às vezes
+  sai **depois** dos dados, ex.: RAEF 3T25 pág. 41). É a regra do Excel de repetir a linha de título
+  em cada página impressa. Heurístico e **conservador**: detecção por rótulos de período (`4T25`,
+  `Dez24`, `12M25`) + densidade de números; página sem cabeçalho detectável = **no-op**; o cabeçalho
+  repetido é texto **verbatim** da mesma página — a citação segue honesta.
 - **Dado estruturado NÃO é "chunkado" — é a outra metade do *dual-path*.** Número não se recupera por
   similaridade (ADR-0001): a carteira do Bacen entra como **linhas numa tabela DuckDB** (banco ×
   período × modalidade) e o market share é **calculado em SQL na hora da pergunta** — não vira texto,
@@ -272,7 +287,7 @@ set KMP_DUPLICATE_LIB_OK=TRUE & set PYTHONPATH=. & set PYTHONIOENCODING=utf-8
 **Estágio 1 — prova imediata, 100% offline (~1 min; sem rede, sem modelo, sem chave):**
 
 ```bat
-:: suíte completa com fakes -> espere "247 passed" em poucos segundos
+:: suíte completa com fakes -> espere "252 passed" em poucos segundos
 python -m pytest -q
 :: matriz de recusa-por-escopo (roteador puro) -> espere "Acuracia de comportamento  12/12"
 ::   e, logo abaixo, a bateria ESTENDIDA: "36/36" de comportamento e "Rota correta 36/36"
@@ -293,7 +308,7 @@ python scripts\ingerir_numeros.py
 python scripts\ingerir_corpus.py
 :: auditoria da base (10 checagens, read-only) -> espere tudo [OK] (detalhe: resultados-eval.md §6)
 python scripts\auditar_base.py
-:: hit@k / MRR reais, ciente de período -> espere hit@3 81,8% / MRR 0,686 nas 22 sondagens
+:: hit@k / MRR reais, ciente de período -> espere hit@3 86,4% / MRR 0,667 nas 22 sondagens
 python scripts\eval_retrieval_real.py
 :: calibração do gate (over-recusa × vazamento -> joelho 0,60) e do fallback do reranker
 python scripts\calibrar_gate.py
@@ -320,7 +335,7 @@ python scripts\ui_demo.py
 > ⚠️ **DuckDB é single-writer:** feche o chat (`ui_demo.py`) antes de rodar qualquer outro script —
 > dois processos no mesmo `data/legacy.duckdb` dão `IOException` (só `--dry-run` não abre o DB).
 
-Os **247 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
+Os **252 testes** rodam em segundos e provam o **fluxo e as recusas** com modelos **falsos** (encoder/
 reranker/LLM injetáveis) — sem baixar nada. A **qualidade semântica** entra com os modelos reais nos
 scripts. O LLM fica atrás de uma interface trocável (`LLMClient`): o provedor ativo é **Groq
 (Llama 3.3 70B)**, selecionável por `LLM_PROVIDER` no `.env`; sem chave, o sistema ainda roteia,
@@ -355,7 +370,7 @@ docs/
   pesquisa/            fact-check adversarial das afirmações técnicas
   resultados-eval.md   saídas reproduzíveis do eval (lastro dos números deste README)
 scripts/               atualizar_base · ingerir_numeros · ingerir_corpus · ingerir_bradesco · auditar_base · prova_retrieval_real · eval_retrieval_real · calibrar_gate · calibrar_discrimina_rerank · eval_fidelidade_real · resolver_caso · resolver_b3 · perguntar · ui_demo
-tests/                 24 arquivos · 247 testes
+tests/                 24 arquivos · 252 testes
 ```
 
 ---
@@ -388,7 +403,7 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   O limiar nasceu por inspeção; a medição (`scripts/calibrar_discrimina_rerank.py`) mostra que ele
   pega as duas sondagens difíceis (gíria/paráfrase, pstdev 0,004/0,042) **mas não separa populações**:
   8 das 20 fáceis/médias também disparam. Falha benigna — o fallback só troca a ordenação (nunca
-  recusa) e o hit@3 de 81,8% foi medido com ele ativo — porém é **ponto de operação**, não joelho
+  recusa) e o hit@3 de 86,4% foi medido com ele ativo — porém é **ponto de operação**, não joelho
   calibrado como o 0,60 do gate (detalhe em `docs/resultados-eval.md` §3c).
 - **Interação fallback × gate (over-recusa em gíria/paráfrase):** quando o cross-encoder achata as notas
   (~0,50), o fallback recupera a **ordem** do RRF, mas as **notas** continuam achatadas; como o gate de
@@ -410,12 +425,16 @@ medido** (ver [ADR-0005](docs/decisions/0005-robustez-escala-calibracao.md)); o 
   ranking compara só os **5 bancos cobertos** — e a auditoria mostrou a **Caixa em 2º no consignado
   do sistema** (14,7%, fora da base); por isso a resposta de ranking carrega o rótulo *"entre os 5
   bancos cobertos"* (sem ele, o "acima de" do vice lia-se como vice do sistema inteiro).
-- **RAG sobre tabelas:** o número *declarado* do B3 (consignado **14,1%**) vive numa **célula de
-  tabela**; ao chunkar, perde cabeçalho/unidade e o LLM (corretamente) não o lê. Quando uma tabela densa
-  estoura o tamanho-alvo e quebra em 2+ fichas, as fichas de continuação ficam **sem a linha de cabeçalho
-  de colunas** (o overlap só carrega a última linha de dado) — a auditoria confirmou. Hoje o `multi_fonte`
-  cai para evidência citada lado a lado; o fix real é **chunking ciente de tabela** (re-prefixar o cabeçalho).
-  É por isso que o share *computado* vai pelo **caminho SQL**, não pelo texto.
+- **RAG sobre tabelas *(corrigida em 10/06)*:** o número *declarado* do B3 (consignado **14,1%**)
+  vive numa **célula de tabela**; quando uma tabela densa estourava o tamanho-alvo e quebrava em 2+
+  fichas, as continuações ficavam **sem a linha de cabeçalho de colunas** (o overlap só carrega a
+  última linha de dado) e o LLM (corretamente) não lia os números órfãos — a auditoria confirmou.
+  O fix nomeado aqui foi **implementado**: *chunking ciente de tabela* (ver *Decisões de chunking*) —
+  a continuação re-prefixada com o cabeçalho mais próximo da página; o corpus foi re-ingerido e a
+  ficha do 14,1% (RAEF 3T25 pág. 41) agora carrega os rótulos `Set25/Jun25/Set24`. **Limite
+  residual:** a detecção é heurística — cabeçalho que a extração funde com dados ou página só de
+  gráfico fica de fora (no-op conservador: nada é prefixado, nunca inventado). E o princípio segue:
+  share *computado* vai pelo **caminho SQL**, não pela leitura de tabela em texto.
 - **Lacunas do roteador (R4/R6):** distinguir *realizado* de *guidance* dentro de 2026 (R4) e métricas
   ainda não ingeridas (R6) caem hoje no Estágio 2 (gate), não numa regra dedicada.
 - **Fronteira de futuro declarada à mão:** `ANO_COBERTURA_MAX=2026` é uma constante do config que

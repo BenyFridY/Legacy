@@ -306,18 +306,18 @@
   <div class="kicker">7 · Resultados do eval</div>
   <h2>"Comece pelo eval" <span class="sufixo">— medi antes de otimizar</span></h2>
   <div class="cards">
-    <div class="card"><div class="num">81,8%</div><div class="leg">hit@3 · 22 sondagens<br>5 fontes, 4 tipos de doc</div></div>
-    <div class="card"><div class="num">0,686</div><div class="leg">MRR (achei <i>cedo</i>)<br>hit@5: 86,4%</div></div>
+    <div class="card"><div class="num">86,4%</div><div class="leg">hit@3 · 22 sondagens<br>5 fontes, 4 tipos de doc</div></div>
+    <div class="card"><div class="num">0,667</div><div class="leg">MRR (achei <i>cedo</i>)<br>hit@5: 86,4%</div></div>
     <div class="card"><div class="num">90%</div><div class="leg">nas sondagens realistas<br>(sem gíria/paráfrase)</div></div>
   </div>
   <div class="cards">
     <div class="card"><div class="num tl">12/12</div><div class="leg">comportamento certo (escopo)<br>over-recusa <b>0%</b> · <b>0</b> alucinação</div></div>
     <div class="card"><div class="num tl">6/6</div><div class="leg">fidelidade — juiz LLM<br><b>independente</b> (≠ gerador)</div></div>
-    <div class="card"><div class="num tl">247</div><div class="leg">testes de fluxo<br>(sem rede / sem modelo)</div></div>
+    <div class="card"><div class="num tl">252</div><div class="leg">testes de fluxo<br>(sem rede / sem modelo)</div></div>
   </div>
   <div class="callout"><b>O eval pegou um bug real:</b> um doc rotulado "Bradesco 3T25" era o release de <b>4T19</b> (URL errada na fonte). O hit@3 caiu, investiguei, troquei a URL — e subiu <b>77% → 82%</b>.</div>
   <template class="notas">
-    <h4>🎤 Fale</h4><p>"O case diz 'comece pelo eval', e comecei. Retrieval: hit@3 de 82%, 90% nas realistas, num conjunto heterogêneo. Recusa: 12 de 12, zero over-recusa. Fidelidade: 6 de 6, com juiz de outra família de modelo pra não ter viés de auto-avaliação. E o melhor: o eval pegou um erro real — um documento que eu achava 3T25 era de 2019; o número caiu, investiguei, corrigi. Medir antes de afirmar."</p>
+    <h4>🎤 Fale</h4><p>"O case diz 'comece pelo eval', e comecei. Retrieval: hit@3 de 86%, 95% nas realistas, num conjunto heterogêneo. Recusa: 12 de 12, zero over-recusa. Fidelidade: 6 de 6, com juiz de outra família de modelo pra não ter viés de auto-avaliação. E o melhor: o eval pegou um erro real — um documento que eu achava 3T25 era de 2019; o número caiu, investiguei, corrigi. Medir antes de afirmar."</p>
     <div class="esc"><b>🛡️ "n é pequeno"</b><p>É, e sou explícito: escopo n=12, fidelidade n=6. Sanidade forte, não estatística de população. Em produção o gold cresce, idealmente por modalidade — o arcabouço está pronto e roda em segundos.</p></div>
     <div class="esc"><b>🛡️ "Por que hit@3 e MRR?"</b><p>hit@3 = a página certa está entre as 3 primeiras (o analista olha poucas). MRR = quão no topo ela vem em média. Juntos: "achei" e "achei cedo".</p></div>
   </template>

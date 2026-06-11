@@ -188,14 +188,15 @@ Medido: **over-recusa 0%**.
 **Medi antes de otimizar.** Tudo reproduzível por script (`docs/resultados-eval.md`).
 
 **Retrieval** (BGE-M3 + reranker reais; gold por **página**, curado por busca lexical + leitura → *anti-circular*):
-- **hit@3 81,8%** · **MRR 0,686** · **hit@5 86,4%** — em **22 sondagens**, **5 fontes, 4 tipos** de doc
+- **hit@3 86,4%** · **MRR 0,667** · **hit@5 86,4%** — em **22 sondagens**, **5 fontes, 4 tipos** de doc
+  *(re-medido em 10/06 após o chunking ciente de tabela: hit@3 subiu de 81,8%; realistas 90% → 95%)*
 - **90%** nas sondagens *realistas* (sem gíria/paráfrase, que falham de propósito)
 
 **Recusa por escopo** (determinístico): **12/12** comportamento certo · **over-recusa 0%** · **0 alucinação**
 
 **Fidelidade** (faithfulness, juiz LLM **independente** — gpt-oss-120b ≠ gerador): **6/6** sustentadas
 
-**Gate** calibrado: **0,60** é o joelho medido (0% vazamento, 0% over-recusa). **247 testes** de fluxo (sem rede/modelo).
+**Gate** calibrado: **0,60** é o joelho medido (0% vazamento, 0% over-recusa). **252 testes** de fluxo (sem rede/modelo).
 
 > **O eval pegou um bug real:** um documento rotulado "Bradesco 3T25" era, na verdade, o release de
 > **4T19** (URL errada na fonte). O hit@3 caiu, investiguei, troquei a URL — e subiu **77% → 82%**.
@@ -247,9 +248,12 @@ reais. **Duvidar do próprio código** achou o que os testes não pegavam.
 **Onde o sistema quebra (assumido, não escondido):**
 - gíria extrema (*"calote"*) e paráfrase sem palavra em comum → *fix:* expansão de query;
 - **transcrição** perde pro **release** formal no mesmo tema (achado real de corpus heterogêneo);
-- número numa **célula de tabela** perde contexto ao chunkar → é *por isso* que número vai pelo SQL.
+- número numa **célula de tabela** perdia contexto ao chunkar → **corrigido em 10/06** (*chunking
+  ciente de tabela*: a continuação re-prefixa o cabeçalho de colunas mais próximo da página — a
+  regra do Excel de repetir a linha de título). Resíduo honesto: detecção heurística; e o share
+  *computado* segue no **SQL por princípio**, não por contorno.
 
-> 🎤 **Fale:** "Cada escolha minha trocou **flexibilidade/potência crua** por **reprodutibilidade e correção** — que é o trade-off certo em finanças, onde **errar um número ou inventar uma fonte custa a confiança do analista**. E sou honesto sobre onde quebra: gíria extrema, transcrição vs. release, número em tabela."
+> 🎤 **Fale:** "Cada escolha minha trocou **flexibilidade/potência crua** por **reprodutibilidade e correção** — que é o trade-off certo em finanças, onde **errar um número ou inventar uma fonte custa a confiança do analista**. E sou honesto sobre onde quebra: gíria extrema, transcrição vs. release. A terceira fraqueza — número em célula de tabela — eu **encontrei pelo eval, nomeei o fix no README e implementei**: o overlap assume semântica de prosa, mas numa tabela o contexto é a linha de cabeçalho; hoje a continuação re-prefixa o cabeçalho, como o Excel repete o título em cada página."
 >
 > 🛡️ **Se perguntarem "não é conservador demais?":** "Para uma fundação de research, sim, de propósito. A flexibilidade entra depois — a interface é trocável; dá pra ligar um reranker melhor ou um agente quando houver eval que justifique. Mas a base tem que ser confiável primeiro."
 
@@ -279,7 +283,8 @@ reais. **Duvidar do próprio código** achou o que os testes não pegavam.
 # 11 · Fecho
 
 **Com mais tempo, eu faria (em ordem de impacto):**
-1. **Chunking ciente de tabela** — pra ler o número *declarado* na célula do release (hoje vai pelo SQL).
+1. ~~**Chunking ciente de tabela**~~ — **feito (10/06):** continuação re-prefixa o cabeçalho de
+   colunas; resta robustecer a detecção (cabeçalho fundido pela extração, tabela sem rótulo de período).
 2. **Recalibrar o gate** com um gold maior, incl. gíria/paráfrase — fecha a over-recusa do caso difícil.
 3. **Expansão de query** pra gíria (*"calote"* → *"inadimplência"*) — o limite mais visível do retrieval.
 4. **Benchmark do HNSW in-place** (DuckDB VSS) — medir o ponto em que a força-bruta deixa de bastar.
@@ -290,8 +295,8 @@ pra crescer por manifesto.
 
 > *"Separei texto de número — por isso o número está certo e o sistema recusa em vez de inventar."*
 
-> 🎤 **Fale:** "Com mais tempo, minha lista é priorizada: ler tabela no texto, recalibrar o gate pra gíria, expansão de query, e medir o HNSW. Mas o que entrego hoje é o que importa numa fundação de research: o número é exato porque vem de SQL, a fonte é sempre citada porque é anexada por código, e quando não sei, recuso com o motivo. Provei por eval e desenhei como cresce. Obrigado — e bora pras perguntas."
+> 🎤 **Fale:** "O item nº 1 da minha lista — chunking ciente de tabela — eu já risquei: implementei, testei e re-ingeri o corpus. O que resta, priorizado: recalibrar o gate pra gíria, expansão de query, e medir o HNSW. Mas o que entrego hoje é o que importa numa fundação de research: o número é exato porque vem de SQL, a fonte é sempre citada porque é anexada por código, e quando não sei, recuso com o motivo. Provei por eval e desenhei como cresce. Obrigado — e bora pras perguntas."
 >
-> 💡 **Lógica:** feche pela **tese** (a frase-âncora) e por um roadmap **priorizado** — mostra que você sabe o que falta e em que ordem. Convide perguntas com confiança.
+> 💡 **Lógica:** feche pela **tese** (a frase-âncora) e por um roadmap **priorizado** — e o item nº 1 **riscado** é a prova de que o roadmap não é decorativo: fraqueza encontrada pelo eval → fix nomeado → fix entregue.
 >
-> 🛡️ **Se perguntarem "qual o item nº 1?":** "Chunking de tabela — destrava ler o número declarado direto do release, hoje o único lugar onde dependo do SQL pra contornar."
+> 🛡️ **Se perguntarem "qual o item nº 1?":** "Era o chunking de tabela — e está feito: o overlap assume semântica de prosa (contexto = o que veio antes), mas tabela tem semântica hierárquica (contexto = a linha de cabeçalho). A continuação agora re-prefixa o cabeçalho mais próximo da página. O próximo nº 1 vira o gate recalibrado com gold maior."

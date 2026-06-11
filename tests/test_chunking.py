@@ -61,3 +61,62 @@ def test_pagina_vazia_nao_gera_ficha():
     chunks = chunkar_documento(["   \n  ", "Conteudo real aqui."],
                                banco="BB", periodo="3T24", tipo_doc="release")
     assert {c.pagina for c in chunks} == {2}   # a página 1 (vazia) não vira ficha
+
+
+# ---------------------------------------------------------------------------
+# Decisão 4 — chunking ciente de tabela (re-prefixo do cabeçalho de colunas).
+# Formato calcado no que o pypdf extrai dos releases reais (ver docstring).
+# ---------------------------------------------------------------------------
+
+CABECALHO = "R$ milhões 4T25 3T25 4T24"
+LINHAS = [f"Produto {i} 1.{i:03d} 2.{i:03d} 3.{i:03d} {i},5 {i},9" for i in range(30)]
+PAG_TABELA_DENSA = "\n".join([CABECALHO] + LINHAS)            # ~1.300 chars -> quebra em 2+
+
+
+def test_tabela_quebrada_reprefixar_cabecalho_na_continuacao():
+    chunks = chunkar_documento([PAG_TABELA_DENSA], banco="Bradesco", periodo="4T25",
+                               tipo_doc="release", alvo=600, overlap=80)
+    assert len(chunks) >= 2                                   # a tabela de fato estourou o alvo
+    for c in chunks:                                          # NENHUMA ficha fica órfã de cabeçalho
+        assert CABECALHO in c.texto
+    for c in chunks[1:]:                                      # nas continuações, ele vem RE-PREFIXADO
+        assert c.texto.startswith(CABECALHO)
+
+
+def test_cabecalho_depois_dos_dados_tambem_serve():
+    """Caso real (Bradesco 3T25 pág.41): o pypdf emite o cabeçalho DEPOIS das linhas — o
+    re-prefixo busca o mais PRÓXIMO da página, não 'o último visto antes da quebra'."""
+    pag = "\n".join(LINHAS + ["Set25 Jun25 Set24"])           # cabeçalho no FIM da página
+    chunks = chunkar_documento([pag], banco="Bradesco", periodo="3T25",
+                               tipo_doc="release", alvo=600, overlap=80)
+    assert len(chunks) >= 2
+    for c in chunks:
+        assert "Set25 Jun25 Set24" in c.texto
+
+
+def test_prosa_nao_ganha_prefixo_de_tabela():
+    """Prosa com anos e percentuais NÃO dispara o re-prefixo (frase termina em ponto)."""
+    pag = ("O lucro cresceu 12,5% em 2025, ante 10,1% em 2024. " * 12).strip()
+    chunks = chunkar_documento([pag], banco="Itau", periodo="4T25",
+                               tipo_doc="release", alvo=200, overlap=50)
+    assert len(chunks) >= 2
+    for c in chunks:                                          # toda ficha segue começando em prosa
+        assert c.texto.startswith("O lucro cresceu")
+
+
+def test_tabela_que_cabe_numa_ficha_fica_intocada():
+    pag = "\n".join([CABECALHO] + LINHAS[:3])                 # pequena: cabe numa ficha só
+    chunks = chunkar_documento([pag], banco="BB", periodo="4T25", tipo_doc="release")
+    assert len(chunks) == 1
+    assert chunks[0].texto.count(CABECALHO) == 1              # sem duplicar o cabeçalho
+
+
+def test_pagina_de_grafico_sem_cabecalho_detectavel_e_noop():
+    """Página só com sopa de rótulos de gráfico (sem cabeçalho de colunas): nada é prefixado."""
+    soup = "DezSetJunMar25Dez24\n" + "\n".join(f"{i},{i} 1.{i:03d} 2.{i:03d}" for i in range(40))
+    chunks = chunkar_documento([soup], banco="Bradesco", periodo="4T25",
+                               tipo_doc="release", alvo=300, overlap=50)
+    assert len(chunks) >= 2
+    textos = [c.texto for c in chunks]
+    juntado = " ".join(t for t in textos)
+    assert juntado.startswith("DezSetJunMar25Dez24")          # ordem original preservada, sem prefixo

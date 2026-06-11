@@ -97,19 +97,23 @@ sondagens: 22
   bradesco-consignado-3t25            media     ok  ok  ok  1.00
   bradesco-inadimplencia-transcr-3t25 media      .  ok  ok  0.50
   itau-resultado-1t26                 media     ok  ok  ok  1.00
-  itau-resultado-3t25                 media     ok  ok  ok  1.00
-  santander-consignado-4t25           media      .   .  ok  0.25
+  itau-resultado-3t25                 media      .  ok  ok  0.50
+  santander-consignado-4t25           media      .  ok  ok  0.33
   bb-guidance-custo-credito-2026      media     ok  ok  ok  1.00
   bb-inadimplencia-90d-4t25           media     ok  ok  ok  1.00
   bacen-inadimplencia-2026-01         media     ok  ok  ok  1.00
 ----------------------------------------------------------------
-  hit@1:  54.5%
-  hit@3:  81.8%
+  hit@1:  50.0%
+  hit@3:  86.4%
   hit@5:  86.4%
-  MRR  : 0.686
+  MRR  : 0.667
 ================================================================
-  Leitura: hit@3 nas sondagens realistas (sem giria/parafrase): 90%
+  Leitura: hit@3 nas sondagens realistas (sem giria/parafrase): 95%
 ```
+
+*(saída da re-medição de 10/06, noite — após o chunking ciente de tabela e o re-ingest; a saída
+da manhã, antes do fix, marcava hit@1 54,5% / hit@3 81,8% / MRR 0,686 e o
+`santander-consignado-4t25` só no hit@5 — a evolução está narrada abaixo.)*
 
 **Leitura honesta:** o eval mede a **mesma busca da produção** (pré-filtro banco+período, funde 10,
 rerank → 5). **Ampliamos o gold de 13 → 22 sondagens** para equilibrar os bancos (antes ~8 eram do Itaú)
@@ -123,6 +127,16 @@ isso o hit@3 **subiu** (76,9% → **81,8%**) num conjunto maior **e correto**, e
 também transcrição, acerta no top-3); (3) **Santander consignado** aparece só no hit@5 (a retração fica
 enterrada na análise de carteira). A fraqueza de **número-em-tabela** segue real no **Caso B3** (o share
 declarado de 14,1% vive numa célula), e é por isso que o número computado vai pelo **SQL**.
+
+**Re-medição de 10/06 (noite) — após o *chunking ciente de tabela*.** A fraqueza de número-em-tabela
+ganhou fix (a continuação de tabela quebrada re-prefixa o cabeçalho de colunas mais próximo da página;
+ver *Decisões de chunking* no README) e o corpus foi **re-ingerido** (3.650 fichas; **279 mudaram de
+texto**, 7,6% — com embedding incremental por hash, só elas pagariam o re-embed). Resultado re-medido
+nas mesmas 22 sondagens: **hit@3 81,8% → 86,4%** (o *consignado do Santander*, antes só no hit@5,
+entrou no **top-3**), **realistas 90% → 95%**; custo honesto: hit@1 54,5% → 50,0% e MRR 0,686 → 0,667
+(o cabeçalho re-prefixado adiciona tokens e desloca ranks levemente — o que alimenta o LLM é o
+top-3/top-5, que melhorou). A ficha do **14,1% do B3** (RAEF 3T25, pág. 41) agora carrega os rótulos
+de período `Set25/Jun25/Set24`.
 
 ---
 
@@ -219,7 +233,7 @@ que a re-medição não sustenta: o "vão" local é só 0,048–0,052). O 0,05 f
 (o caso que motivou o mecanismo), mas 8 fáceis/médias disparam junto. Por que isso não compromete:
 o fallback **não recusa nem descarta nada** — só decide qual ordenação confiar; nas fáceis que
 disparam, a melhor nota segue ~0,73 (o gate decide igual) e a ordem do RRF já acerta — e o **hit@3
-de 81,8% (§2) foi medido com o fallback ativo**, então o efeito já está dentro da métrica-manchete.
+do §2 (86,4% na re-medição de 10/06) foi medido com o fallback ativo**, então o efeito já está dentro da métrica-manchete.
 É um **ponto de operação com falha benigna**, não um joelho calibrado como o 0,60; produção pediria
 um critério por distribuição (ex.: razão top1/top2) em vez de desvio-padrão global.
 
